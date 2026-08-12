@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "policy": "Provider marks identify configured services and are not Token Grill branding.",
+  "retrievedAt": "2026-08-11",
+  "assets": {
+    "codexLight": {"file": "icons/providers/openai-blossom-light.svg", "source": "OpenAI brand reference", "sourceUrl": "https://openai.com/brand/", "sha256": "5178a3861f223da66bf9b4c1ce1be2cf6f64e3cfda8a04aa3bb6404425eb8ea4"},
+    "codexDark": {"file": "icons/providers/openai-blossom-dark.svg", "source": "OpenAI brand reference", "sourceUrl": "https://openai.com/brand/", "sha256": "f13c28b21c1e9bb1e7af7e1a3e0e93dc7e2b700d8e20c91379adb99d48a97ce6"},
+    "claudeLight": {"file": "icons/providers/claude-mark-light.svg", "source": "Anthropic brand reference", "sourceUrl": "https://brandfolder.com/anthropic/", "sha256": "575a0af5b82b5868179e5eabd3ec8f6443b554a5c99fdd532bfa94d7e4eeb847"},
+    "claudeDark": {"file": "icons/providers/claude-mark-dark.svg", "source": "Anthropic brand reference", "sourceUrl": "https://brandfolder.com/anthropic/", "sha256": "1e53ff96c164a26847b0c839ea25ca299158695ff4bed026ed49c834ddd97d3e"},
+    "kiro": {"file": "icons/providers/kiro-icon.png", "source": "Official Kiro GitHub assets", "sourceUrl": "https://github.com/kirodotdev/Kiro/blob/main/assets/kiro-icon.png", "retrievedAt": "2026-08-11", "sourceSha256": "dabfd74376ac150c86875271de07784bdd3c8d201807816a4d74d2b748d617a3", "sha256": "29d65084266feea60748bc8b8b0acac9d5538585c9d05395c32574ef8cea5e57", "width": 256, "height": 256}
+  }
+}

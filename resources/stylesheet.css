@@ -1,0 +1,118 @@
+.tokengrill-panel-box { spacing: 6px; }
+.tokengrill-panel-display { spacing: 5px; padding: 0 2px; min-height: 20px; }
+.tokengrill-provider-mark { min-width: 20px; min-height: 20px; max-width: 20px; max-height: 20px; }
+.tokengrill-panel-value { font-weight: 700; font-feature-settings: "tnum"; }
+.tokengrill-panel-muted { color: rgba(255, 255, 255, 0.75); }
+.tokengrill-panel-error { color: #ff6b6b; font-weight: 800; }
+.tokengrill-panel-stale { color: rgba(255, 255, 255, 0.52); font-weight: 800; }
+.popup-menu-content.tokengrill-menu,
+.tokengrill-menu {
+    padding: 0;
+    margin: 0;
+    background-color: #0d0d0d;
+    border: 0;
+    box-shadow: none;
+    border-radius: 16px;
+}
+.tokengrill-boxpointer {
+    -arrow-border-radius: 18px;
+    -arrow-background-color: #0d0d0d;
+    -arrow-border-color: transparent;
+    -arrow-border-width: 0;
+    border-radius: 18px;
+}
+.tokengrill-popover-item { padding: 0; margin: 0; background-color: #0d0d0d; border: 0; border-radius: 18px; }
+.tokengrill-popover { width: 448px; padding: 10px 16px 12px; spacing: 8px; background-color: #0d0d0d; border-radius: 18px; }
+.tokengrill-tab-scroll { height: 38px; padding: 0; }
+.tokengrill-tab-scroll StScrollBar { min-height: 0; max-height: 0; height: 0; opacity: 0; }
+.tokengrill-tabs { spacing: 4px; padding: 3px 0; }
+.tokengrill-tab { min-height: 30px; padding: 0 8px; border-radius: 8px; background-color: transparent; border: 1px solid transparent; color: #a9a49c; }
+.tokengrill-tab:hover { background-color: #181818; border-color: #302f2c; color: #f2efe9; }
+.tokengrill-tab:focus { background-color: #181818; border-color: #e89a2c; color: #f2efe9; }
+.tokengrill-tab-selected,
+.tokengrill-tab-selected:hover,
+.tokengrill-tab-selected:focus { background-color: #20201f; border-color: #4a4741; color: #ffffff; box-shadow: none; }
+.tokengrill-tab-content { spacing: 4px; }
+.tokengrill-tab-label { font-size: 0.82em; font-weight: 600; }
+.tokengrill-tab-marker { min-width: 6px; min-height: 6px; max-width: 6px; max-height: 6px; border-radius: 3px; }
+.tokengrill-provider-pane { spacing: 8px; }
+.tokengrill-pane-header { spacing: 8px; padding: 2px 0; min-height: 48px; }
+.tokengrill-logo-badge { width: 40px; height: 40px; border-radius: 11px; background-color: #1b1b1b; border: 1px solid #302d29; padding: 0; }
+.tokengrill-pane-identity { spacing: 2px; }
+.tokengrill-pane-title { font-size: 1.12em; font-weight: 700; }
+.tokengrill-secondary { color: rgba(255, 255, 255, 0.62); font-size: 0.86em; }
+.tokengrill-refresh-status { color: #8e8981; font-size: 0.72em; font-feature-settings: "tnum"; }
+.tokengrill-status-pill { padding: 3px 7px; border-radius: 999px; font-size: 0.7em; font-weight: 800; }
+.tokengrill-status-ready { color: #57e389; background-color: rgba(87, 227, 137, 0.13); }
+.tokengrill-status-local { color: #62a0ea; background-color: rgba(98, 160, 234, 0.13); }
+.tokengrill-status-stale, .tokengrill-status-unknown { color: #f8e45c; background-color: rgba(248, 228, 92, 0.13); }
+.tokengrill-status-error { color: #ff6b6b; background-color: rgba(255, 107, 107, 0.13); }
+.tokengrill-icon-button { min-width: 30px; min-height: 30px; border-radius: 8px; }
+.tokengrill-icon-button:hover, .tokengrill-icon-button:focus { background-color: rgba(255, 255, 255, 0.12); }
+.tokengrill-refresh-all-button { min-width: 72px; min-height: 30px; padding: 0 9px; border-radius: 8px; }
+.tokengrill-refresh-all-button:hover, .tokengrill-refresh-all-button:focus { background-color: #232323; box-shadow: inset 0 0 0 1px #46413a; }
+.tokengrill-button-label { font-size: 0.78em; font-weight: 600; }
+.tokengrill-button-content { spacing: 5px; }
+.tokengrill-summary { padding: 14px; border-radius: 14px; background-color: rgba(243, 168, 54, 0.11); border: 1px solid rgba(243, 168, 54, 0.23); }
+.tokengrill-summary-value { font-size: 1.9em; font-weight: 800; font-feature-settings: "tnum"; }
+.tokengrill-summary-caption, .tokengrill-summary-reset { color: rgba(255, 255, 255, 0.68); font-size: 0.82em; }
+.tokengrill-summary-reset { text-align: right; }
+.tokengrill-window-grid { spacing: 7px; }
+.tokengrill-window-card { spacing: 7px; padding: 11px; border-radius: 11px; background-color: #1b1b1b; min-width: 0; }
+.tokengrill-window-card:hover, .tokengrill-window-card:focus { background-color: #232323; box-shadow: inset 0 0 0 1px #46413a; }
+.tokengrill-window-selected { background-color: rgba(243, 168, 54, 0.12); box-shadow: inset 0 0 0 1px rgba(243, 168, 54, 0.24); }
+.tokengrill-window-title { font-weight: 700; }
+.tokengrill-window-value { margin-left: 8px; font-feature-settings: "tnum"; }
+.tokengrill-meter { min-height: 6px; margin-top: 5px; margin-bottom: 5px; }
+.tokengrill-window-selected-label { color: #e89a2c; font-size: 0.64em; font-weight: 700; }
+.tokengrill-reset-credits { min-height: 58px; padding: 10px 12px; border-radius: 11px; background-color: #171717; }
+.tokengrill-reset-credits:hover, .tokengrill-reset-credits:focus { background-color: #232323; box-shadow: inset 0 0 0 1px #46413a; }
+.tokengrill-reset-credits-content { spacing: 10px; }
+.tokengrill-reset-credits-icon { color: #e89a2c; }
+.tokengrill-reset-credits-value { font-size: 0.95em; font-weight: 700; font-feature-settings: "tnum"; }
+.tokengrill-reset-credit-details { background-color: #151515; border-radius: 0 0 11px 11px; padding: 4px 12px; }
+.tokengrill-reset-credit-row { spacing: 3px; padding: 7px 0; border-bottom: 1px solid #292724; }
+.tokengrill-reset-credit-disclaimer { color: #8e8981; font-size: 0.72em; padding: 7px 0; }
+.tokengrill-metrics { spacing: 7px; }
+.tokengrill-metric { spacing: 3px; padding: 9px; border-radius: 10px; background-color: rgba(255, 255, 255, 0.05); }
+.tokengrill-metric-label { color: rgba(255, 255, 255, 0.55); font-size: 0.67em; font-weight: 700; }
+.tokengrill-metric-value { font-weight: 700; font-feature-settings: "tnum"; }
+.tokengrill-error-row { spacing: 7px; padding: 10px; border-radius: 10px; background-color: rgba(255, 107, 107, 0.12); }
+.tokengrill-error-text { color: #ffb4ab; }
+.tokengrill-empty-popover { spacing: 8px; padding: 24px 16px; }
+.tokengrill-empty-icon { color: #f3a836; }
+.tokengrill-empty-title { font-weight: 700; font-size: 1.1em; }
+.tokengrill-popover-footer { spacing: 8px; padding: 8px 0 0; }
+.tokengrill-footer-button {
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 9px;
+    background-color: #171717;
+    border: 1px solid #2c2a27;
+    color: #f2efe9;
+}
+.tokengrill-footer-button:hover,
+.tokengrill-footer-button:focus,
+.tokengrill-footer-button.tokengrill-hover {
+    background-color: #232323;
+    border-color: #46413a;
+    box-shadow: inset 0 0 0 1px rgba(232, 154, 44, 0.45);
+}
+.tokengrill-footer-primary { color: #f6b84d; border-color: rgba(232, 154, 44, 0.52); }
+.tokengrill-footer-primary:hover,
+.tokengrill-footer-primary:focus,
+.tokengrill-footer-primary.tokengrill-hover { background-color: rgba(232, 154, 44, 0.13); border-color: #e89a2c; }
+.tokengrill-footer-brand { color: rgba(255, 255, 255, 0.48); font-size: 0.78em; font-weight: 700; }
+.tokengrill-link-button { color: #f3a836; }
+.tokengrill-pressure-warning { color: #f8e45c; }
+.tokengrill-pressure-critical { color: #ff6b6b; }
+.tokengrill-panel-ring, .tokengrill-panel-bar { spacing: 5px; }
+.tokengrill-account-dot { border-radius: 3px; border: 0; }
+.tokengrill-accent-blue { background-color: #62a0ea; }
+.tokengrill-accent-cyan { background-color: #5bc0eb; }
+.tokengrill-accent-green { background-color: #57e389; }
+.tokengrill-accent-amber { background-color: #f8e45c; }
+.tokengrill-accent-orange { background-color: #ff9b42; }
+.tokengrill-accent-red { background-color: #ff6b6b; }
+.tokengrill-accent-purple { background-color: #c7a0ff; }
+.tokengrill-accent-pink { background-color: #f28cb1; }

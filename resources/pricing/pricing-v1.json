@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-08-12",
+  "sources": {
+    "openai": "https://openai.com/api/pricing/",
+    "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing"
+  },
+  "models": {
+    "gpt-5.6": { "input": 5, "output": 30, "cachedInput": 0.5, "cacheWrite": 6.25 },
+    "gpt-5.6-sol": { "input": 5, "output": 30, "cachedInput": 0.5, "cacheWrite": 6.25 },
+    "claude-sonnet-4-5": { "input": 3, "output": 15, "cachedInput": 0.3, "cacheWrite": 3.75 },
+    "claude-opus-4-6": { "input": 5, "output": 25, "cachedInput": 0.5, "cacheWrite": 6.25 }
+  }
+}

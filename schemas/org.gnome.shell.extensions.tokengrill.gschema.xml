@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.tokengrill" path="/org/gnome/shell/extensions/tokengrill/">
+    <key name="provider-instances-json" type="s">
+      <default>'[]'</default>
+      <summary>Configured provider accounts</summary>
+      <description>Versioned JSON definitions for Codex, Claude, and Kiro account instances.</description>
+    </key>
+    <key name="configuration-version" type="u">
+      <default>1</default>
+      <summary>Configuration schema version</summary>
+    </key>
+    <key name="refresh-interval-seconds" type="u">
+      <default>300</default>
+      <summary>Live usage refresh interval</summary>
+    </key>
+    <key name="notifications-enabled" type="b">
+      <default>true</default>
+      <summary>Enable usage notifications</summary>
+    </key>
+    <key name="notification-step-percent" type="u">
+      <range min="5" max="50"/>
+      <default>10</default>
+      <summary>Usage notification step percentage</summary>
+      <description>Notify once when each account window crosses another configured percentage step.</description>
+    </key>
+    <key name="pause-when-session-locked" type="b">
+      <default>true</default>
+      <summary>Pause collection while the session is locked</summary>
+    </key>
+    <key name="active-provider-id" type="s">
+      <default>''</default>
+      <summary>Active provider account</summary>
+    </key>
+    <key name="panel-percentage-mode" type="s">
+      <default>'remaining'</default>
+      <summary>Panel percentage mode</summary>
+      <description>Show remaining or consumed percentage.</description>
+    </key>
+    <key name="panel-display-style" type="s">
+      <default>'text'</default>
+      <summary>Panel display style</summary>
+      <description>Show text, ring, or bar usage in the top panel.</description>
+    </key>
+  </schema>
+</schemalist>
