@@ -1,6 +1,6 @@
 {
   "name": "token-grill",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A lightweight multi-account AI usage indicator for GNOME Shell.",
   "type": "module",
@@ -10,10 +10,12 @@
     "test": "node tools/test-build.mjs && node --test tests/unit/*.test.mjs",
     "test:kiro-gda": "gjs -m tools/kiro-gda-readonly-test.js",
     "test:kiro-live": "gjs -m tools/kiro-live-smoke.js",
+    "test:antigravity-live": "gjs -m tools/antigravity-live-smoke.js",
     "install:local": "node tools/install.mjs",
     "dev:shell": "bash tools/nested-shell.sh",
     "pack": "node tools/pack.mjs",
-    "release:check": "node tools/release-check.mjs"
+    "release:check": "node tools/release-check.mjs",
+    "review:check": "npm run pack && node tools/shexli-check.mjs"
   },
   "devDependencies": {
     "@girs/gjs": "^4.0.0",

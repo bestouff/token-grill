@@ -27,7 +27,6 @@ for (const file of new Set(Object.values(providerAssets.assets).map(asset => ass
 }
 await mkdir(path.join(dist, 'schemas'), {recursive: true});
 await cp(path.join(root, 'schemas', 'org.gnome.shell.extensions.tokengrill.gschema.xml'), path.join(dist, 'schemas', 'org.gnome.shell.extensions.tokengrill.gschema.xml'));
-execFileSync('glib-compile-schemas', [path.join(dist, 'schemas')], {stdio: 'inherit'});
 const files = [];
 const walk = async directory => {
     for (const entry of await (await import('node:fs/promises')).readdir(directory, {withFileTypes: true})) {

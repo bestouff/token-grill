@@ -1,6 +1,7 @@
 import type {AggregateBucket, TokenTotals, UsageEvent} from '../core/types.js';
 import {EMPTY_TOTALS} from '../core/types.js';
-import {dataPath, readJsonSync, writeJsonAtomic} from './atomicJson.js';
+import Gio from 'gi://Gio';
+import {dataPath, readJson, writeJsonAtomic} from './atomicJson.js';
 import {costFor} from '../pricing/calculator.js';
 import type {PricingCatalog} from '../pricing/catalog.js';
 
@@ -19,8 +20,13 @@ function addTotals(a: TokenTotals, b: TokenTotals): TokenTotals {
 
 export class AggregateStore {
     private readonly path = dataPath('history-v1.json');
-    private readonly data: AggregateFile = readJsonSync<AggregateFile>(this.path, {schemaVersion: 1, buckets: []});
+    private data: AggregateFile = {schemaVersion: 1, buckets: []};
     private dirty = false;
+    private writeChain: Promise<void> = Promise.resolve();
+
+    async initialize(cancellable: Gio.Cancellable | null = null): Promise<void> {
+        this.data = await readJson<AggregateFile>(this.path, {schemaVersion: 1, buckets: []}, cancellable);
+    }
 
     add(event: UsageEvent): void {
         const date = new Date(event.capturedAt).toISOString().slice(0, 10);
@@ -72,8 +78,11 @@ export class AggregateStore {
     }
 
     async flush(): Promise<void> {
-        if (!this.dirty) return;
-        this.dirty = false;
-        await writeJsonAtomic(this.path, this.data);
+        if (this.dirty) {
+            this.dirty = false;
+            const snapshot = JSON.parse(JSON.stringify(this.data)) as AggregateFile;
+            this.writeChain = this.writeChain.then(() => writeJsonAtomic(this.path, snapshot)).catch(() => {});
+        }
+        await this.writeChain;
     }
 }

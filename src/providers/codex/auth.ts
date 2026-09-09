@@ -3,19 +3,21 @@ import GLib from 'gi://GLib';
 import {CollectorError} from '../../core/errors.js';
 import {providerPaths} from '../../core/paths.js';
 import type {ProviderInstance} from '../../core/types.js';
+import {isCancellation} from '../../storage/atomicJson.js';
 
 Gio._promisify(Gio.File.prototype, 'load_contents_async', 'load_contents_finish');
+Gio._promisify(Gio.File.prototype, 'query_info_async', 'query_info_finish');
 
 export interface CodexAuth {accessToken: string; accountId: string | null; path: string}
 
-export async function loadCodexAuth(instance: ProviderInstance): Promise<CodexAuth> {
+export async function loadCodexAuth(instance: ProviderInstance, cancellable: Gio.Cancellable | null = null): Promise<CodexAuth> {
     const path = providerPaths(instance).authFile;
     try {
         const file = Gio.File.new_for_path(path);
-        const info = file.query_info('standard::type,standard::size', Gio.FileQueryInfoFlags.NONE, null);
+        const info = await file.query_info_async('standard::type,standard::size', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable);
         if (info.get_file_type() !== Gio.FileType.REGULAR) throw new CollectorError('Codex authentication file is not a regular file.', 'auth-invalid');
         if (info.get_size() > 1024 * 1024) throw new CollectorError('Codex authentication file is unexpectedly large.', 'auth-invalid');
-        const [bytes] = await file.load_contents_async(null);
+        const [bytes] = await file.load_contents_async(cancellable);
         const payload = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
         const tokens = payload.tokens as Record<string, unknown> | undefined;
         const accessToken = typeof tokens?.access_token === 'string' ? tokens.access_token.replace(/^Bearer\s+/i, '').trim() : '';
@@ -24,6 +26,7 @@ export async function loadCodexAuth(instance: ProviderInstance): Promise<CodexAu
         if (expiresAt !== null && expiresAt * 1000 <= Date.now()) throw new CollectorError('Codex authentication has expired. Run Codex login.', 'auth-expired');
         return {accessToken, accountId: typeof tokens?.account_id === 'string' ? tokens.account_id : null, path};
     } catch (error) {
+        if (isCancellation(error)) throw error;
         if (error instanceof CollectorError) throw error;
         throw new CollectorError(`Codex authentication was not found at ${path}.`, 'auth-missing');
     }

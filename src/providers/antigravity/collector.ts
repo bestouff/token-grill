@@ -1,10 +1,10 @@
 import type {ProviderInstance, ProviderSnapshot} from '../../core/types.js';
 import {emptySnapshot} from '../../core/types.js';
 import {BaseCollector, type CollectorContext} from '../base.js';
-import {KiroUsageCollector} from './usageApi.js';
+import {AntigravityUsageCollector} from './usageApi.js';
 
-export class KiroCollector extends BaseCollector {
-    private readonly live = new KiroUsageCollector();
+export class AntigravityCollector extends BaseCollector {
+    private readonly live = new AntigravityUsageCollector();
 
     async collect(instance: ProviderInstance, context: CollectorContext, previous: ProviderSnapshot | null): Promise<ProviderSnapshot> {
         if (!instance.liveUsageEnabled) return previous || emptySnapshot(instance.id);
@@ -13,5 +13,7 @@ export class KiroCollector extends BaseCollector {
         return snapshot;
     }
 
-    destroy(): void { this.live.destroy(); }
+    destroy(): void {
+        this.live.destroy?.();
+    }
 }

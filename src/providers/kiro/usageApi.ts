@@ -4,6 +4,7 @@ import {BaseCollector, type CollectorContext} from '../base.js';
 import {isKiroTokenFresh, loadKiroAuth, type KiroAuth} from './auth.js';
 import {kiroOidcEndpoint, kiroUsageUrl} from './endpoints.js';
 import {normalizeKiroUsage} from './normalize.js';
+import {isCancellation} from '../../storage/atomicJson.js';
 
 function text(value: unknown): string | null {
     return typeof value === 'string' && value ? value : null;
@@ -30,6 +31,7 @@ export class KiroUsageCollector extends BaseCollector {
                 refreshToken: auth.refreshToken,
             });
         } catch (error) {
+            if (isCancellation(error)) throw error;
             if (error instanceof CollectorError && ['offline', 'timeout', 'rate-limit'].includes(error.code)) throw error;
             throw new CollectorError('Kiro authentication could not be refreshed. Run kiro-cli login.', 'auth-expired');
         }
@@ -69,4 +71,6 @@ export class KiroUsageCollector extends BaseCollector {
             return this.failed(instance, previous, error);
         }
     }
+
+    destroy(): void { this.cachedAuth.clear(); }
 }

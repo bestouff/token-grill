@@ -42,6 +42,16 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultQuotaWindow: 'monthly',
         localHistorySupported: false,
     },
+    antigravity: {
+        label: 'Antigravity',
+        defaultAccountHome: '~/.antigravity',
+        defaultAccent: 'cyan',
+        iconFile: 'antigravity-mark-light.svg',
+        darkIconFile: 'antigravity-mark-dark.svg',
+        quotaWindows: ['five-hour', 'weekly'],
+        defaultQuotaWindow: 'automatic',
+        localHistorySupported: false,
+    },
 };
 
 export function providerMetadata(kind: ProviderKind): ProviderMetadata {

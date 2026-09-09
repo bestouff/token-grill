@@ -12,11 +12,16 @@ for (const [source, name] of [
     ['src/providers/kiro/normalize.ts', 'kiro-normalize.mjs'],
     ['src/providers/kiro/endpoints.ts', 'kiro-endpoints.mjs'],
     ['src/providers/kiro/authRecords.ts', 'kiro-auth-records.mjs'],
+    ['src/providers/antigravity/normalize.ts', 'antigravity-normalize.mjs'],
+    ['src/providers/antigravity/endpoints.ts', 'antigravity-endpoints.mjs'],
     ['src/core/providerMetadata.ts', 'provider-metadata.mjs'],
     ['src/core/providerValidation.ts', 'provider-validation.mjs'],
     ['src/providers/codex/resetCreditsNormalize.ts', 'reset-credits-normalize.mjs'],
     ['src/core/timeMath.ts', 'time-math.mjs'],
     ['src/core/notificationPolicy.ts', 'notification-policy.mjs'],
+    ['src/core/accent.ts', 'accent.mjs'],
+    ['src/core/providerOrder.ts', 'provider-order.mjs'],
+    ['src/core/historyMetrics.ts', 'history-metrics.mjs'],
 ]) {
     execFileSync(path.join(root, 'node_modules', '.bin', 'esbuild'), [source, '--bundle', '--format=esm', '--platform=node', `--outfile=${path.join(out, name)}`], {cwd: root, stdio: 'inherit'});
 }

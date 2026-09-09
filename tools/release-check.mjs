@@ -1,5 +1,6 @@
 import {readFile, readdir, stat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -82,10 +83,20 @@ try {
     for (const required of ['metadata.json', 'extension.js', 'prefs.js', 'LICENSE', 'NOTICE.md', 'schemas/org.gnome.shell.extensions.tokengrill.gschema.xml'])
         if (!packaged.includes(required)) errors.push(`Required release file is missing: ${required}`);
     for (const file of packaged) if (/\.map$|node_modules|\.ts$|tests?\//.test(file)) errors.push(`Development-only file is packaged: ${file}`);
+    if (packaged.includes('schemas/gschemas.compiled')) errors.push('Compiled settings schemas must not be present in dist/.');
     const packagedMetadata = JSON.parse(await readFile(path.join(dist, 'metadata.json'), 'utf8'));
     if (packagedMetadata.uuid !== metadata.uuid) errors.push('Packaged metadata UUID differs from source metadata.');
 } catch {
     errors.push('Build the extension before running release validation.');
+}
+
+const releaseZip = path.join(root, 'build', 'releases', `${metadata.uuid}.shell-extension.zip`);
+try {
+    await stat(releaseZip);
+    const entries = execFileSync('unzip', ['-Z1', releaseZip], {encoding: 'utf8'}).split('\n').filter(Boolean);
+    if (entries.includes('schemas/gschemas.compiled')) errors.push('Compiled settings schemas must not be present in the release ZIP.');
+} catch (error) {
+    if (error?.code !== 'ENOENT') errors.push(`Could not inspect the existing release ZIP: ${error.message}`);
 }
 
 if (errors.length) {

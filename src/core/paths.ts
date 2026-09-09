@@ -21,12 +21,19 @@ export function displayPath(value: string): string {
 export function providerPaths(instance: ProviderInstance): ProviderPaths {
     const home = expandPath(instance.accountHome);
     const authFile = instance.authFileOverride ? expandPath(instance.authFileOverride) :
+        instance.kind === 'antigravity' ?
+            (pathExists(GLib.build_filenamev([home, 'acp_token.json'])) ? GLib.build_filenamev([home, 'acp_token.json']) :
+             pathExists(GLib.build_filenamev([home, 'oauth_creds.json'])) ? GLib.build_filenamev([home, 'oauth_creds.json']) :
+             pathExists(GLib.build_filenamev([home, 'credentials.json'])) ? GLib.build_filenamev([home, 'credentials.json']) :
+             GLib.build_filenamev([home, 'acp_token.json'])) :
         GLib.build_filenamev([home, instance.kind === 'codex' ? 'auth.json' : instance.kind === 'claude' ? '.credentials.json' : 'data.sqlite3']);
     const sessionsDirectory = instance.sessionsDirectoryOverride ? expandPath(instance.sessionsDirectoryOverride) :
         instance.kind === 'kiro' ? GLib.build_filenamev([GLib.get_home_dir(), '.kiro', 'sessions']) :
+        instance.kind === 'antigravity' ? GLib.build_filenamev([home, 'conversations']) :
             GLib.build_filenamev([home, instance.kind === 'codex' ? 'sessions' : 'projects']);
-    const archivedSessionsDirectory = instance.kind === 'kiro' ? sessionsDirectory : GLib.build_filenamev([home, 'archived_sessions']);
+    const archivedSessionsDirectory = (instance.kind === 'kiro' || instance.kind === 'antigravity') ? sessionsDirectory : GLib.build_filenamev([home, 'archived_sessions']);
     const configFile = instance.kind === 'kiro' ? GLib.build_filenamev([GLib.get_home_dir(), '.kiro', 'settings', 'cli.json']) :
+        instance.kind === 'antigravity' ? GLib.build_filenamev([home, 'settings.json']) :
         GLib.build_filenamev([home, instance.kind === 'codex' ? 'config.toml' : 'config.json']);
     return {authFile, sessionsDirectory, archivedSessionsDirectory, configFile};
 }
@@ -46,5 +53,12 @@ export function isDirectory(path: string): boolean {
 
 export function defaultHome(kind: ProviderKind): string {
     if (kind === 'kiro') return GLib.build_filenamev([GLib.get_user_data_dir(), 'kiro-cli']);
+    if (kind === 'antigravity') {
+        const geminiAntigravity = GLib.build_filenamev([GLib.get_home_dir(), '.gemini', 'antigravity']);
+        if (pathExists(geminiAntigravity)) return geminiAntigravity;
+        const dotAntigravity = GLib.build_filenamev([GLib.get_home_dir(), '.antigravity']);
+        if (pathExists(dotAntigravity)) return dotAntigravity;
+        return GLib.build_filenamev([GLib.get_home_dir(), '.antigravity']);
+    }
     return GLib.build_filenamev([GLib.get_home_dir(), kind === 'codex' ? '.codex' : '.claude']);
 }

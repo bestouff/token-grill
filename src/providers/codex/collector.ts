@@ -17,7 +17,8 @@ export class CodexCollector extends BaseCollector {
                 const credits = await collectCodexResetCredits(instance, context, snapshot);
                 snapshot = {...snapshot, resetCredits: credits, resetCreditsFetchedAt: credits?.fetchedAt ?? snapshot.resetCreditsFetchedAt};
                 context.onSourceResult?.('reset-credits', 'success');
-            } catch {
+            } catch (error) {
+                if (context.cancellable.is_cancelled()) throw error;
                 context.onSourceResult?.('reset-credits', 'failed');
                 // Reset credits are an optional capability; quota data remains valid.
             }
@@ -25,11 +26,12 @@ export class CodexCollector extends BaseCollector {
         if (instance.localHistoryEnabled) {
             try {
                 context.onSourcePhase?.('history');
-                const indexed = await scanCodexHistory(instance, context.aggregates, context.checkpoints);
+                const indexed = await scanCodexHistory(instance, context.aggregates, context.checkpoints, context.cancellable);
                 await context.aggregates.flush();
+                await context.checkpoints.flush();
                 const today = new Date(); today.setUTCHours(0, 0, 0, 0);
                 const monthStart = Date.now() - 30 * 86400000;
-                snapshot = {...snapshot, indexedFiles: indexed.files, indexedBytes: indexed.bytes, totals: context.aggregates.totals(instance.id), todayTotals: context.aggregates.today(instance.id), monthTotals: context.aggregates.totals(instance.id, monthStart), todayCost: context.aggregates.cost(instance.id, today.getTime(), context.catalog), monthCost: context.aggregates.cost(instance.id, monthStart, context.catalog)};
+                snapshot = {...snapshot, indexedFiles: indexed.files, indexedBytes: indexed.bytes, totals: context.aggregates.totals(instance.id), todayTotals: context.aggregates.today(instance.id), monthTotals: context.aggregates.totals(instance.id, monthStart), todayCost: context.aggregates.cost(instance.id, today.getTime(), context.catalog), monthCost: context.aggregates.cost(instance.id, monthStart, context.catalog), localHistoryUpdatedAt: Date.now()};
                 context.onSourceResult?.('history', 'success');
             } catch (error) { context.onSourceResult?.('history', 'failed'); snapshot = this.failed(instance, snapshot, error); }
         }

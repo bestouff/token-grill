@@ -6,6 +6,7 @@ import St from 'gi://St';
 import {resolveQuotaSelection, displayLabel, pressureClass} from '../core/display.js';
 import {formatResetCountdown} from '../core/timeMath.js';
 import {providerMetadata} from '../core/providerMetadata.js';
+import {historyMetrics} from '../core/historyMetrics.js';
 import type {ProviderInstance, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from '../core/types.js';
 import {formatReset, iconFor} from './accountChip.js';
 import {makeShellInteractive} from './interaction.js';
@@ -85,7 +86,7 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
         this.add_child(this._credits.root); this.add_child(this._credits.details);
 
         const metrics = new St.BoxLayout({style_class: 'tokengrill-metrics', x_expand: true});
-        this._today = this._metric('Today'); this._month = this._metric('30 days'); this._cost = this._metric('API value');
+        this._today = this._metric('Today'); this._month = this._metric('30 days'); this._cost = this._metric('API est. · 30 days');
         metrics.add_child(this._today.root); metrics.add_child(this._month.root); metrics.add_child(this._cost.root); this.add_child(metrics);
 
         this._errorRow = new St.BoxLayout({style_class: 'tokengrill-error-row', x_expand: true});
@@ -96,7 +97,8 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
     _metric(title) {
         const root = new St.BoxLayout({vertical: true, style_class: 'tokengrill-metric', x_expand: true});
         root.add_child(text(title.toUpperCase(), 'tokengrill-metric-label'));
-        const value = text('—', 'tokengrill-metric-value'); root.add_child(value); return {root, value};
+        const value = text('—', 'tokengrill-metric-value'); root.add_child(value);
+        const unit = text('', 'tokengrill-metric-unit'); root.add_child(unit); return {root, value, unit};
     }
 
     _makeWindowCard(title, canonical) {
@@ -108,9 +110,9 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
         const meter = new St.DrawingArea({height: 6, style_class: 'tokengrill-meter', x_expand: true}); content.add_child(meter);
         const reset = text('No active data', 'tokengrill-secondary'); content.add_child(reset);
         const selected = text('', 'tokengrill-window-selected-label'); content.add_child(selected);
-        const card = {root, value, meter, reset, selected, window: null, canonical};
-        root.connect('clicked', () => this._actions.selectWindow?.(this._instance, canonical));
-        meter.connect('repaint', area => drawMeter(area, card.window?.percent ?? null, pressureColor(card.window)));
+        const card = {root, value, meter, reset, selected, window: null, canonical, selectSignalId: 0, repaintSignalId: 0};
+        card.selectSignalId = root.connect('clicked', () => this._actions.selectWindow?.(this._instance, canonical));
+        card.repaintSignalId = meter.connect('repaint', area => drawMeter(area, card.window?.percent ?? null, pressureColor(card.window)));
         return card;
     }
 
@@ -123,8 +125,8 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
         labels.add_child(text('LIMIT RESET CREDITS', 'tokengrill-metric-label')); labels.add_child(value); labels.add_child(expiry); content.add_child(labels);
         const chevron = new St.Icon({icon_name: 'pan-end-symbolic', icon_size: 12, style_class: 'tokengrill-secondary'}); content.add_child(chevron); root.set_child(content);
         const details = new St.BoxLayout({vertical: true, style_class: 'tokengrill-reset-credit-details', x_expand: true}); details.hide();
-        root.connect('clicked', () => { if (!root._available) return; root._expanded = !root._expanded; details.visible = root._expanded; chevron.rotation_angle_z = root._expanded ? 90 : 0; });
-        return {root, value, expiry, details, chevron};
+        const clickSignalId = root.connect('clicked', () => { if (!root._available) return; root._expanded = !root._expanded; details.visible = root._expanded; chevron.rotation_angle_z = root._expanded ? 90 : 0; });
+        return {root, value, expiry, details, chevron, clickSignalId};
     }
 
     update(instance: ProviderInstance | null, snapshot: ProviderSnapshot | null, mode = 'remaining', runtime: ProviderRuntimeState | null = null) {
@@ -174,9 +176,11 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
         this._updateWindowCard(this._windowCards.monthly, byCanonical.get('monthly') || null, mode, instance.panelWindowPreference === 'monthly' || (instance.panelWindowPreference === 'automatic' && selected?.canonicalWindow === 'monthly'));
         for (const card of Object.values(this._windowCards)) card.root.visible = metadata.quotaWindows.includes(card.canonical);
         this._updateCredits(snapshot?.resetCredits || null);
-        this._today.value.set_text(metadata.localHistorySupported ? formatTokens(snapshot?.todayTotals?.total) : 'Unavailable');
-        this._month.value.set_text(metadata.localHistorySupported ? formatTokens(snapshot?.monthTotals?.total) : 'Unavailable');
-        this._cost.value.set_text(metadata.localHistorySupported && snapshot?.monthCost !== null && snapshot?.monthCost !== undefined ? `$${snapshot.monthCost.toFixed(2)}` : 'Unavailable');
+        const metrics = historyMetrics(instance, snapshot, runtime);
+        for (const [card, metric] of [[this._today, metrics.today], [this._month, metrics.month], [this._cost, metrics.cost]]) {
+            card.value.set_text(metric.value);
+            card.unit.set_text(metric.unit);
+        }
         if (snapshot?.error) { this._errorText.set_text(`${snapshot.error} ${snapshot.errorInfo?.recovery === 'reauthenticate' ? instance.kind === 'kiro' ? 'Run kiro-cli login.' : 'Run provider login.' : 'Retry when ready.'}`); this._errorRow.show(); } else this._errorRow.hide();
     }
 
@@ -225,6 +229,20 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
             GLib.Source.remove(this._feedbackTimer);
             this._feedbackTimer = 0;
         }
+        for (const card of Object.values(this._windowCards || {})) {
+            if (card.selectSignalId) card.root.disconnect(card.selectSignalId);
+            if (card.repaintSignalId) card.meter.disconnect(card.repaintSignalId);
+            card.selectSignalId = 0;
+            card.repaintSignalId = 0;
+        }
+        if (this._credits?.clickSignalId) this._credits.root.disconnect(this._credits.clickSignalId);
+        if (this._credits) this._credits.clickSignalId = 0;
+        this._actions = {};
+        this._instance = null;
+        this._lastSnapshot = null;
+        this._lastRuntime = null;
+        this._windowCards = null;
+        this._credits = null;
         super.destroy();
     }
 });
@@ -241,9 +259,6 @@ function ageLabel(timestamp) {
     return minutes < 1 ? 'just now' : minutes < 60 ? `${minutes}m ago` : `${Math.floor(minutes / 60)}h ago`;
 }
 
-function formatTokens(value) {
-    if (!Number.isFinite(value)) return '—'; if (value >= 1e9) return `${(value / 1e9).toFixed(1)}B`; if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`; if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`; return value.toLocaleString();
-}
 
 function quotaValueLabel(window) {
     if (!window?.unit || !Number.isFinite(window.used)) return '';

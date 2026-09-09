@@ -8,6 +8,7 @@ import {CollectorError, providerErrorInfo, safeError} from '../core/errors.js';
 import {AggregateStore} from '../storage/aggregateStore.js';
 import {CheckpointStore} from '../storage/checkpointStore.js';
 import type {PricingCatalog} from '../pricing/catalog.js';
+import {isCancellation} from '../storage/atomicJson.js';
 
 export interface CollectorContext {
     aggregates: AggregateStore;
@@ -16,18 +17,21 @@ export interface CollectorContext {
     catalog: PricingCatalog;
     getJson: (session: Soup.Session, url: string, headers: Record<string, string>) => Promise<unknown>;
     requestJson: (session: Soup.Session, method: string, url: string, headers: Record<string, string>, body?: unknown) => Promise<unknown>;
+    cancellable: Gio.Cancellable;
     onSourcePhase?: (source: 'limits' | 'reset-credits' | 'history') => void;
     onSourceResult?: (source: 'limits' | 'reset-credits' | 'history', result: 'success' | 'failed') => void;
 }
 
 export interface ProviderCollector {
     collect(instance: ProviderInstance, context: CollectorContext, previous: ProviderSnapshot | null): Promise<ProviderSnapshot>;
+    destroy?(): void;
 }
 
 export abstract class BaseCollector implements ProviderCollector {
     abstract collect(instance: ProviderInstance, context: CollectorContext, previous: ProviderSnapshot | null): Promise<ProviderSnapshot>;
 
     protected failed(instance: ProviderInstance, previous: ProviderSnapshot | null, error: unknown): ProviderSnapshot {
+        if (isCancellation(error)) throw error;
         const snapshot = previous ? {...previous} : emptySnapshot(instance.id);
         snapshot.state = snapshot.lastUpdated ? 'stale' : 'error';
         snapshot.error = safeError(error);
@@ -40,17 +44,18 @@ export abstract class BaseCollector implements ProviderCollector {
     }
 }
 
-export async function getJson(session: Soup.Session, url: string, headers: Record<string, string>): Promise<unknown> {
-    return requestJson(session, 'GET', url, headers);
+export async function getJson(session: Soup.Session, url: string, headers: Record<string, string>, cancellable: Gio.Cancellable | null = null): Promise<unknown> {
+    return requestJson(session, 'GET', url, headers, undefined, cancellable);
 }
 
-export async function requestJson(session: Soup.Session, method: string, url: string, headers: Record<string, string>, requestBody?: unknown): Promise<unknown> {
+export async function requestJson(session: Soup.Session, method: string, url: string, headers: Record<string, string>, requestBody?: unknown, parentCancellable: Gio.Cancellable | null = null): Promise<unknown> {
         if (!providerUrlAllowed(url)) throw new CollectorError('The provider request destination is not allowed.', 'http');
         const message = Soup.Message.new(method, url);
         if (!message) throw new CollectorError('Could not create the provider request.');
         message.set_flags(message.get_flags() | Soup.MessageFlags.NO_REDIRECT);
         const requestHeaders = message.get_request_headers();
         for (const [key, value] of Object.entries(headers)) requestHeaders.append(key, value);
+        if (!headers['User-Agent'] && !headers['user-agent']) requestHeaders.append('User-Agent', 'TokenGrill/0.1');
         if (requestBody !== undefined) {
             const encoded = new TextEncoder().encode(JSON.stringify(requestBody));
             message.set_request_body_from_bytes(headers['Content-Type'] || headers['content-type'] || 'application/json', new GLib.Bytes(encoded));
@@ -58,7 +63,9 @@ export async function requestJson(session: Soup.Session, method: string, url: st
         let bytes;
         let oversized = false;
         const cancellable = new Gio.Cancellable();
-        message.connect('got-headers', () => {
+        const parentCancelId = parentCancellable?.connect(() => cancellable.cancel()) || 0;
+        if (parentCancellable?.is_cancelled()) cancellable.cancel();
+        const headersId = message.connect('got-headers', () => {
             const length = message.get_response_headers().get_content_length();
             if (length > MAX_RESPONSE_BYTES) {
                 oversized = true;
@@ -68,10 +75,15 @@ export async function requestJson(session: Soup.Session, method: string, url: st
         try {
             bytes = await session.send_and_read_async(message, 0, cancellable);
         } catch (error) {
+            if (parentCancellable?.is_cancelled()) throw error;
             if (oversized) throw new CollectorError('The provider response was too large.', 'response-shape');
+            if (isCancellation(error)) throw error;
             const detail = error instanceof Error ? error.message : String(error);
             if (/timed?\s*out|timeout/i.test(detail)) throw new CollectorError('The provider request timed out.', 'timeout');
             throw new CollectorError('The provider service could not be reached.', 'offline');
+        } finally {
+            if (headersId) message.disconnect(headersId);
+            if (parentCancelId) parentCancellable?.disconnect(parentCancelId);
         }
         const bodyBytes = bytes?.toArray?.() ?? bytes?.get_data?.() ?? [];
         if (bodyBytes.length > MAX_RESPONSE_BYTES) throw new CollectorError('The provider response was too large.', 'response-shape');
@@ -91,6 +103,8 @@ const FIXED_PROVIDER_HOSTS = new Set([
     'api.anthropic.com',
     'codewhisperer.us-east-1.amazonaws.com',
     'q.eu-central-1.amazonaws.com',
+    'cloudcode-pa.googleapis.com',
+    'oauth2.googleapis.com',
 ]);
 
 export function providerUrlAllowed(url: string): boolean {

@@ -6,11 +6,9 @@ import St from 'gi://St';
 import {chooseWindow, displayLabel, displayPercent, pressureClass} from '../core/display.js';
 import {formatResetCountdown} from '../core/timeMath.js';
 import {providerIconFile} from '../core/providerMetadata.js';
+import {accentColor} from '../core/accent.js';
 
-const ACCENT_COLORS = {
-    blue: '#62a0ea', cyan: '#5bc0eb', green: '#57e389', amber: '#f8e45c',
-    orange: '#ff9b42', red: '#ff6b6b', purple: '#c7a0ff', pink: '#f28cb1',
-};
+export {accentColor};
 
 export function iconFor(instance, basePath, size = 18) {
     const file = providerIconFile(instance.kind);
@@ -46,10 +44,6 @@ export function providerMark(instance, basePath, size = 20) {
     dot.set_position(size - dotSize, size - dotSize);
     mark.add_child(dot);
     return mark;
-}
-
-export function accentColor(instance) {
-    return ACCENT_COLORS[instance.accent] || ACCENT_COLORS.blue;
 }
 
 export function createPanelDisplay(instance, snapshot, basePath, mode, style) {

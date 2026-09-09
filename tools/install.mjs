@@ -21,6 +21,7 @@ try {
     if (error?.code !== 'ENOENT') throw error;
 }
 await cp(path.join(root, 'dist', uuid), target, {recursive: true, force: true});
+execFileSync('glib-compile-schemas', [path.join(target, 'schemas')], {stdio: 'inherit'});
 console.log(`Installed extension at ${target}`);
 if (process.argv.includes('--enable')) {
     execFileSync('gnome-extensions', ['enable', uuid], {stdio: 'inherit'});

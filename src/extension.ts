@@ -8,42 +8,73 @@ import {activeProvider} from './core/display.js';
 import {Scheduler} from './core/scheduler.js';
 import {AggregateStore} from './storage/aggregateStore.js';
 import {CheckpointStore} from './storage/checkpointStore.js';
-import {collectorFor} from './providers/registry.js';
+import {CollectorRegistry} from './providers/registry.js';
 import {TokenGrillIndicator} from './shell/indicator.js';
 import {NotificationStore} from './shell/notifications.js';
-import {loadCatalog} from './pricing/catalog.js';
+import {loadCatalog, type PricingCatalog} from './pricing/catalog.js';
 import {getJson, requestJson} from './providers/base.js';
+import {isCancellation} from './storage/atomicJson.js';
 import {quotaFingerprint, snapshotFingerprint} from './core/snapshotFingerprint.js';
-import type {ProviderInstance, ProviderSnapshot, ProviderRefreshState, ProviderRuntimeState, RefreshPhase, RefreshRequestResult} from './core/types.js';
+import {parseTestNotificationRequest} from './core/notificationPolicy.js';
+import type {ProviderInstance, ProviderSnapshot, ProviderRuntimeState, RefreshPhase, RefreshRequestResult} from './core/types.js';
 
 Gio._promisify(Soup.Session.prototype, 'send_and_read_async', 'send_and_read_finish');
 
+function rejected(providerIds: string[] = []): RefreshRequestResult {
+    return {jobIds: [], acceptedProviderIds: [], coalescedProviderIds: [], rejectedProviderIds: providerIds};
+}
+
 class Runtime {
-    readonly settings;
-    readonly aggregates = new AggregateStore();
-    readonly checkpoints = new CheckpointStore();
-    readonly session = new Soup.Session({user_agent: 'TokenGrill/0.1', timeout: 30});
-    readonly notifications = new NotificationStore();
-    readonly catalog;
+    settings: Gio.Settings | null;
+    aggregates: AggregateStore | null = new AggregateStore();
+    checkpoints: CheckpointStore | null = new CheckpointStore();
+    session: Soup.Session | null = new Soup.Session({timeout: 30});
+    notifications: NotificationStore | null;
+    catalog: PricingCatalog = {};
     readonly snapshots = new Map<string, ProviderSnapshot>();
     readonly runtimeStates = new Map<string, ProviderRuntimeState>();
-    readonly scheduler: Scheduler;
+    scheduler: Scheduler | null;
+    collectors: CollectorRegistry | null = new CollectorRegistry();
+    cancellable: Gio.Cancellable | null = new Gio.Cancellable();
     providers: ProviderInstance[] = [];
     indicator: TokenGrillIndicator | null = null;
     locked = false;
     paused = false;
     private settingsId = 0;
     private suppressProviderRefresh = false;
+    private lastTestNonce = '';
 
     constructor(readonly extension: Extension) {
         this.settings = extension.getSettings();
-        this.catalog = loadCatalog(`${extension.path}/pricing-v1.json`);
+        this.notifications = new NotificationStore(extension.path);
         this.scheduler = new Scheduler(jobs => void this.collect(jobs), this.settings.get_uint('refresh-interval-seconds'));
     }
 
-    start(): void {
-        this.providers = readProviders(this.settings).sort((a, b) => a.sortOrder - b.sortOrder);
+    private isActive(cancellable: Gio.Cancellable): boolean {
+        return this.cancellable === cancellable && !cancellable.is_cancelled();
+    }
+
+    async start(): Promise<void> {
+        const cancellable = this.cancellable;
+        const aggregates = this.aggregates;
+        const checkpoints = this.checkpoints;
+        const notifications = this.notifications;
+        const settings = this.settings;
+        const scheduler = this.scheduler;
+        if (!cancellable || !aggregates || !checkpoints || !notifications || !settings || !scheduler) return;
+
+        const [, , , catalog] = await Promise.all([
+            aggregates.initialize(cancellable),
+            checkpoints.initialize(cancellable),
+            notifications.initialize(cancellable),
+            loadCatalog(`${this.extension.path}/pricing-v1.json`, cancellable),
+        ]);
+        if (!this.isActive(cancellable)) return;
+
+        this.catalog = catalog;
+        this.providers = readProviders(settings).sort((a, b) => a.sortOrder - b.sortOrder);
         this.ensureActiveProvider();
+        if (!this.isActive(cancellable)) return;
         this.indicator = new TokenGrillIndicator(this.extension, {
             refreshAll: () => this.refreshAll(),
             refreshProvider: provider => this.refreshProvider(provider.id),
@@ -54,52 +85,84 @@ class Runtime {
         });
         Main.panel.addToStatusArea('tokengrill', this.indicator, 1, 'right');
         this.updateIndicator();
-        this.settingsId = this.settings.connect('changed', (_settings, key) => {
+        this.settingsId = settings.connect('changed', (_settings, key) => {
+            if (!this.isActive(cancellable)) return;
             if (key === 'provider-instances-json' || key === 'configuration-version') this.reload(!this.suppressProviderRefresh);
+            else if (key === 'notification-test-request') this.sendTestNotification(settings.get_string(key));
             else if (key === 'refresh-interval-seconds') {
-                this.scheduler.setInterval(this.settings.get_uint('refresh-interval-seconds')); this.renderIndicator();
+                scheduler.setInterval(settings.get_uint('refresh-interval-seconds'));
+                this.renderIndicator();
             } else if (key === 'pause-when-session-locked') {
-                this.setLocked(Main.sessionMode.isLocked); this.renderIndicator();
+                this.setLocked(Main.sessionMode.isLocked);
+                this.renderIndicator();
             } else this.renderIndicator();
         });
-        this.scheduler.setProviders(this.providers);
-        this.scheduler.start();
+        scheduler.setProviders(this.providers);
+        scheduler.start();
         this.refreshNow();
     }
 
     reload(collect = true): void {
-        const next = readProviders(this.settings).sort((a, b) => a.sortOrder - b.sortOrder);
+        const settings = this.settings;
+        const scheduler = this.scheduler;
+        const aggregates = this.aggregates;
+        const checkpoints = this.checkpoints;
+        const notifications = this.notifications;
+        if (!settings || !scheduler || !aggregates || !checkpoints || !notifications) return;
+        const next = readProviders(settings).sort((a, b) => a.sortOrder - b.sortOrder);
         const retained = new Set(next.map(provider => provider.id));
         for (const provider of this.providers) {
             if (retained.has(provider.id)) continue;
-            this.aggregates.removeProvider(provider.id);
-            this.checkpoints.removeProvider(provider.id);
-            this.notifications.removeProvider(provider.id);
+            aggregates.removeProvider(provider.id);
+            checkpoints.removeProvider(provider.id);
+            notifications.removeProvider(provider.id);
         }
         this.providers = next;
         this.ensureActiveProvider();
-        this.scheduler.setInterval(this.settings.get_uint('refresh-interval-seconds'));
-        this.scheduler.setProviders(this.providers);
+        scheduler.setInterval(settings.get_uint('refresh-interval-seconds'));
+        scheduler.setProviders(this.providers);
         this.updateIndicator();
         if (collect) this.refreshNow();
     }
 
+    sendTestNotification(value: string): void {
+        const request = parseTestNotificationRequest(value);
+        const settings = this.settings;
+        const notifications = this.notifications;
+        if (!request || request.nonce === this.lastTestNonce || !settings || !notifications) return;
+        const provider = this.providers.find(item => item.id === request.providerId);
+        if (!provider) return;
+        this.lastTestNonce = request.nonce;
+        const percentageMode = settings.get_string('panel-percentage-mode') === 'used' ? 'used' : 'remaining';
+        notifications.notifyTest(provider, this.snapshots.get(provider.id) || null, percentageMode);
+    }
+
     async collect(jobs): Promise<void> {
+        const cancellable = this.cancellable;
+        const aggregates = this.aggregates;
+        const checkpoints = this.checkpoints;
+        const session = this.session;
+        const collectors = this.collectors;
+        const scheduler = this.scheduler;
+        if (!cancellable || !aggregates || !checkpoints || !session || !collectors || !scheduler) return;
         try {
             for (const job of jobs) {
-                if (this.locked) break;
+                if (this.locked || !this.isActive(cancellable)) break;
                 const context = {
-                    aggregates: this.aggregates,
-                    checkpoints: this.checkpoints,
-                    session: this.session,
+                    aggregates,
+                    checkpoints,
+                    session,
                     catalog: this.catalog,
-                    getJson,
-                    requestJson,
+                    cancellable,
+                    getJson: (requestSession, url, headers) => getJson(requestSession, url, headers, cancellable),
+                    requestJson: (requestSession, method, url, headers, body) => requestJson(requestSession, method, url, headers, body, cancellable),
                     onSourcePhase: source => {
+                        if (!this.isActive(cancellable)) return;
                         this.setRefreshPhase(job.provider.id, source === 'reset-credits' ? 'fetching-reset-credits' : source === 'history' ? 'scanning-history' : 'fetching-limits');
                         this.renderIndicator();
                     },
                     onSourceResult: (source, result) => {
+                        if (!this.isActive(cancellable)) return;
                         const state = this.runtimeStates.get(job.provider.id) || this.newRuntimeState(job.provider.id);
                         const target = source === 'limits' ? state.refresh.limits : source === 'reset-credits' ? state.refresh.resetCredits : state.refresh.localHistory;
                         target.phase = result === 'success' ? 'success' : 'failed';
@@ -111,7 +174,8 @@ class Runtime {
                 let collected = false;
                 try {
                     const previous = this.snapshots.get(job.provider.id) || null;
-                    const snapshot = await collectorFor(job.provider.kind).collect(job.provider, context, previous);
+                    const snapshot = await collectors.get(job.provider.kind).collect(job.provider, context, previous);
+                    if (!this.isActive(cancellable)) break;
                     const changed = snapshotFingerprint(previous) !== snapshotFingerprint(snapshot);
                     const quotaChanged = quotaFingerprint(previous) !== quotaFingerprint(snapshot);
                     const fetchedAt = snapshot.quotaFetchedAt || null;
@@ -124,9 +188,12 @@ class Runtime {
                     runtimeState.snapshot = stamped;
                     this.runtimeStates.set(job.provider.id, runtimeState);
                     collected = true;
-                    if (this.settings.get_boolean('notifications-enabled')) {
+                    const settings = this.settings;
+                    const notifications = this.notifications;
+                    if (settings && notifications && settings.get_boolean('notifications-enabled') && this.isActive(cancellable)) {
                         try {
-                            this.notifications.notifyMilestones(job.provider, stamped, this.settings.get_uint('notification-step-percent'));
+                            const percentageMode = settings.get_string('panel-percentage-mode') === 'used' ? 'used' : 'remaining';
+                            notifications.notifyMilestones(job.provider, stamped, settings.get_uint('notification-step-percent'), percentageMode);
                         } catch (error) {
                             logError(error, `Token Grill notification failure for ${job.provider.displayName}`);
                         }
@@ -149,6 +216,7 @@ class Runtime {
                         state.error = null;
                     }
                 } catch (error) {
+                    if (cancellable.is_cancelled() || isCancellation(error)) break;
                     logError(error, `Token Grill failed to refresh ${job.provider.displayName}`);
                     const state = this.runtimeStates.get(job.provider.id);
                     if (state) {
@@ -157,19 +225,18 @@ class Runtime {
                         state.refresh.completedAt = Date.now();
                     }
                 }
-                // Rendering is deliberately outside the collector boundary.
-                // A Shell actor error can never be reported as a provider/API
-                // failure, and the scheduler always reaches complete().
-                if (collected) this.renderIndicator();
+                if (collected && this.isActive(cancellable)) this.renderIndicator();
             }
         } finally {
-            this.scheduler.complete();
+            if (this.scheduler === scheduler && this.isActive(cancellable)) scheduler.complete();
         }
     }
 
     refreshNow(): RefreshRequestResult {
-        this.scheduler.setProviders(this.providers);
-        return this.scheduler.refreshNow();
+        const scheduler = this.scheduler;
+        if (!scheduler) return rejected(this.providers.filter(provider => provider.enabled).map(provider => provider.id));
+        scheduler.setProviders(this.providers);
+        return scheduler.refreshNow();
     }
 
     refreshAll(): RefreshRequestResult {
@@ -179,19 +246,23 @@ class Runtime {
     }
 
     selectQuotaWindow(providerId: string, window: 'five-hour' | 'weekly' | 'monthly'): void {
+        const settings = this.settings;
+        if (!settings) return;
         const providers = this.providers.map(provider => provider.id === providerId ? {...provider, panelWindowPreference: window} : provider);
         if (!providers.some(provider => provider.id === providerId)) return;
         this.suppressProviderRefresh = true;
-        writeProviders(this.settings, providers);
+        writeProviders(settings, providers);
         this.suppressProviderRefresh = false;
+        this.lastTestNonce = '';
         this.providers = providers;
         this.renderIndicator();
     }
 
     refreshProvider(providerId: string): RefreshRequestResult {
-        if (!this.providers.some(provider => provider.id === providerId && provider.enabled)) return {jobIds: [], acceptedProviderIds: [], coalescedProviderIds: [], rejectedProviderIds: [providerId]};
+        const scheduler = this.scheduler;
+        if (!scheduler || !this.providers.some(provider => provider.id === providerId && provider.enabled)) return rejected([providerId]);
         this.setRefreshPhase(providerId, 'queued');
-        const result = this.scheduler.refreshOne(providerId);
+        const result = scheduler.refreshOne(providerId);
         if (result.rejectedProviderIds.length) {
             const state = this.runtimeStates.get(providerId);
             if (state) {
@@ -240,23 +311,30 @@ class Runtime {
     }
 
     setLocked(value: boolean): void {
-        const shouldLock = value && this.settings.get_boolean('pause-when-session-locked');
+        const settings = this.settings;
+        const scheduler = this.scheduler;
+        if (!settings || !scheduler) return;
+        const shouldLock = value && settings.get_boolean('pause-when-session-locked');
         this.locked = shouldLock;
-        this.scheduler.setLocked(shouldLock);
+        scheduler.setLocked(shouldLock);
         if (!shouldLock) this.refreshNow();
     }
 
     togglePaused(): void {
+        const scheduler = this.scheduler;
+        if (!scheduler) return;
         this.paused = !this.paused;
-        this.scheduler.setPaused(this.paused);
+        scheduler.setPaused(this.paused);
         this.renderIndicator();
     }
 
     renderIndicator(): void {
+        const settings = this.settings;
+        if (!settings) return;
         this.indicator?.update(this.providers, this.snapshots, {
-            activeProviderId: this.settings.get_string('active-provider-id'),
-            mode: this.settings.get_string('panel-percentage-mode') || 'remaining',
-            style: this.settings.get_string('panel-display-style') || 'text',
+            activeProviderId: settings.get_string('active-provider-id'),
+            mode: settings.get_string('panel-percentage-mode') || 'remaining',
+            style: settings.get_string('panel-display-style') || 'text',
             paused: this.paused,
             runtimeStates: this.runtimeStates,
         });
@@ -265,25 +343,56 @@ class Runtime {
     updateIndicator(): void { this.renderIndicator(); }
 
     selectProvider(id: string): void {
-        if (!this.providers.some(provider => provider.id === id && provider.enabled)) return;
-        this.settings.set_string('active-provider-id', id);
+        const settings = this.settings;
+        if (!settings || !this.providers.some(provider => provider.id === id && provider.enabled)) return;
+        settings.set_string('active-provider-id', id);
         this.updateIndicator();
     }
 
     ensureActiveProvider(): void {
-        const current = activeProvider(this.providers, this.settings.get_string('active-provider-id'));
-        if (current && current.id !== this.settings.get_string('active-provider-id')) this.settings.set_string('active-provider-id', current.id);
+        const settings = this.settings;
+        if (!settings) return;
+        const activeId = settings.get_string('active-provider-id');
+        const current = activeProvider(this.providers, activeId);
+        if (current && current.id !== activeId) settings.set_string('active-provider-id', current.id);
     }
 
     stop(): void {
-        if (this.settingsId) this.settings.disconnect(this.settingsId);
-        this.scheduler.destroy();
-        this.session.abort();
-        void this.notifications.flush();
+        const cancellable = this.cancellable;
+        cancellable?.cancel();
+
+        const settings = this.settings;
+        if (settings && this.settingsId) settings.disconnect(this.settingsId);
+        this.settingsId = 0;
+
+        this.scheduler?.destroy();
+        this.scheduler = null;
+
+        this.session?.abort();
+        this.session = null;
+
+        const notifications = this.notifications;
+        const pendingFlushes = [this.aggregates?.flush(), this.checkpoints?.flush(), notifications?.flush()]
+            .filter(Boolean) as Promise<void>[];
+        void Promise.allSettled(pendingFlushes);
+        notifications?.destroy();
+
         this.indicator?.destroy();
         this.indicator = null;
+
+        this.collectors?.destroy();
+        this.collectors = null;
+
         this.snapshots.clear();
         this.runtimeStates.clear();
+        this.providers = [];
+        this.catalog = {};
+        this.aggregates = null;
+        this.checkpoints = null;
+        this.notifications = null;
+        this.settings = null;
+        this.cancellable = null;
+        this.suppressProviderRefresh = false;
     }
 }
 
@@ -292,10 +401,16 @@ export default class TokenGrillExtension extends Extension {
     private lockId = 0;
 
     enable(): void {
-        this.runtime = new Runtime(this);
-        this.runtime.start();
+        const runtime = new Runtime(this);
+        this.runtime = runtime;
+        void runtime.start().catch(error => {
+            if (this.runtime !== runtime || isCancellation(error)) return;
+            logError(error, 'Token Grill failed to start');
+            runtime.stop();
+            this.runtime = null;
+        });
         this.lockId = Main.sessionMode.connect('updated', () => this.runtime?.setLocked(Main.sessionMode.isLocked));
-        this.runtime.setLocked(Main.sessionMode.isLocked);
+        runtime.setLocked(Main.sessionMode.isLocked);
     }
 
     disable(): void {

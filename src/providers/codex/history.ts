@@ -1,9 +1,15 @@
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import {scanJsonl} from '../../storage/jsonl.js';
 import type {AggregateStore} from '../../storage/aggregateStore.js';
 import type {CheckpointStore} from '../../storage/checkpointStore.js';
 import type {ProviderInstance, TokenTotals, UsageEvent} from '../../core/types.js';
 import {providerPaths} from '../../core/paths.js';
+import {isCancellation} from '../../storage/atomicJson.js';
+
+Gio._promisify(Gio.File.prototype, 'enumerate_children_async', 'enumerate_children_finish');
+Gio._promisify(Gio.FileEnumerator.prototype, 'next_files_async', 'next_files_finish');
+Gio._promisify(Gio.FileEnumerator.prototype, 'close_async', 'close_finish');
 
 const PARSER_VERSION = 1;
 const RETENTION_SECONDS = 90 * 24 * 60 * 60;
@@ -35,7 +41,7 @@ function eventFromLine(line: string, providerId: string, source: string, offset:
     } catch { return null; }
 }
 
-export async function scanCodexHistory(instance: ProviderInstance, aggregates: AggregateStore, checkpoints: CheckpointStore): Promise<{files: number; bytes: number}> {
+export async function scanCodexHistory(instance: ProviderInstance, aggregates: AggregateStore, checkpoints: CheckpointStore, cancellable: Gio.Cancellable): Promise<{files: number; bytes: number}> {
     const paths = providerPaths(instance);
     const roots = [paths.sessionsDirectory, paths.archivedSessionsDirectory]
         .filter((path, index, all) => all.indexOf(path) === index)
@@ -44,30 +50,49 @@ export async function scanCodexHistory(instance: ProviderInstance, aggregates: A
     let files = 0;
     let bytes = 0;
     const visit = async (directory: Gio.File): Promise<void> => {
-        if (!directory.query_exists(null)) return;
-        const enumerator = directory.enumerate_children('standard::name,standard::type,standard::size,time::modified', Gio.FileQueryInfoFlags.NONE, null);
-        let info: Gio.FileInfo | null;
-        while ((info = enumerator.next_file(null))) {
-            const child = directory.get_child(info.get_name());
-            if (info.get_file_type() === Gio.FileType.DIRECTORY) {
-                await visit(child);
-                continue;
+        let enumerator: Gio.FileEnumerator;
+        try {
+            enumerator = await directory.enumerate_children_async('standard::name,standard::type,standard::size,time::modified', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable);
+        } catch (error) {
+            if (isCancellation(error)) throw error;
+            if ((error as {matches?: (domain: unknown, code: number) => boolean})?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND)) return;
+            throw error;
+        }
+        try {
+            while (true) {
+                const batch = await enumerator.next_files_async(64, GLib.PRIORITY_DEFAULT, cancellable) as Gio.FileInfo[];
+                if (!batch.length) break;
+                for (const info of batch) {
+                    const child = enumerator.get_child(info);
+                    if (info.get_file_type() === Gio.FileType.DIRECTORY) {
+                        await visit(child);
+                        continue;
+                    }
+                    const mtime = info.get_attribute_uint64('time::modified');
+                    if (info.get_file_type() !== Gio.FileType.REGULAR || !info.get_name().endsWith('.jsonl') || mtime < cutoff) continue;
+                    const source = child.get_path() || info.get_name();
+                    const size = info.get_size();
+                    const checkpoint = checkpoints.get(instance.id, source);
+                    const start = checkpoint && checkpoint.size <= size && checkpoint.parserVersion === PARSER_VERSION ? checkpoint.offset : 0;
+                    try {
+                        await scanJsonl(child, start, async (line: string, offset: number) => {
+                            const event = eventFromLine(line, instance.id, source, offset);
+                            if (event) aggregates.add(event);
+                        }, cancellable);
+                        cancellable.set_error_if_cancelled();
+                        checkpoints.set({providerId: instance.id, path: source, size, mtime, offset: size, parserVersion: PARSER_VERSION});
+                        files += 1;
+                        bytes += size;
+                    } catch (error) {
+                        if (isCancellation(error)) throw error;
+                        /* A changing session file is retried on the next pass. */
+                    }
+                }
             }
-            const mtime = info.get_attribute_uint64('time::modified');
-            if (info.get_file_type() !== Gio.FileType.REGULAR || !info.get_name().endsWith('.jsonl') || mtime < cutoff) continue;
-            const source = child.get_path() || info.get_name();
-            const size = info.get_size();
-            const checkpoint = checkpoints.get(instance.id, source);
-            const start = checkpoint && checkpoint.size <= size && checkpoint.parserVersion === PARSER_VERSION ? checkpoint.offset : 0;
+        } finally {
             try {
-                await scanJsonl(child, start, async (line: string, offset: number) => {
-                    const event = eventFromLine(line, instance.id, source, offset);
-                    if (event) aggregates.add(event);
-                });
-                checkpoints.set({providerId: instance.id, path: source, size, mtime, offset: size, parserVersion: PARSER_VERSION});
-                files += 1;
-                bytes += size;
-            } catch { /* A changing session file is retried on the next pass. */ }
+                await enumerator.close_async(GLib.PRIORITY_DEFAULT, null);
+            } catch { /* Closing is best-effort after traversal failure. */ }
         }
     };
     for (const root of roots) await visit(root);

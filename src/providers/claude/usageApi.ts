@@ -11,8 +11,8 @@ export class ClaudeUsageCollector extends BaseCollector {
     async collect(instance: ProviderInstance, context: CollectorContext, previous: ProviderSnapshot | null): Promise<ProviderSnapshot> {
         if (!instance.liveUsageEnabled) return previous || emptySnapshot(instance.id);
         try {
-            const auth = await loadClaudeAuth(instance);
-            const payload = await this.getJson(context.session, `${BASE}/api/oauth/usage`, {
+            const auth = await loadClaudeAuth(instance, context.cancellable);
+            const payload = await context.getJson(context.session, `${BASE}/api/oauth/usage`, {
                 Accept: 'application/json',
                 Authorization: `Bearer ${auth.sessionKey}`,
                 'anthropic-beta': 'oauth-2025-04-20',

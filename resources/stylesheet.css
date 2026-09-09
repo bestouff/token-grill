@@ -77,6 +77,7 @@
 .tokengrill-metric { spacing: 3px; padding: 9px; border-radius: 10px; background-color: rgba(255, 255, 255, 0.05); }
 .tokengrill-metric-label { color: rgba(255, 255, 255, 0.55); font-size: 0.67em; font-weight: 700; }
 .tokengrill-metric-value { font-weight: 700; font-feature-settings: "tnum"; }
+.tokengrill-metric-unit { color: rgba(255, 255, 255, 0.55); font-size: 0.64em; font-weight: 700; min-height: 0.75em; }
 .tokengrill-error-row { spacing: 7px; padding: 10px; border-radius: 10px; background-color: rgba(255, 107, 107, 0.12); }
 .tokengrill-error-text { color: #ffb4ab; }
 .tokengrill-empty-popover { spacing: 8px; padding: 24px 16px; }

@@ -4,7 +4,7 @@
     <key name="provider-instances-json" type="s">
       <default>'[]'</default>
       <summary>Configured provider accounts</summary>
-      <description>Versioned JSON definitions for Codex, Claude, and Kiro account instances.</description>
+      <description>Versioned JSON definitions for Codex, Claude, Kiro, and Antigravity account instances.</description>
     </key>
     <key name="configuration-version" type="u">
       <default>1</default>
@@ -23,6 +23,11 @@
       <default>10</default>
       <summary>Usage notification step percentage</summary>
       <description>Notify once when each account window crosses another configured percentage step.</description>
+    </key>
+    <key name="notification-test-request" type="s">
+      <default>''</default>
+      <summary>Test notification request</summary>
+      <description>Ephemeral provider identifier and nonce written by Preferences for the active Shell runtime.</description>
     </key>
     <key name="pause-when-session-locked" type="b">
       <default>true</default>

@@ -15,7 +15,9 @@ npm ci
 ```
 
 You will also need `gjs`, `gnome-extensions`, `glib-compile-schemas`, and GNOME
-Shell 50. Kiro tests that access SQLite need the Gda 5.0 introspection package.
+Shell 50. Install [`uv`](https://docs.astral.sh/uv/) to run the reproducible
+GNOME Extensions review scan. Kiro tests that access SQLite need the Gda 5.0
+introspection package.
 
 ## Check a change
 
@@ -26,6 +28,7 @@ npm run check
 npm test
 npm run build
 npm run release:check
+npm run review:check
 ```
 
 Build a release-format archive with:
@@ -40,6 +43,10 @@ the same path a GNOME Extensions user receives:
 ```sh
 gnome-extensions install --force build/releases/tokengrill@sh02sahil.github.io.shell-extension.zip
 ```
+
+`npm run review:check` packages the extension and scans both `dist/` and the
+upload ZIP with Shexli 0.2.1 and tree-sitter 0.25.2. The pinned parser avoids a
+known incompatibility in the dependency range accepted by Shexli 0.2.1.
 
 For interactive UI work, `npm run install:local` installs the current build and
 `npm run dev:shell` starts an isolated Mutter development session. The devkit

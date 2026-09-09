@@ -80,7 +80,10 @@ export const TokenGrillIndicator = GObject.registerClass(class TokenGrillIndicat
         const empty = new St.BoxLayout({vertical: true, style_class: 'tokengrill-empty-popover', x_expand: true});
         empty.add_child(new St.Icon({gicon: Gio.icon_new_for_string(`${this.extension.path}/token-grill-symbolic.svg`), icon_size: 28, style_class: 'tokengrill-empty-icon'}));
         empty.add_child(new St.Label({text: _('No provider accounts yet'), style_class: 'tokengrill-empty-title'}));
-        const settings = makeShellInteractive(new St.Button({label: _('Open Preferences'), style_class: 'tokengrill-link-button', can_focus: true}), _('Open Preferences')); settings.connect('clicked', () => this.controller.openPreferences()); empty.add_child(settings);
+        const settings = makeShellInteractive(new St.Button({label: _('Open Preferences'), style_class: 'tokengrill-link-button', can_focus: true}), _('Open Preferences'));
+        this._emptySettingsButton = settings;
+        this._emptySettingsSignalId = settings.connect('clicked', () => this.controller.openPreferences());
+        empty.add_child(settings);
         return empty;
     }
 
@@ -196,8 +199,21 @@ export const TokenGrillIndicator = GObject.registerClass(class TokenGrillIndicat
             this.menu.disconnect(this._menuStateId);
             this._menuStateId = 0;
         }
+        if (this._emptySettingsButton && this._emptySettingsSignalId) this._emptySettingsButton.disconnect(this._emptySettingsSignalId);
+        this._emptySettingsSignalId = 0;
+        this._emptySettingsButton = null;
+        this._item?.destroy();
+        this._item = null;
+        this.cards?.destroy();
+        this.cards = null;
+        this.controller = null;
+        this.extension = null;
+        this.providers = [];
+        this.snapshots = null;
+        this.options = null;
+        this.panelBox = null;
+        this._dashboard = null;
         resetShellCursor();
-        this.cards.removeAll();
         super.destroy();
     }
 });

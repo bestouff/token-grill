@@ -1,45 +1,65 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
+Gio._promisify(Gio.File.prototype, 'query_info_async', 'query_info_finish');
 Gio._promisify(Gio.File.prototype, 'load_contents_async', 'load_contents_finish');
+Gio._promisify(Gio.File.prototype, 'make_directory_async', 'make_directory_finish');
+Gio._promisify(Gio.File.prototype, 'replace_contents_bytes_async', 'replace_contents_finish');
+Gio._promisify(Gio.File.prototype, 'set_attributes_async', 'set_attributes_finish');
 
-export async function readJson<T>(path: string, fallback: T): Promise<T> {
+export function isCancellation(error: unknown): boolean {
+    return Boolean((error as {matches?: (domain: unknown, code: number) => boolean})?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED));
+}
+
+export async function readJson<T>(path: string, fallback: T, cancellable: Gio.Cancellable | null = null): Promise<T> {
     try {
         const file = Gio.File.new_for_path(path);
-        const info = file.query_info('standard::type,standard::size', Gio.FileQueryInfoFlags.NONE, null);
+        const info = await file.query_info_async('standard::type,standard::size', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable);
         if (info.get_file_type() !== Gio.FileType.REGULAR || info.get_size() > 4 * 1024 * 1024) return fallback;
-        const [bytes] = await file.load_contents_async(null);
+        const [bytes] = await file.load_contents_async(cancellable);
         return JSON.parse(new TextDecoder().decode(bytes)) as T;
-    } catch {
+    } catch (error) {
+        if (isCancellation(error)) throw error;
         return fallback;
     }
 }
 
-export function readJsonSync<T>(path: string, fallback: T): T {
+async function ensureDirectory(directory: Gio.File, cancellable: Gio.Cancellable | null): Promise<void> {
+    let created = true;
     try {
-        const file = Gio.File.new_for_path(path);
-        const info = file.query_info('standard::type,standard::size', Gio.FileQueryInfoFlags.NONE, null);
-        if (info.get_file_type() !== Gio.FileType.REGULAR || info.get_size() > 4 * 1024 * 1024) return fallback;
-        const [, bytes] = file.load_contents(null);
-        return JSON.parse(new TextDecoder().decode(bytes)) as T;
-    } catch {
-        return fallback;
+        await directory.make_directory_async(GLib.PRIORITY_DEFAULT, cancellable);
+    } catch (error) {
+        if ((error as {matches?: (domain: unknown, code: number) => boolean})?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.EXISTS)) {
+            created = false;
+        } else {
+            if (!(error as {matches?: (domain: unknown, code: number) => boolean})?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND)) throw error;
+            const parent = directory.get_parent();
+            if (!parent) throw error;
+            await ensureDirectory(parent, cancellable);
+            try {
+                await directory.make_directory_async(GLib.PRIORITY_DEFAULT, cancellable);
+            } catch (retryError) {
+                if ((retryError as {matches?: (domain: unknown, code: number) => boolean})?.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.EXISTS)) created = false;
+                else throw retryError;
+            }
+        }
     }
+
+    if (!created) return;
+    const permissions = new Gio.FileInfo();
+    permissions.set_attribute_uint32('unix::mode', 0o700);
+    await directory.set_attributes_async(permissions, Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable);
 }
 
-export async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
+export async function writeJsonAtomic(path: string, value: unknown, cancellable: Gio.Cancellable | null = null): Promise<void> {
+    const bytes = new TextEncoder().encode(JSON.stringify(value));
     const file = Gio.File.new_for_path(path);
     const parent = file.get_parent();
-    const parentPath = parent?.get_path();
-    if (parentPath) {
-        GLib.mkdir_with_parents(parentPath, 0o700);
-        GLib.chmod(parentPath, 0o700);
-    }
-    const tmp = Gio.File.new_for_path(`${path}.tmp-${GLib.uuid_string_random()}`);
-    const text = JSON.stringify(value);
-    tmp.replace_contents(new TextEncoder().encode(text), null, false, Gio.FileCreateFlags.REPLACE_DESTINATION | Gio.FileCreateFlags.PRIVATE, null);
-    tmp.move(file, Gio.FileCopyFlags.OVERWRITE, null, null);
-    GLib.chmod(path, 0o600);
+    if (parent) await ensureDirectory(parent, cancellable);
+    await file.replace_contents_bytes_async(bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION | Gio.FileCreateFlags.PRIVATE, cancellable);
+    const permissions = new Gio.FileInfo();
+    permissions.set_attribute_uint32('unix::mode', 0o600);
+    await file.set_attributes_async(permissions, Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable);
 }
 
 export function dataPath(filename: string): string {
