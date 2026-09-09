@@ -10,7 +10,7 @@ times without interrupting your work.
 
 ## What it does
 
-- Monitors multiple Codex, Claude, and Kiro accounts.
+- Monitors multiple Codex, Claude, Kiro and Antigravity accounts.
 - Shows the active account in the top bar as text, a ring, or a compact bar.
 - Displays provider quota windows and reset times in your local timezone.
 - Switches between accounts from the popup.
