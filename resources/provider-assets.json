@@ -15,6 +15,12 @@
       "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/openai.svg",
       "sha256": "a6f64c2670a20c03c134ae0ccf1dab4dfd817f10a41da21547f720c5c1fb6820"
     },
+    "openai-symbolic": {
+      "file": "icons/providers/openai-symbolic.svg",
+      "source": "LobeHub monochrome icons (MIT)",
+      "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/openai.svg",
+      "sha256": "722911704a6fc7d1248c23919f461282ae993446d8a50f6a18feb08d2549895e"
+    },
     "claude-light": {
       "file": "icons/providers/claude-mono-light.svg",
       "source": "LobeHub monochrome icons (MIT)",
@@ -26,6 +32,12 @@
       "source": "LobeHub monochrome icons (MIT)",
       "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/claude.svg",
       "sha256": "cfa161e388edfe5877adc5095cbe11776dc84df9a29a586a85163445c64eea4b"
+    },
+    "claude-symbolic": {
+      "file": "icons/providers/claude-symbolic.svg",
+      "source": "LobeHub monochrome icons (MIT)",
+      "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/claude.svg",
+      "sha256": "f409f7c85df694f4909c78aa376c58e7f2983afcd1a237476cae467b66786caf"
     },
     "kiro-light": {
       "file": "icons/providers/kiro-mono-light.svg",
@@ -39,6 +51,12 @@
       "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/kiro.svg",
       "sha256": "83b64eeed82cede4ecf5a193e2b788217044a74237e750c2440af8e15b169539"
     },
+    "kiro-symbolic": {
+      "file": "icons/providers/kiro-symbolic.svg",
+      "source": "LobeHub monochrome icons (MIT)",
+      "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/kiro.svg",
+      "sha256": "e147ea1cda4a7b9eb8d8d2116b44b2706b6d52a24bb9abccf4ddfb6ab9a512bc"
+    },
     "antigravity-light": {
       "file": "icons/providers/antigravity-mono-light.svg",
       "source": "LobeHub monochrome icons (MIT)",
@@ -50,6 +68,12 @@
       "source": "LobeHub monochrome icons (MIT)",
       "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/antigravity.svg",
       "sha256": "00b26449ced11b2da873a3fcffa44ca9e478a8d96214b5cf703df85ff24b2123"
+    },
+    "antigravity-symbolic": {
+      "file": "icons/providers/antigravity-symbolic.svg",
+      "source": "LobeHub monochrome icons (MIT)",
+      "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/antigravity.svg",
+      "sha256": "ce1c3a0622e4b8ec0e1ada715da92e0efc9fe73aeb0921b0fa105e0fc8508413"
     },
     "deepseek-light": {
       "file": "icons/providers/deepseek-mono-light.svg",
@@ -63,6 +87,12 @@
       "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/deepseek.svg",
       "sha256": "c01247aad363e2758eaab9f2603eba600e3b712b2408a0977c64e9106937da55"
     },
+    "deepseek-symbolic": {
+      "file": "icons/providers/deepseek-symbolic.svg",
+      "source": "LobeHub monochrome icons (MIT)",
+      "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/deepseek.svg",
+      "sha256": "8c1d560bbce946a3dea364c771bd438682b2b42b79b1c071da27798a8cb6d7a0"
+    },
     "kimi-light": {
       "file": "icons/providers/kimi-mono-light.svg",
       "source": "LobeHub monochrome icons (MIT)",
@@ -75,6 +105,12 @@
       "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/kimi.svg",
       "sha256": "1a57c7b223b888e323b44edc816300640f7630d782c1b5032821868fe18ed59d"
     },
+    "kimi-symbolic": {
+      "file": "icons/providers/kimi-symbolic.svg",
+      "source": "LobeHub monochrome icons (MIT)",
+      "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/kimi.svg",
+      "sha256": "c54a1961a371879d2d2ced272aa51896b17f53d6815a4094893426f93aea5d3a"
+    },
     "opencode-light": {
       "file": "icons/providers/opencode-mono-light.svg",
       "source": "LobeHub monochrome icons (MIT)",
@@ -86,6 +122,12 @@
       "source": "LobeHub monochrome icons (MIT)",
       "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/opencode.svg",
       "sha256": "d11b7f3f78ed67d47c9851a11c92a69448c46f6e91156dbd3cff43f397360a50"
+    },
+    "opencode-symbolic": {
+      "file": "icons/providers/opencode-symbolic.svg",
+      "source": "LobeHub monochrome icons (MIT)",
+      "sourceUrl": "https://raw.githubusercontent.com/lobehub/lobe-icons/c385b2b8d1f9e19aa86e628d4e23c91ee1111a47/packages/static-svg/icons/opencode.svg",
+      "sha256": "9f139c2b5565debcb62bd4166c8fbca468c7597c936ceb07adbe2ab8d1111e92"
     }
   }
 }

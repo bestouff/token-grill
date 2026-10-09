@@ -25,8 +25,7 @@ const ACCENT_COLORS = {
 };
 
 function providerIconPath(basePath, kind) {
-    const appearance = Adw.StyleManager.get_default().dark ? 'light' : 'dark';
-    return `${basePath}/icons/providers/${providerIconFile(kind, appearance)}`;
+    return `${basePath}/icons/providers/${providerIconFile(kind)}`;
 }
 
 const WINDOW_PREFERENCES = ['automatic', 'five-hour', 'weekly', 'monthly'];
@@ -45,7 +44,7 @@ function labelAccessible(widget, label) {
 }
 
 function providerIcon(basePath, kind, size = 22) {
-    const image = Gtk.Image.new_from_file(providerIconPath(basePath, kind));
+    const image = Gtk.Image.new_from_gicon(Gio.icon_new_for_string(providerIconPath(basePath, kind)));
     image.set_pixel_size(size);
     image.add_css_class('tokengrill-provider-image');
     return image;

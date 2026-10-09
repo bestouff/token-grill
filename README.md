@@ -79,8 +79,8 @@ provider's **Auth file override**. A Kimi Code API key can use the same format;
 its configured region still determines the endpoint. Never put API keys in
 Token Grill's settings. Local history is not supported for these three providers.
 
-All provider icons use LobeHub's monochrome set, with white and black variants
-for dark and light backgrounds.
+All provider icons use LobeHub's monochrome set as symbolic icons. GNOME Shell
+and GTK color them to match the actual foreground, including at startup.
 
 ## Privacy and network access
 

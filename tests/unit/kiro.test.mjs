@@ -12,7 +12,7 @@ test('Kiro metadata defines monthly-only live quota defaults', () => {
   assert.equal(metadata.defaultQuotaWindow, 'monthly');
   assert.deepEqual(metadata.quotaWindows, ['monthly']);
   assert.equal(metadata.localHistorySupported, false);
-  assert.equal(providerIconFile('kiro'), 'kiro-mono-light.svg');
+  assert.equal(providerIconFile('kiro'), 'kiro-symbolic.svg');
   assert.equal(providerIconFile('kiro', 'dark'), 'kiro-mono-dark.svg');
 });
 

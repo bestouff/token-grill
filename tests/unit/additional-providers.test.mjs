@@ -93,4 +93,10 @@ test('every provider packages monochrome LobeHub assets for both backgrounds', a
     assert.ok(svg.includes(appearance === 'light' ? '#ffffff' : '#000000'));
     assert.doesNotMatch(svg, /currentColor/);
   }
+  for (const kind of Object.keys(PROVIDER_METADATA)) {
+    const file = providerIconFile(kind);
+    assert.match(file, /-symbolic\.svg$/);
+    const svg = await readFile(new URL(`../../resources/icons/providers/${file}`, import.meta.url), 'utf8');
+    assert.ok(svg.includes('#2e3436'));
+  }
 });

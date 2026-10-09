@@ -17,8 +17,8 @@ export function schemeAppearance() {
     return Main.getStyleVariant() === 'light' ? 'dark' : 'light';
 }
 
-export function iconFor(instance, basePath, size = 18, appearance = schemeAppearance()) {
-    const file = providerIconFile(instance.kind, appearance);
+export function iconFor(instance, basePath, size = 18) {
+    const file = providerIconFile(instance.kind);
     return new St.Icon({
         gicon: Gio.icon_new_for_string(`${basePath}/icons/providers/${file}`),
         icon_size: size,

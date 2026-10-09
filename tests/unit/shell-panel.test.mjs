@@ -37,11 +37,11 @@ test('prepaid balances remain amounts even when a quota meter is selected', () =
   assert.equal(displays[0].get_children()[1].text, `USD ${(5.25).toLocaleString()}`);
 });
 
-test('default and dark Shell themes use white logos; light Shell themes use black logos', () => {
+test('default, dark, and light Shell themes always request theme-colored symbolic logos', () => {
   for (const [variant, expected] of [[undefined, 'light'], ['dark', 'light'], ['', 'light'], ['light', 'dark']]) {
     globalThis.__shellStyleVariant = variant;
     assert.equal(schemeAppearance(), expected);
-    assert.ok(iconFor(providers[0], '/extension').gicon.endsWith(`openai-mono-${expected}.svg`));
+    assert.ok(iconFor(providers[0], '/extension').gicon.endsWith('openai-symbolic.svg'));
   }
   delete globalThis.__shellStyleVariant;
 });

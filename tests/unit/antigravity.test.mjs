@@ -18,7 +18,7 @@ test('Antigravity metadata defines five-hour and weekly live quota windows', () 
   assert.equal(metadata.defaultQuotaWindow, 'automatic');
   assert.deepEqual(metadata.quotaWindows, ['five-hour', 'weekly']);
   assert.equal(metadata.localHistorySupported, false);
-  assert.equal(providerIconFile('antigravity'), 'antigravity-mono-light.svg');
+  assert.equal(providerIconFile('antigravity'), 'antigravity-symbolic.svg');
   assert.equal(providerIconFile('antigravity', 'dark'), 'antigravity-mono-dark.svg');
 });
 

@@ -6,7 +6,7 @@ import {readFile} from 'node:fs/promises';
 test('LobeHub monochrome assets have the declared checksums and provenance', async () => {
   const root = new URL('../../', import.meta.url);
   const manifest = JSON.parse(await readFile(new URL('resources/provider-assets.json', root), 'utf8'));
-  assert.equal(Object.keys(manifest.assets).length, 14);
+  assert.equal(Object.keys(manifest.assets).length, 21);
   for (const asset of Object.values(manifest.assets)) {
     const svg = await readFile(new URL(`resources/${asset.file}`, root));
     assert.match(svg.toString(), /<svg.*viewBox=/);

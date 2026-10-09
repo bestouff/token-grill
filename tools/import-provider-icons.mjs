@@ -10,8 +10,8 @@ for (const name of ['openai', 'claude', 'kiro', 'antigravity', 'deepseek', 'kimi
     const response = await fetch(`${base}/packages/static-svg/icons/${name}.svg`);
     if (!response.ok) throw new Error(`Could not download ${name}: HTTP ${response.status}`);
     const svg = await response.text();
-    for (const [appearance, color] of [['light', '#ffffff'], ['dark', '#000000']]) {
-        const file = `icons/providers/${name}-mono-${appearance}.svg`;
+    for (const [appearance, color] of [['light', '#ffffff'], ['dark', '#000000'], ['symbolic', '#2e3436']]) {
+        const file = appearance === 'symbolic' ? `icons/providers/${name}-symbolic.svg` : `icons/providers/${name}-mono-${appearance}.svg`;
         const contents = svg.replaceAll('currentColor', color);
         const sha256 = createHash('sha256').update(contents).digest('hex');
         await writeFile(`resources/${file}`, contents);
@@ -31,8 +31,9 @@ is independent and is not endorsed by or affiliated with those providers.
 
 All seven provider marks come from [LobeHub's monochrome icon set](https://lobehub.com/icons?type=mono),
 at [revision ${revision}](https://github.com/lobehub/lobe-icons/tree/${revision}).
-The vector geometry is unchanged; currentColor is replaced with white or black
-for reliable contrast in GNOME Shell and GTK. LobeHub's MIT license and copyright
+The vector geometry is unchanged. Symbolic variants let GNOME Shell and GTK
+color the logos from their actual foreground color; fixed white and black
+variants are also included. LobeHub's MIT license and copyright
 notice are included in resources/icons/providers/LOBEHUB-LICENSE.txt.
 
 Regenerate the assets and this provenance with \`node tools/import-provider-icons.mjs\`.
