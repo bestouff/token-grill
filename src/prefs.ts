@@ -486,6 +486,10 @@ const GeneralPage = GObject.registerClass(class GeneralPage extends Adw.Preferen
         const mode = new Adw.ComboRow({title: _('Percentage'), model: Gtk.StringList.new([_('Remaining'), _('Used')]), selected: settings.get_string('panel-percentage-mode') === 'used' ? 1 : 0}); mode.connect('notify::selected', () => settings.set_string('panel-percentage-mode', mode.selected === 1 ? 'used' : 'remaining'));
         const style = new Adw.ComboRow({title: _('Panel style'), model: Gtk.StringList.new([_('Icon + percentage'), _('Circular meter'), _('Linear meter')]), selected: settings.get_string('panel-display-style') === 'ring' ? 1 : settings.get_string('panel-display-style') === 'bar' ? 2 : 0}); style.connect('notify::selected', () => settings.set_string('panel-display-style', style.selected === 1 ? 'ring' : style.selected === 2 ? 'bar' : 'text'));
         appearance.add(mode); appearance.add(style); this.add(appearance);
+        const panelGroup = new Adw.PreferencesGroup({title: _('Panel accounts')});
+        const allAccounts = new Adw.SwitchRow({title: _('Show all accounts'), subtitle: _('Show a chip for every account in the top bar instead of only the active one.'), active: settings.get_boolean('panel-show-all-accounts')});
+        settings.bind('panel-show-all-accounts', allAccounts, 'active', Gio.SettingsBindFlags.DEFAULT);
+        panelGroup.add(allAccounts); this.add(panelGroup);
         const refreshGroup = new Adw.PreferencesGroup({title: _('Refresh and storage')});
         for (const [key, title, lower, upper, step] of [['refresh-interval-seconds', _('Refresh interval'), 60, 3600, 60]]) { const row = new Adw.SpinRow({title, adjustment: new Gtk.Adjustment({lower, upper, step_increment: step, value: settings.get_uint(key)} )}); settings.bind(key, row, 'value', Gio.SettingsBindFlags.DEFAULT); refreshGroup.add(row); }
         this.add(refreshGroup);

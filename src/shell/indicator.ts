@@ -9,7 +9,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {activeProvider} from '../core/display.js';
 import type {CanonicalQuotaWindow, PanelDisplayStyle, PanelPercentageMode, ProviderInstance, ProviderRuntimeState, ProviderSnapshot} from '../core/types.js';
-import {createPanelDisplay, iconFor, accentColor, schemeAppearance} from './accountChip.js';
+import {createPanelDisplay, createPanelChip, iconFor, accentColor, schemeAppearance} from './accountChip.js';
 import {ProviderDashboard} from './providerCard.js';
 import {makeShellInteractive, resetShellCursor} from './interaction.js';
 
@@ -47,7 +47,7 @@ export const TokenGrillIndicator = GObject.registerClass(class TokenGrillIndicat
         this.menu.actor.add_style_class_name('tokengrill-boxpointer');
         this.providers = [];
         this.snapshots = new Map();
-        this.options = {activeProviderId: '', mode: 'remaining', style: 'text', paused: false};
+        this.options = {activeProviderId: '', mode: 'remaining', style: 'text', showAllAccounts: false, paused: false};
         this._theme = schemeAppearance();
         this._themeSignalId = St.Settings.get().connect('notify::color-scheme', () => {
             if (schemeAppearance() === this._theme) return;
@@ -117,11 +117,19 @@ export const TokenGrillIndicator = GObject.registerClass(class TokenGrillIndicat
     _renderPanelSafely() {
         try {
             this.panelBox.get_children().forEach(child => child.destroy());
+            const enabled = this.providers.filter(provider => provider.enabled && provider.showInPanel !== false);
             const current = activeProvider(this.providers, this.options.activeProviderId);
             if (!current) {
                 this.panelBox.add_child(new St.Icon({gicon: Gio.icon_new_for_string(`${this.extension.path}/token-grill-symbolic.svg`), icon_size: 16, style_class: 'system-status-icon'}));
                 this.panelBox.add_child(new St.Label({text: _('Token Grill'), y_align: Clutter.ActorAlign.CENTER, style_class: 'tokengrill-panel-muted'}));
                 this.panelBox.set_accessible_name(_('Token Grill, no provider accounts configured'));
+                return;
+            }
+            if (this.options.showAllAccounts && enabled.length > 1) {
+                for (const provider of enabled) {
+                    const chip = createPanelChip(provider, this.snapshots.get(provider.id) || null, this.extension.path, this.options.mode as PanelPercentageMode);
+                    this.panelBox.add_child(chip);
+                }
                 return;
             }
             const display = createPanelDisplay(current, this.snapshots.get(current.id) || null, this.extension.path, this.options.mode as PanelPercentageMode, this.options.style as PanelDisplayStyle);

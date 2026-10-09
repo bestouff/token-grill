@@ -47,5 +47,10 @@
       <summary>Panel display style</summary>
       <description>Show text, ring, or bar usage in the top panel.</description>
     </key>
+    <key name="panel-show-all-accounts" type="b">
+      <default>false</default>
+      <summary>Show all accounts in the top bar</summary>
+      <description>When enabled, every provider account that opts into the top bar appears as its own compact chip instead of only the active account.</description>
+    </key>
   </schema>
 </schemalist>

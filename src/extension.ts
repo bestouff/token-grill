@@ -335,6 +335,7 @@ class Runtime {
             activeProviderId: settings.get_string('active-provider-id'),
             mode: settings.get_string('panel-percentage-mode') || 'remaining',
             style: settings.get_string('panel-display-style') || 'text',
+            showAllAccounts: settings.get_boolean('panel-show-all-accounts'),
             paused: this.paused,
             runtimeStates: this.runtimeStates,
         });
