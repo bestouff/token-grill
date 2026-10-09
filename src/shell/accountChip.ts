@@ -10,8 +10,12 @@ import {accentColor} from '../core/accent.js';
 
 export {accentColor};
 
-export function iconFor(instance, basePath, size = 18) {
-    const file = providerIconFile(instance.kind);
+export function schemeAppearance() {
+    return St.Settings.get().color_scheme === St.SystemColorScheme.PREFER_DARK ? 'light' : 'dark';
+}
+
+export function iconFor(instance, basePath, size = 18, appearance = schemeAppearance()) {
+    const file = providerIconFile(instance.kind, appearance);
     return new St.Icon({
         gicon: Gio.icon_new_for_string(`${basePath}/icons/providers/${file}`),
         icon_size: size,

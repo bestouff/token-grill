@@ -9,7 +9,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {activeProvider} from '../core/display.js';
 import type {CanonicalQuotaWindow, PanelDisplayStyle, PanelPercentageMode, ProviderInstance, ProviderRuntimeState, ProviderSnapshot} from '../core/types.js';
-import {createPanelDisplay, iconFor, accentColor} from './accountChip.js';
+import {createPanelDisplay, iconFor, accentColor, schemeAppearance} from './accountChip.js';
 import {ProviderDashboard} from './providerCard.js';
 import {makeShellInteractive, resetShellCursor} from './interaction.js';
 
@@ -48,7 +48,26 @@ export const TokenGrillIndicator = GObject.registerClass(class TokenGrillIndicat
         this.providers = [];
         this.snapshots = new Map();
         this.options = {activeProviderId: '', mode: 'remaining', style: 'text', paused: false};
+        this._theme = schemeAppearance();
+        this._themeSignalId = St.Settings.get().connect('notify::color-scheme', () => {
+            if (schemeAppearance() === this._theme) return;
+            this._theme = schemeAppearance();
+            this._applyTheme();
+            if (this.providers) this.update(this.providers, this.snapshots, this.options);
+        });
         this._buildPopover();
+        this._applyTheme();
+    }
+
+    _applyTheme() {
+        const light = this._theme === 'dark';
+        const targets = [this.panelBox, this.menu.box, this.menu.actor, this.cards?.actor, this._dashboard];
+        for (const target of targets) {
+            if (!target) continue;
+            if (light) target.add_style_class_name('tokengrill-light-theme');
+            else if (this._themeLight) target.remove_style_class_name('tokengrill-light-theme');
+        }
+        this._themeLight = light;
     }
 
     _buildPopover() {
@@ -161,13 +180,14 @@ export const TokenGrillIndicator = GObject.registerClass(class TokenGrillIndicat
             // Keep the tab actor stable while reflecting renamed accounts or
             // changed accents immediately.  Account switching must not cause
             // any collector or filesystem work.
-            if (tab._providerKind !== provider.kind) {
+            if (tab._providerKind !== provider.kind || tab._providerTheme !== this._theme) {
                 const content = tab.get_child();
                 content?.get_children?.().find(child => child._providerIcon)?.destroy();
                 const icon = iconFor(provider, this.extension.path, 16);
                 icon._providerIcon = true;
                 content?.insert_child_at_index(icon, 0);
                 tab._providerKind = provider.kind;
+                tab._providerTheme = this._theme;
             }
             tab._label?.set_text(provider.displayName);
             tab._marker?.set_style(`background-color: ${accentColor(provider)};`);
@@ -194,6 +214,10 @@ export const TokenGrillIndicator = GObject.registerClass(class TokenGrillIndicat
         if (this._refreshFeedbackId) {
             GLib.Source.remove(this._refreshFeedbackId);
             this._refreshFeedbackId = 0;
+        }
+        if (this._themeSignalId) {
+            St.Settings.get().disconnect(this._themeSignalId);
+            this._themeSignalId = 0;
         }
         if (this._menuStateId) {
             this.menu.disconnect(this._menuStateId);

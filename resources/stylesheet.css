@@ -117,3 +117,68 @@
 .tokengrill-accent-red { background-color: #ff6b6b; }
 .tokengrill-accent-purple { background-color: #c7a0ff; }
 .tokengrill-accent-pink { background-color: #f28cb1; }
+
+/* Light color scheme support: overrides only apply when the shell reports
+ * a light preference, via the tokengrill-light-theme class toggled in
+ * indicator.ts. Kept as a separate block so the dark theme stays the default. */
+.tokengrill-light-theme.tokengrill-menu,
+.tokengrill-light-theme.tokengrill-menu .tokengrill-popover,
+.tokengrill-light-theme.tokengrill-menu .tokengrill-popover-item {
+    background-color: #ffffff;
+    color: #252423;
+}
+.tokengrill-light-theme.tokengrill-boxpointer {
+    -arrow-background-color: #ffffff;
+    -arrow-border-color: #d9d7d4;
+}
+.tokengrill-light-theme .tokengrill-panel-muted { color: rgba(37, 36, 35, 0.75); }
+.tokengrill-light-theme .tokengrill-panel-stale { color: rgba(37, 36, 35, 0.52); }
+.tokengrill-light-theme .tokengrill-tab { color: #4d4a47; }
+.tokengrill-light-theme .tokengrill-tab:hover,
+.tokengrill-light-theme .tokengrill-tab:focus { background-color: #f0eeec; border-color: #cfcbc5; color: #1b1a19; }
+.tokengrill-light-theme .tokengrill-tab-selected,
+.tokengrill-light-theme .tokengrill-tab-selected:hover,
+.tokengrill-light-theme .tokengrill-tab-selected:focus { background-color: #f0eeec; border-color: #8a877f; color: #000000; }
+.tokengrill-light-theme .tokengrill-logo-badge { background-color: #f6f5f3; border-color: #d9d7d4; }
+.tokengrill-light-theme .tokengrill-secondary,
+.tokengrill-light-theme .tokengrill-refresh-status,
+.tokengrill-light-theme .tokengrill-summary-caption,
+.tokengrill-light-theme .tokengrill-summary-reset { color: rgba(37, 36, 35, 0.62); }
+.tokengrill-light-theme .tokengrill-refresh-status { color: #6f6b66; }
+.tokengrill-light-theme .tokengrill-metric-label,
+.tokengrill-light-theme .tokengrill-metric-unit { color: rgba(37, 36, 35, 0.55); }
+.tokengrill-light-theme .tokengrill-window-card { background-color: #f6f5f3; }
+.tokengrill-light-theme .tokengrill-window-card:hover,
+.tokengrill-light-theme .tokengrill-window-card:focus,
+.tokengrill-light-theme .tokengrill-reset-credits:hover,
+.tokengrill-light-theme .tokengrill-reset-credits:focus,
+.tokengrill-light-theme .tokengrill-refresh-all-button:hover,
+.tokengrill-light-theme .tokengrill-refresh-all-button:focus,
+.tokengrill-light-theme .tokengrill-icon-button:hover,
+.tokengrill-light-theme .tokengrill-icon-button:focus { background-color: #e9e6e2; box-shadow: inset 0 0 0 1px #cfcbc5; }
+.tokengrill-light-theme .tokengrill-reset-credits { background-color: #f6f5f3; }
+.tokengrill-light-theme .tokengrill-reset-credit-details { background-color: #f6f5f3; }
+.tokengrill-light-theme .tokengrill-reset-credit-row { border-bottom: 1px solid #e2dfdb; }
+.tokengrill-light-theme .tokengrill-reset-credit-disclaimer { color: #6f6b66; }
+.tokengrill-light-theme .tokengrill-metric { background-color: rgba(37, 36, 35, 0.05); }
+.tokengrill-light-theme .tokengrill-summary { background-color: rgba(243, 168, 54, 0.13); border-color: rgba(243, 168, 54, 0.32); }
+.tokengrill-light-theme .tokengrill-footer-button {
+    background-color: #f6f5f3;
+    border-color: #d9d7d4;
+    color: #1b1a19;
+}
+.tokengrill-light-theme .tokengrill-footer-button:hover,
+.tokengrill-light-theme .tokengrill-footer-button:focus,
+.tokengrill-light-theme .tokengrill-footer-button.tokengrill-hover { background-color: #e9e6e2; border-color: #8a877f; box-shadow: inset 0 0 0 1px rgba(232, 154, 44, 0.45); }
+.tokengrill-light-theme .tokengrill-footer-brand { color: rgba(37, 36, 35, 0.48); }
+.tokengrill-light-theme .tokengrill-error-text { color: #a51e1e; }
+.tokengrill-light-theme .tokengrill-empty-icon { color: #b06f00; }
+.tokengrill-light-theme .tokengrill-link-button { color: #b06f00; }
+.tokengrill-light-theme .tokengrill-panel-value,
+.tokengrill-light-theme .tokengrill-window-value,
+.tokengrill-light-theme .tokengrill-summary-value,
+.tokengrill-light-theme .tokengrill-metric-value,
+.tokengrill-light-theme .tokengrill-reset-credits-value { color: #252423; }
+.tokengrill-light-theme .tokengrill-window-selected-label { color: #a36100; }
+.tokengrill-light-theme .tokengrill-pressure-warning { color: #a36100; }
+.tokengrill-light-theme .tokengrill-pressure-critical { color: #c01f1f; }
