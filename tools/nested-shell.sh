@@ -42,6 +42,13 @@ for root in "$HOME/.local/share/gnome-shell/extensions" /usr/local/share/gnome-s
 done
 
 if [[ "$(gnome-shell --version | awk '{print int($3)}')" -ge 49 ]]; then
+  if ! command -v mutter-devkit >/dev/null 2>&1 &&
+     [[ ! -x /usr/libexec/mutter-devkit && ! -x /usr/lib/mutter/mutter-devkit ]]; then
+    echo "GNOME Shell development mode needs mutter-devkit, which is not installed." >&2
+    echo "On Debian, install it with: sudo apt install mutter-dev-bin" >&2
+    echo "Then run 'npm run dev:shell' again." >&2
+    exit 1
+  fi
   shell_args=(--devkit --wayland)
 else
   shell_args=(--nested --wayland)
@@ -61,7 +68,7 @@ exec dbus-run-session -- bash -c '
   uuid="$(node -p "require(\"$PWD/metadata.json\").uuid")"
   gnome-extensions enable "$uuid"
   for _ in {1..20}; do
-    if gnome-extensions info "$uuid" | grep -q "State: ACTIVE"; then
+    if LC_ALL=C gnome-extensions info "$uuid" | grep -q "State: ACTIVE"; then
       echo "Token Grill $uuid is active in the nested shell."
       echo "Shell log: /tmp/tokengrill-shell.log"
       echo "Close this terminal to stop the development shell."
@@ -72,6 +79,7 @@ exec dbus-run-session -- bash -c '
     sleep 0.25
   done
   echo "Token Grill $uuid did not reach ACTIVE state." >&2
+  LC_ALL=C gnome-extensions info "$uuid" >&2 || true
   echo "Inspect /tmp/tokengrill-shell.log for details." >&2
   exit 1
 ' _ "${shell_args[@]}"
