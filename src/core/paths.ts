@@ -20,6 +20,13 @@ export function displayPath(value: string): string {
 
 export function providerPaths(instance: ProviderInstance): ProviderPaths {
     const home = expandPath(instance.accountHome);
+    if (['deepseek', 'opencode', 'kimi'].includes(instance.kind)) {
+        const authFile = instance.authFileOverride ? expandPath(instance.authFileOverride) :
+            GLib.build_filenamev(instance.kind === 'kimi' ? [home, 'credentials', 'kimi-code.json'] : [home, 'auth.json']);
+        const sessionsDirectory = GLib.build_filenamev([home, 'sessions']);
+        return {authFile, sessionsDirectory, archivedSessionsDirectory: sessionsDirectory,
+            configFile: GLib.build_filenamev([home, 'config.toml'])};
+    }
     const authFile = instance.authFileOverride ? expandPath(instance.authFileOverride) :
         instance.kind === 'antigravity' ?
             (pathExists(GLib.build_filenamev([home, 'acp_token.json'])) ? GLib.build_filenamev([home, 'acp_token.json']) :
@@ -52,6 +59,12 @@ export function isDirectory(path: string): boolean {
 }
 
 export function defaultHome(kind: ProviderKind): string {
+    if (kind === 'deepseek' || kind === 'opencode') return GLib.build_filenamev([GLib.get_user_data_dir(), 'opencode']);
+    if (kind === 'kimi') {
+        const current = GLib.getenv('KIMI_CODE_HOME') || GLib.build_filenamev([GLib.get_home_dir(), '.kimi-code']);
+        const legacy = GLib.build_filenamev([GLib.get_home_dir(), '.kimi']);
+        return !pathExists(current) && pathExists(legacy) ? legacy : current;
+    }
     if (kind === 'kiro') return GLib.build_filenamev([GLib.get_user_data_dir(), 'kiro-cli']);
     if (kind === 'antigravity') {
         const geminiAntigravity = GLib.build_filenamev([GLib.get_home_dir(), '.gemini', 'antigravity']);

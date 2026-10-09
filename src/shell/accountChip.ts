@@ -3,7 +3,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
-import {chooseWindow, displayLabel, displayPercent, pressureClass} from '../core/display.js';
+import {balanceLabel, chooseWindow, displayLabel, displayPercent, pressureClass} from '../core/display.js';
 import {formatResetCountdown} from '../core/timeMath.js';
 import {providerIconFile} from '../core/providerMetadata.js';
 import {accentColor} from '../core/accent.js';
@@ -51,23 +51,18 @@ export function providerMark(instance, basePath, size = 20) {
 }
 
 export function createPanelDisplay(instance, snapshot, basePath, mode, style) {
-    const box = panelDisplayBox(instance, snapshot, basePath, mode);
-    box.add_style_class_name(`tokengrill-panel-${style}`);
-    if (style === 'ring') box.add_child(createRing(displayPercent(chooseWindow(snapshot, instance.panelWindowPreference || 'automatic'), mode), pressureClass(chooseWindow(snapshot, instance.panelWindowPreference || 'automatic'))));
-    else if (style === 'bar') box.add_child(createBar(displayPercent(chooseWindow(snapshot, instance.panelWindowPreference || 'automatic'), mode), pressureClass(chooseWindow(snapshot, instance.panelWindowPreference || 'automatic'))));
-    else box.add_child(new St.Label({text: displayLabel(chooseWindow(snapshot, instance.panelWindowPreference || 'automatic'), mode), style_class: 'tokengrill-panel-value', y_align: Clutter.ActorAlign.CENTER}));
-    return box;
-}
-
-export function createPanelChip(instance, snapshot, basePath, mode) {
     const window = chooseWindow(snapshot, instance.panelWindowPreference || 'automatic');
-    const box = new St.BoxLayout({style_class: `tokengrill-panel-display tokengrill-panel-chip tokengrill-pressure-${pressureClass(window)}`, y_align: Clutter.ActorAlign.CENTER, y_expand: false});
-    box.set_accessible_name(`${instance.kind} ${instance.displayName}, ${displayLabel(window, mode)}`);
+    const balance = balanceLabel(snapshot);
+    const label = balance || displayLabel(window, mode);
+    const box = new St.BoxLayout({style_class: `tokengrill-panel-display tokengrill-panel-${style} tokengrill-pressure-${pressureClass(window)}`, y_align: Clutter.ActorAlign.CENTER, y_expand: false});
+    box.set_accessible_name(`${instance.kind} ${instance.displayName}, ${label}`);
     const icon = providerMark(instance, basePath, 20);
     box.add_child(icon);
-    box.add_child(new St.Label({text: displayLabel(window, mode), style_class: 'tokengrill-panel-value', y_align: Clutter.ActorAlign.CENTER}));
+    if (!balance && instance.kind !== 'deepseek' && style === 'ring') box.add_child(createRing(displayPercent(window, mode), pressureClass(window)));
+    else if (!balance && instance.kind !== 'deepseek' && style === 'bar') box.add_child(createBar(displayPercent(window, mode), pressureClass(window)));
+    else box.add_child(new St.Label({text: label, style_class: 'tokengrill-panel-value', y_align: Clutter.ActorAlign.CENTER}));
     if (snapshot?.error) {
-        const hasCachedQuota = Boolean(window?.percent !== null && window?.percent !== undefined);
+        const hasCachedQuota = Boolean(balance || (window?.percent !== null && window?.percent !== undefined));
         const glyph = hasCachedQuota ? '·' : '!';
         const status = new St.Label({text: glyph, style_class: hasCachedQuota ? 'tokengrill-panel-stale' : 'tokengrill-panel-error', y_align: Clutter.ActorAlign.CENTER});
         status.set_accessible_name(hasCachedQuota ? 'stale' : 'provider attention required');
@@ -76,13 +71,8 @@ export function createPanelChip(instance, snapshot, basePath, mode) {
     return box;
 }
 
-function panelDisplayBox(instance, snapshot, basePath, mode) {
-    const window = chooseWindow(snapshot, instance.panelWindowPreference || 'automatic');
-    const box = new St.BoxLayout({style_class: `tokengrill-panel-display tokengrill-pressure-${pressureClass(window)}`, y_align: Clutter.ActorAlign.CENTER, y_expand: false});
-    box.set_accessible_name(`${instance.kind} ${instance.displayName}, ${displayLabel(window, mode)}`);
-    const icon = providerMark(instance, basePath, 20);
-    box.add_child(icon);
-    return box;
+export function createPanelChip(instance, snapshot, basePath, mode) {
+    return createPanelDisplay(instance, snapshot, basePath, mode, 'chip');
 }
 
 function createRing(percent, pressure) {

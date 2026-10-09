@@ -58,9 +58,9 @@ test('spinners rotate around their own centre and UI uses centralized packaged m
   assert.match(dashboard, /set_pivot_point\(0\.5, 0\.5\)/);
   assert.match(prefs, /providerIconFile/);
   assert.match(chip, /providerIconFile/);
-  assert.match(metadata, /openai-blossom-light\.svg/);
-  assert.match(metadata, /claude-mark-light\.svg/);
-  assert.match(metadata, /kiro-icon\.png/);
+  assert.match(metadata, /openai-mono-light\.svg/);
+  assert.match(metadata, /claude-mono-light\.svg/);
+  assert.match(metadata, /kiro-mono-light\.svg/);
   assert.doesNotMatch(prefs, /codex-symbolic|claude-symbolic/);
 });
 

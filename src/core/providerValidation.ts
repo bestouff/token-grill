@@ -11,6 +11,7 @@ export interface ProviderValidationResult {
 }
 
 export interface ProviderDraftPaths {
+    kind?: string;
     id?: string;
     displayName: string;
     accountHome: string;
@@ -19,6 +20,7 @@ export interface ProviderDraftPaths {
 }
 
 export interface ExistingProviderPath {
+    kind?: string;
     id: string;
     accountHome: string;
 }
@@ -55,6 +57,7 @@ export function validateProviderDraft(
     if (canonicalHome !== null) {
         const duplicate = providers.some(provider => {
             if (provider.id === draft.id) return false;
+            if (provider.kind && draft.kind && provider.kind !== draft.kind) return false;
             try {
                 return canonicalize(provider.accountHome) === canonicalHome;
             } catch {

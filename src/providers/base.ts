@@ -89,6 +89,8 @@ export async function requestJson(session: Soup.Session, method: string, url: st
         if (bodyBytes.length > MAX_RESPONSE_BYTES) throw new CollectorError('The provider response was too large.', 'response-shape');
         const body = new TextDecoder().decode(bodyBytes);
         if (message.status_code < 200 || message.status_code >= 300) {
+            if (message.status_code === 403 && url === 'https://opencode.ai/zen/go/v1/usage')
+                throw new CollectorError('OpenCode quota tracking requires a Go subscription. Zen pay-as-you-go balance is not exposed by this endpoint.', 'dependency');
             const code = message.status_code === 401 || message.status_code === 403 ? 'auth' : message.status_code === 429 ? 'rate-limit' : 'http';
             throw new CollectorError(`Provider request failed (HTTP ${message.status_code}).`, code);
         }
@@ -99,6 +101,10 @@ export async function requestJson(session: Soup.Session, method: string, url: st
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const FIXED_PROVIDER_HOSTS = new Set([
+    'api.deepseek.com',
+    'api.kimi.com',
+    'api.kimi.ai',
+    'opencode.ai',
     'chatgpt.com',
     'api.anthropic.com',
     'codewhisperer.us-east-1.amazonaws.com',

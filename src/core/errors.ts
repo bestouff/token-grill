@@ -11,7 +11,7 @@ export class CollectorError extends Error {
 
 export function providerErrorInfo(error: unknown) {
     const rawCode = error instanceof CollectorError ? error.code : 'collector-error';
-    const code = rawCode === 'auth' ? 'auth-invalid' : rawCode === 'auth-missing' ? 'auth-missing' : rawCode === 'auth-expired' ? 'auth-expired' : rawCode === 'dependency' ? 'dependency' : rawCode === 'rate-limit' ? 'rate-limited' : rawCode === 'response-shape' ? 'response-shape' : rawCode === 'timeout' ? 'timeout' : rawCode === 'offline' ? 'offline' : rawCode === 'permission' ? 'permission' : 'http';
+    const code = rawCode === 'auth' || rawCode === 'auth-invalid' ? 'auth-invalid' : rawCode === 'auth-missing' ? 'auth-missing' : rawCode === 'auth-expired' ? 'auth-expired' : rawCode === 'dependency' ? 'dependency' : rawCode === 'rate-limit' ? 'rate-limited' : rawCode === 'response-shape' ? 'response-shape' : rawCode === 'timeout' ? 'timeout' : rawCode === 'offline' ? 'offline' : rawCode === 'permission' ? 'permission' : 'http';
     return {
         code,
         message: safeError(error),

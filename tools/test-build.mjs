@@ -14,6 +14,10 @@ for (const [source, name] of [
     ['src/providers/kiro/authRecords.ts', 'kiro-auth-records.mjs'],
     ['src/providers/antigravity/normalize.ts', 'antigravity-normalize.mjs'],
     ['src/providers/antigravity/endpoints.ts', 'antigravity-endpoints.mjs'],
+    ['src/providers/additional/normalize.ts', 'additional-normalize.mjs'],
+    ['src/providers/additional/authRecords.ts', 'additional-auth-records.mjs'],
+    ['src/core/display.ts', 'display.mjs'],
+    ['src/core/snapshotFingerprint.ts', 'snapshot-fingerprint.mjs'],
     ['src/core/providerMetadata.ts', 'provider-metadata.mjs'],
     ['src/core/providerValidation.ts', 'provider-validation.mjs'],
     ['src/providers/codex/resetCreditsNormalize.ts', 'reset-credits-normalize.mjs'],
@@ -25,3 +29,4 @@ for (const [source, name] of [
 ]) {
     execFileSync(path.join(root, 'node_modules', '.bin', 'esbuild'), [source, '--bundle', '--format=esm', '--platform=node', `--outfile=${path.join(out, name)}`], {cwd: root, stdio: 'inherit'});
 }
+execFileSync(path.join(root, 'node_modules', '.bin', 'esbuild'), ['src/providers/additional/collector.ts', '--bundle', '--format=esm', '--platform=neutral', '--external:gi://*', `--outfile=${path.join(out, 'additional-collector.js')}`], {cwd: root, stdio: 'inherit'});

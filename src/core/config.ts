@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {ACCENTS, type AccentColor, type ProviderInstance, type ProviderKind, type QuotaWindowPreference} from './types.js';
+import {ACCENTS, PROVIDER_KINDS, type AccentColor, type ProviderInstance, type ProviderKind, type QuotaWindowPreference} from './types.js';
 import {expandPath} from './paths.js';
 import {providerMetadata} from './providerMetadata.js';
 import {orderedProviders} from './providerOrder.js';
@@ -65,7 +65,7 @@ export function normalizeProvider(value: unknown): ProviderInstance[] {
         return [];
     const item = value as Record<string, unknown>;
     if (![1, 2].includes(item.schemaVersion as number) || typeof item.id !== 'string' || typeof item.kind !== 'string' ||
-        !['codex', 'claude', 'kiro', 'antigravity'].includes(item.kind) || typeof item.accountHome !== 'string')
+        !PROVIDER_KINDS.includes(item.kind as ProviderKind) || typeof item.accountHome !== 'string')
         return [];
     const kind = item.kind as ProviderKind;
     const metadata = providerMetadata(kind);

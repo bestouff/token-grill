@@ -4,6 +4,7 @@ import {CodexCollector} from './codex/collector.js';
 import {ClaudeCollector} from './claude/collector.js';
 import {KiroCollector} from './kiro/collector.js';
 import {AntigravityCollector} from './antigravity/collector.js';
+import {AdditionalProviderCollector} from './additional/collector.js';
 
 export class CollectorRegistry {
     private collectors: Record<ProviderKind, ProviderCollector> | null;
@@ -14,6 +15,9 @@ export class CollectorRegistry {
             claude: new ClaudeCollector(),
             kiro: new KiroCollector(),
             antigravity: new AntigravityCollector(),
+            deepseek: new AdditionalProviderCollector(),
+            kimi: new AdditionalProviderCollector(),
+            opencode: new AdditionalProviderCollector(),
         };
     }
 

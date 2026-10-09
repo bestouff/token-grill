@@ -18,7 +18,8 @@ export function chooseWindow(snapshot: ProviderSnapshot | null, preference: Quot
         if (selected) return selected;
     }
     if (preference === 'monthly') {
-        const selected = windows.find(window => window.canonicalWindow === 'monthly' || /month/i.test(`${window.id} ${window.label}`));
+        const selected = windows.filter(window => window.canonicalWindow === 'monthly' || /month/i.test(`${window.id} ${window.label}`))
+            .sort((a, b) => (b.percent ?? -1) - (a.percent ?? -1))[0];
         if (selected) return selected;
     }
     let highest: UsageWindow | null = null;
@@ -29,7 +30,8 @@ export function chooseWindow(snapshot: ProviderSnapshot | null, preference: Quot
 export function resolveQuotaSelection(snapshot: ProviderSnapshot | null, preference: QuotaWindowPreference) {
     const windows = snapshot?.windows || [];
     if (preference === 'automatic') return {requested: preference, selected: chooseWindow(snapshot, preference), fallbackUsed: false, fallbackFrom: null};
-    const exact = windows.find(window => window.canonicalWindow === preference);
+    const exact = windows.filter(window => window.canonicalWindow === preference)
+        .sort((a, b) => (b.percent ?? -1) - (a.percent ?? -1))[0];
     if (exact) return {requested: preference, selected: exact, fallbackUsed: false, fallbackFrom: null};
     return {requested: preference, selected: chooseWindow(snapshot, 'automatic'), fallbackUsed: true, fallbackFrom: preference};
 }
@@ -37,6 +39,11 @@ export function resolveQuotaSelection(snapshot: ProviderSnapshot | null, prefere
 export function displayPercent(window: UsageWindow | null, mode: PanelPercentageMode): number | null {
     if (!window || window.percent === null || window.percent === undefined) return null;
     return mode === 'remaining' ? Math.max(0, Math.min(1, 1 - window.percent)) : Math.max(0, Math.min(1, window.percent));
+}
+
+export function balanceLabel(snapshot: ProviderSnapshot | null): string | null {
+    if (!snapshot?.balances?.length) return null;
+    return snapshot.balances.map(balance => `${balance.currency} ${balance.available.toLocaleString(undefined, {maximumFractionDigits: 4})}`).join(' · ');
 }
 
 export function pressureClass(window: UsageWindow | null): 'neutral' | 'warning' | 'critical' {

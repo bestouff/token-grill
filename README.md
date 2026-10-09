@@ -10,7 +10,7 @@ times without interrupting your work.
 
 ## What it does
 
-- Monitors multiple Codex, Claude, Kiro and Antigravity accounts.
+- Monitors multiple Codex, Claude, Kiro, Antigravity, DeepSeek, Kimi Code, and OpenCode Zen / Go accounts.
 - Shows the active account in the top bar as text, a ring, or a compact bar.
 - Displays provider quota windows and reset times in your local timezone.
 - Switches between accounts from the popup.
@@ -57,10 +57,36 @@ accounts.
 Kiro support also needs the Gda 5.0 SQLite GObject-introspection binding from
 your Linux distribution.
 
+### DeepSeek, Kimi Code, and OpenCode
+
+- **DeepSeek:** shows the available prepaid balance, including its currency,
+  rather than a quota percentage. By default it reads the `deepseek` API key
+  from `$XDG_DATA_HOME/opencode/auth.json` (normally `~/.local/share/opencode/auth.json`).
+- **Kimi Code:** shows five-hour, weekly, and monthly subscription quotas.
+  It reads `~/.kimi-code/config.toml` and the credential file referenced by that
+  configuration under `credentials/`. Both mainland China and global endpoints
+  are supported. Legacy `~/.kimi` homes can also be selected. Credentials are
+  read-only; if the token expires, start `kimi` and run `/login` to refresh it.
+  This is Kimi Code, not the separate Moonshot prepaid API.
+- **OpenCode Zen / Go:** reads the `opencode-go` or `opencode` API key from the
+  OpenCode `auth.json` file and shows Go's rolling, weekly, and monthly quotas.
+  The quota endpoint requires a **Go subscription**. Zen pay-as-you-go accounts
+  receive an explanatory error because that endpoint does not expose their balance.
+
+Run `opencode auth login` to configure DeepSeek or OpenCode keys. Alternatively,
+select a private JSON file containing `{"api_key":"your-key"}` through the
+provider's **Auth file override**. A Kimi Code API key can use the same format;
+its configured region still determines the endpoint. Never put API keys in
+Token Grill's settings. Local history is not supported for these three providers.
+
+All provider icons use LobeHub's monochrome set, with white and black variants
+for dark and light backgrounds.
+
 ## Privacy and network access
 
 Token Grill reads credentials from the account directories you configure and
-sends them only to that provider's HTTPS usage service. It does not run provider
+sends them only to that provider's HTTPS usage service. The Sign in button can
+open a terminal running the provider's CLI. Collection does not run provider
 CLIs, collect telemetry, or send prompt and response content anywhere.
 
 The extension stores compact usage totals under the XDG data directory and

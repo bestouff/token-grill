@@ -9,13 +9,14 @@ const metadata = JSON.parse(await readFile(path.join(root, 'metadata.json'), 'ut
 const errors = [];
 const expectedUuid = 'tokengrill@sh02sahil.github.io';
 const expectedUrl = 'https://github.com/sh02sahil/token-grill';
-const allowedMetadataKeys = new Set(['name', 'description', 'uuid', 'url', 'shell-version', 'settings-schema']);
+const allowedMetadataKeys = new Set(['name', 'description', 'uuid', 'url', 'shell-version', 'settings-schema', 'version']);
 
 if (metadata.uuid !== expectedUuid) errors.push(`Public UUID must be ${expectedUuid}.`);
 if (metadata.url !== expectedUrl) errors.push(`Project URL must be ${expectedUrl}.`);
 if (JSON.stringify(metadata['shell-version']) !== JSON.stringify(['50'])) errors.push('The first release must target GNOME Shell 50 only.');
 if (metadata['settings-schema'] !== 'org.gnome.shell.extensions.tokengrill') errors.push('Unexpected settings schema.');
 for (const key of Object.keys(metadata)) if (!allowedMetadataKeys.has(key)) errors.push(`Unnecessary metadata key: ${key}`);
+if (metadata.version !== undefined && (!Number.isInteger(metadata.version) || metadata.version < 1)) errors.push('Extension version must be a positive integer.');
 
 const shellSource = await readFile(path.join(root, 'src', 'shell', 'indicator.ts'), 'utf8') + await readFile(path.join(root, 'src', 'shell', 'providerCard.ts'), 'utf8');
 if (shellSource.includes('set_tooltip_text')) errors.push('Shell code must not call GTK-only set_tooltip_text().');

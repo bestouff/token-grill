@@ -1,4 +1,5 @@
-export type ProviderKind = 'codex' | 'claude' | 'kiro' | 'antigravity';
+export const PROVIDER_KINDS = ['codex', 'claude', 'kiro', 'antigravity', 'deepseek', 'kimi', 'opencode'] as const;
+export type ProviderKind = typeof PROVIDER_KINDS[number];
 export type AccentColor = 'blue' | 'cyan' | 'green' | 'amber' | 'orange' | 'red' | 'purple' | 'pink';
 export type QuotaWindowPreference = 'automatic' | 'five-hour' | 'weekly' | 'monthly';
 export type PanelPercentageMode = 'remaining' | 'used';
@@ -93,6 +94,7 @@ export interface ProviderSnapshot {
     errorInfo: ProviderErrorInfo | null;
     plan: string | null;
     windows: UsageWindow[];
+    balances?: ProviderBalance[];
     totals: TokenTotals;
     todayTotals: TokenTotals;
     monthTotals: TokenTotals;
@@ -105,6 +107,13 @@ export interface ProviderSnapshot {
     localHistoryUpdatedAt: number | null;
     resetCreditsFetchedAt: number | null;
     resetCredits: LimitResetCreditSummary | null;
+}
+
+export interface ProviderBalance {
+    currency: string;
+    available: number;
+    granted: number | null;
+    toppedUp: number | null;
 }
 
 export interface SourceRefreshState {

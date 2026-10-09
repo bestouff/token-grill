@@ -4,7 +4,7 @@
     <key name="provider-instances-json" type="s">
       <default>'[]'</default>
       <summary>Configured provider accounts</summary>
-      <description>Versioned JSON definitions for Codex, Claude, Kiro, and Antigravity account instances.</description>
+      <description>Versioned JSON definitions for Codex, Claude, Kiro, Antigravity, DeepSeek, Kimi Code, and OpenCode Zen / Go account instances.</description>
     </key>
     <key name="configuration-version" type="u">
       <default>1</default>

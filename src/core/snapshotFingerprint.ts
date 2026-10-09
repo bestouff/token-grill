@@ -12,6 +12,7 @@ export function snapshotFingerprint(snapshot: ProviderSnapshot | null): string {
     return JSON.stringify({
         plan: snapshot.plan,
         windows: snapshot.windows,
+        balances: snapshot.balances || [],
         resetCredits: snapshot.resetCredits ? {
             supported: snapshot.resetCredits.supported,
             availableCount: snapshot.resetCredits.availableCount,
@@ -30,5 +31,5 @@ export function snapshotFingerprint(snapshot: ProviderSnapshot | null): string {
 export function quotaFingerprint(snapshot: ProviderSnapshot | null): string {
     if (!snapshot)
         return '';
-    return JSON.stringify({plan: snapshot.plan, windows: snapshot.windows});
+    return JSON.stringify({plan: snapshot.plan, windows: snapshot.windows, balances: snapshot.balances || []});
 }

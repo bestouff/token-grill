@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
-import {resolveQuotaSelection, displayLabel, pressureClass} from '../core/display.js';
+import {balanceLabel, resolveQuotaSelection, displayLabel, pressureClass} from '../core/display.js';
 import {formatResetCountdown} from '../core/timeMath.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import {historyMetrics} from '../core/historyMetrics.js';
@@ -83,6 +83,8 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
         const windows = new St.BoxLayout({style_class: 'tokengrill-window-grid', x_expand: true});
         this._windowCards = {fiveHour: this._makeWindowCard('Five-hour', 'five-hour'), weekly: this._makeWindowCard('Weekly', 'weekly'), monthly: this._makeWindowCard('Monthly', 'monthly')};
         windows.add_child(this._windowCards.fiveHour.root); windows.add_child(this._windowCards.weekly.root); windows.add_child(this._windowCards.monthly.root); this.add_child(windows);
+        this._additionalWindows = new St.BoxLayout({vertical: true, style_class: 'tokengrill-window-grid', x_expand: true});
+        this.add_child(this._additionalWindows);
 
         this._credits = this._makeCreditsCard();
         this.add_child(this._credits.root); this.add_child(this._credits.details);
@@ -117,7 +119,7 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
         const meter = new St.DrawingArea({height: 6, style_class: 'tokengrill-meter', x_expand: true}); content.add_child(meter);
         const reset = text('No active data', 'tokengrill-secondary'); content.add_child(reset);
         const selected = text('', 'tokengrill-window-selected-label'); content.add_child(selected);
-        const card = {root, value, meter, reset, selected, window: null, canonical, selectSignalId: 0, repaintSignalId: 0};
+        const card = {root, name, value, meter, reset, selected, window: null, canonical, selectSignalId: 0, repaintSignalId: 0};
         card.selectSignalId = root.connect('clicked', () => this._actions.selectWindow?.(this._instance, canonical));
         card.repaintSignalId = meter.connect('repaint', area => drawMeter(area, card.window?.percent ?? null, pressureColor(card.window)));
         return card;
@@ -173,15 +175,30 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
         const selection = resolveQuotaSelection(snapshot, instance.panelWindowPreference || 'automatic');
         const selected = selection.selected;
         this._summary.set_style_class_name(`tokengrill-summary tokengrill-pressure-${pressureClass(selected)}`);
-        this._summaryValue.set_text(displayLabel(selected, mode));
+        const balance = balanceLabel(snapshot);
+        this._summaryValue.set_text(balance || displayLabel(selected, mode));
         const exact = quotaValueLabel(selected);
         this._summaryCaption.set_text(selection.fallbackUsed ? `${instance.panelWindowPreference} selected · showing ${selected?.label || 'available data'} until it returns.` : selected ? `${selected.label}${exact ? ` · ${exact}` : ''} · resets in ${formatResetCountdown(selected.resetAt)}` : 'Waiting for quota data');
         this._summaryReset.set_text(selected?.resetAt ? formatReset(selected.resetAt) : '');
-        const byCanonical = new Map((snapshot?.windows || []).map(window => [window.canonicalWindow, window]));
+        if (instance.kind === 'deepseek') this._summaryCaption.set_text(balance ? 'Available prepaid balance · no reset schedule' : 'Waiting for balance data');
+        const byCanonical = new Map();
+        for (const window of snapshot?.windows || []) {
+            const previous = byCanonical.get(window.canonicalWindow);
+            if (!previous || (window.percent ?? -1) > (previous.percent ?? -1)) byCanonical.set(window.canonicalWindow, window);
+        }
         this._updateWindowCard(this._windowCards.fiveHour, byCanonical.get('five-hour') || null, mode, instance.panelWindowPreference === 'five-hour' || (instance.panelWindowPreference === 'automatic' && selected?.canonicalWindow === 'five-hour'));
         this._updateWindowCard(this._windowCards.weekly, byCanonical.get('weekly') || null, mode, instance.panelWindowPreference === 'weekly' || (instance.panelWindowPreference === 'automatic' && selected?.canonicalWindow === 'weekly'));
         this._updateWindowCard(this._windowCards.monthly, byCanonical.get('monthly') || null, mode, instance.panelWindowPreference === 'monthly' || (instance.panelWindowPreference === 'automatic' && selected?.canonicalWindow === 'monthly'));
         for (const card of Object.values(this._windowCards)) card.root.visible = metadata.quotaWindows.includes(card.canonical);
+        this._additionalWindows.get_children().forEach(child => child.destroy());
+        for (const window of snapshot?.windows || []) {
+            if (metadata.quotaWindows.includes(window.canonicalWindow) && byCanonical.get(window.canonicalWindow) === window) continue;
+            const row = new St.BoxLayout({vertical: true, style_class: 'tokengrill-window-card', x_expand: true});
+            row.add_child(text(`${window.label} · ${displayLabel(window, mode)}`, 'tokengrill-window-value'));
+            row.add_child(text(window.resetAt ? formatReset(window.resetAt) : 'Reset time unavailable', 'tokengrill-secondary'));
+            this._additionalWindows.add_child(row);
+        }
+        this._additionalWindows.visible = this._additionalWindows.get_children().length > 0;
         this._updateCredits(snapshot?.resetCredits || null);
         const metrics = historyMetrics(instance, snapshot, runtime);
         for (const [card, metric] of [[this._today, metrics.today], [this._month, metrics.month], [this._cost, metrics.cost]]) {
@@ -229,6 +246,7 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
     }
 
     _updateWindowCard(card, window, mode, selected) {
+        card.name.set_text(window?.label || (card.canonical === 'five-hour' ? 'Five-hour' : card.canonical === 'weekly' ? 'Weekly' : 'Monthly'));
         card.window = window; card.root.set_style_class_name(`tokengrill-window-card${selected ? ' tokengrill-window-selected' : ''}`);
         card.value.set_text(window ? displayLabel(window, mode) : 'Unavailable'); card.value.set_style_class_name(`tokengrill-window-value tokengrill-pressure-${pressureClass(window)}`);
         card.reset.set_text(window ? `${quotaValueLabel(window) || formatReset(window.resetAt)} · ${quotaValueLabel(window) ? `${formatReset(window.resetAt)} · ` : ''}resets in ${formatResetCountdown(window.resetAt)}` : 'No active data');

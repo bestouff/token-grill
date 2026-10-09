@@ -12,8 +12,8 @@ test('Kiro metadata defines monthly-only live quota defaults', () => {
   assert.equal(metadata.defaultQuotaWindow, 'monthly');
   assert.deepEqual(metadata.quotaWindows, ['monthly']);
   assert.equal(metadata.localHistorySupported, false);
-  assert.equal(providerIconFile('kiro'), 'kiro-icon.png');
-  assert.equal(providerIconFile('kiro', 'dark'), 'kiro-icon.png');
+  assert.equal(providerIconFile('kiro'), 'kiro-mono-light.svg');
+  assert.equal(providerIconFile('kiro', 'dark'), 'kiro-mono-dark.svg');
 });
 
 test('Kiro request URLs cover commercial and GovCloud partitions', () => {
