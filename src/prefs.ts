@@ -11,6 +11,7 @@ import {reorderProviders} from './core/providerOrder.js';
 import {defaultHome, displayPath, expandPath, pathExists, providerPaths} from './core/paths.js';
 import {providerIconFile, providerMetadata} from './core/providerMetadata.js';
 import {firstProviderValidationError, validateProviderDraft} from './core/providerValidation.js';
+import {dataPath, statePath} from './storage/atomicJson.js';
 import {ACCENTS} from './core/types.js';
 import {tokenFromJwt} from './providers/codex/auth.js';
 import {kiroCredentialStatus} from './providers/kiro/auth.js';
@@ -155,6 +156,11 @@ const ProviderEditorDialog = GObject.registerClass(class ProviderEditorDialog ex
         }
         accent.add(swatches);
 
+        const collection = addSection(content, _('Collection'));
+        this._live = new Adw.SwitchRow({title: _('Live quota'), subtitle: _('Read the provider quota endpoint using this account.'), active: this._provider?.liveUsageEnabled !== false});
+        this._history = new Adw.SwitchRow({title: _('Local history'), subtitle: _('Index token accounting without storing prompts or responses.'), active: this._provider?.localHistoryEnabled === true});
+        collection.add(this._live); collection.add(this._history);
+
         const locations = addSection(content, _('Data locations'), _('Paths are local, absolute, or begin with ~/. Advanced overrides are optional.'));
         this._auth = new Adw.EntryRow({title: _('Auth file override'), text: this._provider?.authFileOverride || ''});
         this._sessions = new Adw.EntryRow({title: _('Sessions directory override'), text: this._provider?.sessionsDirectoryOverride || ''});
@@ -172,10 +178,6 @@ const ProviderEditorDialog = GObject.registerClass(class ProviderEditorDialog ex
         this._windowPreference = new Adw.ComboRow({title: _('Quota window'), subtitle: _('Choose the limit that drives this account\u2019s panel reading.'), model: Gtk.StringList.new([_('Automatic'), _('Five-hour'), _('Weekly'), _('Monthly')]), selected: windowIndex(this._provider?.panelWindowPreference || 'automatic')});
         panel.add(this._showPanel); panel.add(this._windowPreference);
 
-        const collection = addSection(content, _('Collection'));
-        this._live = new Adw.SwitchRow({title: _('Live quota'), subtitle: _('Read the provider quota endpoint using this account.'), active: this._provider?.liveUsageEnabled !== false});
-        this._history = new Adw.SwitchRow({title: _('Local history'), subtitle: _('Index token accounting without storing prompts or responses.'), active: this._provider?.localHistoryEnabled === true});
-        collection.add(this._live); collection.add(this._history);
         if (this._provider) {
             const removal = addSection(content, _('Remove provider'), _('Provider credentials, sessions, and files are never changed.'));
             const remove = pointer(new Gtk.Button({label: _('Delete provider'), css_classes: ['destructive-action'], halign: Gtk.Align.FILL, hexpand: true, margin_top: 8, margin_bottom: 8}));
@@ -542,7 +544,7 @@ const NotificationsPage = GObject.registerClass(class NotificationsPage extends 
 });
 
 const DataPage = GObject.registerClass(class DataPage extends Adw.PreferencesPage {
-    _init() { super._init({title: _('Data'), icon_name: 'folder-symbolic'}); const group = new Adw.PreferencesGroup({title: _('Local data'), description: _('Only compact aggregates and checkpoints are stored. Provider logs are never modified.')}); group.add(new Adw.ActionRow({title: _('Usage history'), subtitle: 'XDG data directory'})); group.add(new Adw.ActionRow({title: _('Parser checkpoints'), subtitle: 'XDG state directory'})); this.add(group); }
+    _init() { super._init({title: _('Data'), icon_name: 'folder-symbolic'}); const group = new Adw.PreferencesGroup({title: _('Local data'), description: _('Only compact aggregates and checkpoints are stored. Provider logs are never modified.')}); group.add(new Adw.ActionRow({title: _('Usage history'), subtitle: displayPath(dataPath('history-v1.json'))})); group.add(new Adw.ActionRow({title: _('Parser checkpoints'), subtitle: displayPath(statePath('checkpoints-v1.json'))})); this.add(group); }
 });
 
 export default class TokenGrillPreferences extends ExtensionPreferences {
