@@ -30,3 +30,5 @@ for (const [source, name] of [
     execFileSync(path.join(root, 'node_modules', '.bin', 'esbuild'), [source, '--bundle', '--format=esm', '--platform=node', `--outfile=${path.join(out, name)}`], {cwd: root, stdio: 'inherit'});
 }
 execFileSync(path.join(root, 'node_modules', '.bin', 'esbuild'), ['src/providers/additional/collector.ts', '--bundle', '--format=esm', '--platform=neutral', '--external:gi://*', `--outfile=${path.join(out, 'additional-collector.js')}`], {cwd: root, stdio: 'inherit'});
+execFileSync(path.join(root, 'node_modules', '.bin', 'esbuild'), ['src/prefsIcons.ts', '--bundle', '--format=esm', '--platform=neutral', '--external:gi://*', `--outfile=${path.join(out, 'prefs-icons.js')}`], {cwd: root, stdio: 'inherit'});
+await import('./ui-test-build.mjs');

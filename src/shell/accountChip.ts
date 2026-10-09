@@ -3,6 +3,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {balanceLabel, chooseWindow, displayLabel, displayPercent, pressureClass} from '../core/display.js';
 import {formatResetCountdown} from '../core/timeMath.js';
 import {providerIconFile} from '../core/providerMetadata.js';
@@ -11,7 +12,9 @@ import {accentColor} from '../core/accent.js';
 export {accentColor};
 
 export function schemeAppearance() {
-    return St.Settings.get().color_scheme === St.SystemColorScheme.PREFER_DARK ? 'light' : 'dark';
+    // Follow the effective Shell theme, including its dark default and forced
+    // session-mode themes, rather than interpreting the desktop preference.
+    return Main.getStyleVariant() === 'light' ? 'dark' : 'light';
 }
 
 export function iconFor(instance, basePath, size = 18, appearance = schemeAppearance()) {
@@ -69,10 +72,6 @@ export function createPanelDisplay(instance, snapshot, basePath, mode, style) {
         box.add_child(status);
     }
     return box;
-}
-
-export function createPanelChip(instance, snapshot, basePath, mode) {
-    return createPanelDisplay(instance, snapshot, basePath, mode, 'chip');
 }
 
 function createRing(percent, pressure) {

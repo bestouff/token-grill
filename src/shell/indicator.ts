@@ -9,7 +9,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {activeProvider} from '../core/display.js';
 import type {CanonicalQuotaWindow, PanelDisplayStyle, PanelPercentageMode, ProviderInstance, ProviderRuntimeState, ProviderSnapshot} from '../core/types.js';
-import {createPanelDisplay, createPanelChip, iconFor, accentColor, schemeAppearance} from './accountChip.js';
+import {createPanelDisplay, iconFor, accentColor, schemeAppearance} from './accountChip.js';
 import {ProviderDashboard} from './providerCard.js';
 import {makeShellInteractive, resetShellCursor} from './interaction.js';
 
@@ -127,8 +127,8 @@ export const TokenGrillIndicator = GObject.registerClass(class TokenGrillIndicat
             }
             if (this.options.showAllAccounts && enabled.length > 1) {
                 for (const provider of enabled) {
-                    const chip = createPanelChip(provider, this.snapshots.get(provider.id) || null, this.extension.path, this.options.mode as PanelPercentageMode);
-                    this.panelBox.add_child(chip);
+                    const display = createPanelDisplay(provider, this.snapshots.get(provider.id) || null, this.extension.path, this.options.mode as PanelPercentageMode, this.options.style as PanelDisplayStyle);
+                    this.panelBox.add_child(display);
                 }
                 return;
             }

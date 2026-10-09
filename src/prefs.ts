@@ -14,6 +14,7 @@ import {firstProviderValidationError, validateProviderDraft} from './core/provid
 import {dataPath, statePath} from './storage/atomicJson.js';
 import {ACCENTS, PROVIDER_KINDS} from './core/types.js';
 import {loadApiKey, loadKimiAuth} from './providers/additional/auth.js';
+import {preferencesPageIcon, registerPreferencesIcons} from './prefsIcons.js';
 import {tokenFromJwt} from './providers/codex/auth.js';
 import {kiroCredentialStatus} from './providers/kiro/auth.js';
 import {antigravityCredentialStatus} from './providers/antigravity/auth.js';
@@ -375,7 +376,7 @@ const ProviderReorderDialog = GObject.registerClass(class ProviderReorderDialog 
 });
 
 const ProvidersPage = GObject.registerClass(class ProvidersPage extends Adw.PreferencesPage {
-    _init(settings, window, basePath) { super._init({title: _('Providers'), icon_name: 'system-users-symbolic'}); this._settings = settings; this._window = window; this._basePath = basePath; this._groups = []; this._render(); }
+    _init(settings, window, basePath) { super._init({title: _('Providers'), icon_name: preferencesPageIcon('system-users-symbolic', 'tokengrill-providers-symbolic')}); this._settings = settings; this._window = window; this._basePath = basePath; this._groups = []; this._render(); }
     _render() {
         for (const group of this._groups) this.remove(group);
         this._groups = [];
@@ -506,7 +507,7 @@ const ProvidersPage = GObject.registerClass(class ProvidersPage extends Adw.Pref
 
 const GeneralPage = GObject.registerClass(class GeneralPage extends Adw.PreferencesPage {
     _init(settings) {
-        super._init({title: _('General'), icon_name: 'preferences-system-symbolic'}); this._settings = settings;
+        super._init({title: _('General'), icon_name: preferencesPageIcon('preferences-system-symbolic', 'tokengrill-general-symbolic')}); this._settings = settings;
         const appearance = new Adw.PreferencesGroup({title: _('Panel appearance'), description: _('Choose what the active provider looks like in the top bar.')});
         const mode = new Adw.ComboRow({title: _('Percentage'), model: Gtk.StringList.new([_('Remaining'), _('Used')]), selected: settings.get_string('panel-percentage-mode') === 'used' ? 1 : 0}); mode.connect('notify::selected', () => settings.set_string('panel-percentage-mode', mode.selected === 1 ? 'used' : 'remaining'));
         const style = new Adw.ComboRow({title: _('Panel style'), model: Gtk.StringList.new([_('Icon + percentage'), _('Circular meter'), _('Linear meter')]), selected: settings.get_string('panel-display-style') === 'ring' ? 1 : settings.get_string('panel-display-style') === 'bar' ? 2 : 0}); style.connect('notify::selected', () => settings.set_string('panel-display-style', style.selected === 1 ? 'ring' : style.selected === 2 ? 'bar' : 'text'));
@@ -525,7 +526,7 @@ const GeneralPage = GObject.registerClass(class GeneralPage extends Adw.Preferen
 
 const NotificationsPage = GObject.registerClass(class NotificationsPage extends Adw.PreferencesPage {
     _init(settings) {
-        super._init({title: _('Notifications'), icon_name: 'preferences-system-notifications-symbolic'});
+        super._init({title: _('Notifications'), icon_name: preferencesPageIcon('preferences-system-notifications-symbolic', 'tokengrill-notifications-symbolic')});
         this._settings = settings;
         const group = new Adw.PreferencesGroup({title: _('Quota alerts'), description: _('Each account sends at most one alert when its selected limit crosses a usage step.')});
         const enabled = new Adw.SwitchRow({title: _('Usage notifications'), subtitle: _('Track the same Five-hour, Weekly, Monthly, or automatic limit selected for that account.'), active: settings.get_boolean('notifications-enabled')});
@@ -578,6 +579,7 @@ const DataPage = GObject.registerClass(class DataPage extends Adw.PreferencesPag
 
 export default class TokenGrillPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        registerPreferencesIcons(this.path);
         const settings = this.getSettings(); window.set_default_size(760, 700); window.add_css_class('tokengrill-preferences');
         const css = new Gtk.CssProvider(); css.load_from_path(`${this.path}/prefs.css`); const display = Gdk.Display.get_default(); if (display) Gtk.StyleContext.add_provider_for_display(display, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
         window.add(new GeneralPage(settings)); window.add(new ProvidersPage(settings, window, this.path)); window.add(new NotificationsPage(settings)); window.add(new DataPage());
