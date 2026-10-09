@@ -80,6 +80,8 @@
 .tokengrill-metric-unit { color: rgba(255, 255, 255, 0.55); font-size: 0.64em; font-weight: 700; min-height: 0.75em; }
 .tokengrill-error-row { spacing: 7px; padding: 10px; border-radius: 10px; background-color: rgba(255, 107, 107, 0.12); }
 .tokengrill-error-text { color: #ffb4ab; }
+.tokengrill-sign-in-button { min-height: 28px; padding: 0 10px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.1); color: #ffb4ab; font-weight: 700; }
+.tokengrill-sign-in-button:hover, .tokengrill-sign-in-button:focus { background-color: #232323; box-shadow: inset 0 0 0 1px #46413a; }
 .tokengrill-empty-popover { spacing: 8px; padding: 24px 16px; }
 .tokengrill-empty-icon { color: #f3a836; }
 .tokengrill-empty-title { font-weight: 700; font-size: 1.1em; }
@@ -172,6 +174,13 @@
 .tokengrill-light-theme .tokengrill-footer-button.tokengrill-hover { background-color: #e9e6e2; border-color: #8a877f; box-shadow: inset 0 0 0 1px rgba(232, 154, 44, 0.45); }
 .tokengrill-light-theme .tokengrill-footer-brand { color: rgba(37, 36, 35, 0.48); }
 .tokengrill-light-theme .tokengrill-error-text { color: #a51e1e; }
+.tokengrill-light-theme .tokengrill-sign-in-button {
+    background-color: rgba(37, 36, 35, 0.08);
+    color: #a51e1e;
+    box-shadow: inset 0 0 0 1px rgba(37, 36, 35, 0.15);
+}
+.tokengrill-light-theme .tokengrill-sign-in-button:hover,
+.tokengrill-light-theme .tokengrill-sign-in-button:focus { background-color: #e9e6e2; box-shadow: inset 0 0 0 1px #cfcbc5; }
 .tokengrill-light-theme .tokengrill-empty-icon { color: #b06f00; }
 .tokengrill-light-theme .tokengrill-link-button { color: #b06f00; }
 .tokengrill-light-theme .tokengrill-panel-value,

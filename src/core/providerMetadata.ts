@@ -9,6 +9,7 @@ export interface ProviderMetadata {
     quotaWindows: CanonicalQuotaWindow[];
     defaultQuotaWindow: QuotaWindowPreference;
     localHistorySupported: boolean;
+    loginCommand: string | null;
 }
 
 export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
@@ -21,6 +22,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         quotaWindows: ['five-hour', 'weekly'],
         defaultQuotaWindow: 'automatic',
         localHistorySupported: true,
+        loginCommand: 'codex login',
     },
     claude: {
         label: 'Claude',
@@ -31,6 +33,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         quotaWindows: ['five-hour', 'weekly'],
         defaultQuotaWindow: 'automatic',
         localHistorySupported: true,
+        loginCommand: 'claude auth login',
     },
     kiro: {
         label: 'Kiro',
@@ -41,6 +44,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         quotaWindows: ['monthly'],
         defaultQuotaWindow: 'monthly',
         localHistorySupported: false,
+        loginCommand: 'kiro-cli login',
     },
     antigravity: {
         label: 'Antigravity',
@@ -51,6 +55,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         quotaWindows: ['five-hour', 'weekly'],
         defaultQuotaWindow: 'automatic',
         localHistorySupported: false,
+        loginCommand: null,
     },
 };
 

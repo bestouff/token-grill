@@ -1,5 +1,6 @@
 // @ts-nocheck
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
@@ -10,6 +11,7 @@ import {historyMetrics} from '../core/historyMetrics.js';
 import type {ProviderInstance, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from '../core/types.js';
 import {formatReset, iconFor} from './accountChip.js';
 import {makeShellInteractive} from './interaction.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 function text(value, style = '') { return new St.Label({text: value, style_class: style, y_align: Clutter.ActorAlign.CENTER}); }
 
@@ -90,8 +92,13 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
         metrics.add_child(this._today.root); metrics.add_child(this._month.root); metrics.add_child(this._cost.root); this.add_child(metrics);
 
         this._errorRow = new St.BoxLayout({style_class: 'tokengrill-error-row', x_expand: true});
-        this._errorIcon = new St.Icon({icon_name: 'dialog-warning-symbolic', icon_size: 16}); this._errorText = text('', 'tokengrill-error-text');
-        this._errorRow.add_child(this._errorIcon); this._errorRow.add_child(this._errorText); this._errorRow.hide(); this.add_child(this._errorRow);
+        this._errorIcon = new St.Icon({icon_name: 'dialog-warning-symbolic', icon_size: 16, y_align: Clutter.ActorAlign.START});
+        this._errorText = new St.Label({text: '', style_class: 'tokengrill-error-text', y_align: Clutter.ActorAlign.START, x_expand: true});
+        this._errorText.clutter_text.line_wrap = true;
+        this._signInButton = makeShellInteractive(new St.Button({label: _('Sign in'), style_class: 'tokengrill-sign-in-button', reactive: true, can_focus: true, track_hover: true, x_align: Clutter.ActorAlign.START}), 'Sign in to this provider');
+        this._signInButton.connect('clicked', () => this._launchLogin());
+        this._signInButton.hide();
+        this._errorRow.add_child(this._errorIcon); this._errorRow.add_child(this._errorText); this._errorRow.add_child(this._signInButton); this._errorRow.hide(); this.add_child(this._errorRow);
     }
 
     _metric(title) {
@@ -181,7 +188,44 @@ export const ProviderDashboard = GObject.registerClass(class ProviderDashboard e
             card.value.set_text(metric.value);
             card.unit.set_text(metric.unit);
         }
-        if (snapshot?.error) { this._errorText.set_text(`${snapshot.error} ${snapshot.errorInfo?.recovery === 'reauthenticate' ? instance.kind === 'kiro' ? 'Run kiro-cli login.' : 'Run provider login.' : 'Retry when ready.'}`); this._errorRow.show(); } else this._errorRow.hide();
+        if (snapshot?.error) {
+            const recovery = snapshot.errorInfo?.recovery || 'retry';
+            const command = providerMetadata(instance.kind).loginCommand;
+            const base = snapshot.errorInfo?.message || snapshot.error || '';
+            const needsLogin = recovery === 'reauthenticate' && Boolean(command);
+            let directive = '';
+            if (needsLogin) {
+                if (!/login/i.test(base)) directive = ` ${_('Run')} ${command}.`;
+            } else if (recovery === 'edit-provider') {
+                directive = ` ${_('Edit the provider in Preferences to resolve this.')}`;
+            } else if (recovery === 'retry') {
+                directive = ` ${_('Retry when ready.')}`;
+            }
+            this._errorText.set_text(`${base}${directive}`.trim());
+            this._signInButton.visible = needsLogin;
+            this._errorRow.show();
+        } else {
+            this._signInButton.hide();
+            this._errorRow.hide();
+        }
+    }
+
+    _launchLogin() {
+        const kind = this._instance?.kind;
+        const command = kind ? providerMetadata(kind).loginCommand : null;
+        if (!command) return;
+        const args = command.split(' ');
+        for (const candidate of ['xdg-terminal-exec', 'ptyxis', 'kgx', 'gnome-terminal', 'x-terminal-emulator']) {
+            const bin = GLib.find_program_in_path(candidate);
+            if (!bin) continue;
+            const argv = candidate === 'x-terminal-emulator' ? [bin, '-e', command] : [bin, '--', ...args];
+            try {
+                Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE);
+                return;
+            } catch (error) {
+                logError(error, 'Token Grill failed to open the provider sign-in command');
+            }
+        }
     }
 
     _updateWindowCard(card, window, mode, selected) {
