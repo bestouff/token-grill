@@ -15,8 +15,8 @@ if (metadata.uuid !== expectedUuid)
     errors.push(`Public UUID must be ${expectedUuid}.`);
 if (metadata.url !== expectedUrl)
     errors.push(`Project URL must be ${expectedUrl}.`);
-if (JSON.stringify(metadata['shell-version']) !== JSON.stringify(['50']))
-    errors.push('The release must target GNOME Shell 50 only.');
+if (JSON.stringify(metadata['shell-version']) !== JSON.stringify(['50', '51']))
+    errors.push('The release must target GNOME Shell 50 and 51.');
 if (metadata['settings-schema'] !== 'org.gnome.shell.extensions.tokengrill')
     errors.push('Unexpected settings schema.');
 // PRACTICES 3.2: letters, numbers, space and period, 1 to 16 characters.

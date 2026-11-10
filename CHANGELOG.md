@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0 alpha 2
+
+- Support GNOME Shell 51.
+
 ## 0.4.0 alpha 1
 
 This is a test release. It is available only on GitHub. Token Grill 0.4.0 goes
