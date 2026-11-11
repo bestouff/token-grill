@@ -73,16 +73,46 @@ test('Claude limits array fills windows missing from legacy fields', () => {
     assert.equal(windows[1].resetAt, Date.parse('2026-10-20T03:00:00+00:00'));
 });
 
-test('Claude limits array prefers an unscoped weekly limit over a model-scoped one', () => {
+test('Claude limits array fills weekly with the unscoped limit and keeps the model-scoped one as its own limit', () => {
     const windows = normalizeClaudeUsage({
         limits: [
             {kind: 'weekly_scoped', group: 'weekly', percent: 80, scope: {model: {display_name: 'Fable'}}},
             {kind: 'weekly', group: 'weekly', percent: 30, scope: null},
         ],
     });
-    assert.equal(windows.length, 1);
+    assert.equal(windows.length, 2);
+    assert.equal(windows[0].canonicalWindow, 'weekly');
     assert.equal(windows[0].label, 'Weekly');
     assert.equal(windows[0].percent, 0.3);
+    assert.equal(windows[1].canonicalWindow, 'other');
+    assert.equal(windows[1].label, 'Weekly · Fable');
+    assert.equal(windows[1].percent, 0.8);
+});
+
+test('Claude model-scoped weekly limit is kept when the legacy keys already give the weekly', () => {
+    const windows = normalizeClaudeUsage({
+        five_hour: {utilization: 29, resets_at: '2026-11-12T18:00:00+00:00'},
+        seven_day: {utilization: 35, resets_at: '2026-11-18T03:00:00+00:00'},
+        seven_day_opus: null,
+        seven_day_sonnet: null,
+        limits: [
+            {group: 'session', kind: 'session', percent: 29, scope: null, resets_at: '2026-11-12T18:00:00+00:00'},
+            {group: 'weekly', kind: 'weekly_all', percent: 35, scope: null, resets_at: '2026-11-18T03:00:00+00:00'},
+            {group: 'weekly', kind: 'weekly_scoped', percent: 29, scope: {model: {display_name: 'Fable'}, surface: null}, resets_at: '2026-11-18T03:00:00+00:00'},
+        ],
+    });
+    assert.deepEqual(windows.map(window => [window.canonicalWindow, window.percent]), [['five-hour', 0.29], ['weekly', 0.35], ['other', 0.29]]);
+    assert.equal(windows[2].id, 'limits:weekly_scoped:Fable');
+    assert.equal(windows[2].label, 'Weekly · Fable');
+    assert.equal(windows[2].resetAt, Date.parse('2026-11-18T03:00:00+00:00'));
+});
+
+test('Claude model-scoped limit is not repeated when a legacy model key reports it', () => {
+    const windows = normalizeClaudeUsage({
+        seven_day_opus: {utilization: 10},
+        limits: [{group: 'weekly', kind: 'weekly_scoped', percent: 10, scope: {model: {display_name: 'Opus'}}}],
+    });
+    assert.deepEqual(windows.map(window => window.id), ['seven_day_opus']);
 });
 
 test('Kiro precision credit usage maps to a monthly window', () => {

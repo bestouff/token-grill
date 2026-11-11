@@ -37,42 +37,61 @@ function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: st
     };
 }
 
-// The newer `limits` array carries windows that the legacy keys may leave null,
-// such as model-scoped weekly limits. Only windows the legacy keys did not
-// provide are taken from it, preferring unscoped limits over scoped ones.
-function limitWindows(limits: unknown, present: Set<CanonicalQuotaWindow>): UsageWindow[] {
+function modelOf(scope: string): string {
+    const [model = ''] = scope.split(' · ');
+    return model.toLowerCase();
+}
+
+// Model-scoped limits in the `limits` array are separate limits that Claude
+// shows to the user, so each one is kept. Unscoped limits only fill the
+// windows the legacy keys left out, because otherwise they repeat them.
+function limitWindows(limits: unknown, legacyKeys: Set<string>, present: Set<CanonicalQuotaWindow>): UsageWindow[] {
     if (!Array.isArray(limits))
         return [];
-    const chosen = new Map<CanonicalQuotaWindow, {window: UsageWindow; scoped: boolean}>();
+    interface Entry {canonicalWindow: CanonicalQuotaWindow; scope: string | null; window: UsageWindow}
+    const entries: Entry[] = [];
     for (const item of limits.filter(isRecord)) {
         const percent = numberAt(item, 'percent');
         const group = stringAt(item, 'group') ?? '';
         const canonicalWindow = LIMIT_GROUPS[group];
-        if (percent === null || !canonicalWindow || present.has(canonicalWindow))
+        if (percent === null || !canonicalWindow)
             continue;
         const scope = scopeName(recordAt(item, 'scope'));
-        const existing = chosen.get(canonicalWindow);
-        if (existing && (!existing.scoped || scope))
+        if (scope && legacyKeys.has(`seven_day_${modelOf(scope)}`))
             continue;
         const kind = stringAt(item, 'kind') ?? group;
         const base = windowLabel(canonicalWindow, kind);
         const id = scope ? `limits:${kind}:${scope}` : `limits:${kind}`;
         const window = makeWindow(id, canonicalWindow, scope ? `${base} · ${scope}` : base, percent, item.resets_at);
-        chosen.set(canonicalWindow, {window, scoped: Boolean(scope)});
+        entries.push({canonicalWindow, scope, window});
     }
-    return [...chosen.values()].map(entry => entry.window);
+    const fills = new Map<CanonicalQuotaWindow, Entry>();
+    for (const entry of entries) {
+        const existing = fills.get(entry.canonicalWindow);
+        if (present.has(entry.canonicalWindow) || (existing && (!existing.scope || entry.scope)))
+            continue;
+        fills.set(entry.canonicalWindow, entry);
+    }
+    const used = new Set(fills.values());
+    const scoped = entries
+        .filter(entry => entry.scope && !used.has(entry))
+        .map(entry => ({...entry.window, canonicalWindow: 'other' as const}));
+    return [...[...fills.values()].map(entry => entry.window), ...scoped];
 }
 
 export function normalizeClaudeUsage(payload: unknown): UsageWindow[] {
     if (!isRecord(payload))
         return [];
     const windows: UsageWindow[] = [];
+    const legacyKeys: string[] = [];
     for (const [key, canonicalWindow] of LEGACY_WINDOWS) {
         const item = recordAt(payload, key);
         const utilization = item ? numberAt(item, 'utilization') : null;
-        if (item && utilization !== null)
+        if (item && utilization !== null) {
+            legacyKeys.push(key);
             windows.push(makeWindow(key, canonicalWindow, windowLabel(canonicalWindow, key.replaceAll('_', ' ')), utilization, item.resets_at));
+        }
     }
-    windows.push(...limitWindows(payload.limits, new Set(windows.map(window => window.canonicalWindow))));
+    windows.push(...limitWindows(payload.limits, new Set(legacyKeys), new Set(windows.map(window => window.canonicalWindow))));
     return windows;
 }
