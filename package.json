@@ -12,6 +12,7 @@
         "test:live": "npm run build && gjs -m tools/live-smoke.js",
         "install:local": "node tools/install.mjs",
         "dev:shell": "bash tools/nested-shell.sh",
+        "try": "bash tools/try.sh",
         "pack": "node tools/pack.mjs",
         "release:check": "node tools/release-check.mjs",
         "review:check": "npm run pack && node tools/shexli-check.mjs"

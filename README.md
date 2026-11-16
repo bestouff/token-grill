@@ -54,6 +54,22 @@ To install a release archive before the approval, do these steps:
 2. Log out and log in again.
 3. Enable Token Grill in Extension Manager or in the Extensions app.
 
+### Try a release without logging out
+
+[`tools/try.sh`](tools/try.sh) opens a release archive in a nested GNOME Shell
+window. The nested shell has its own settings, extensions and keyring. Your
+session does not change. The script needs the Mutter devkit. On Debian or
+Ubuntu, the package is `mutter-dev-bin`.
+
+```sh
+bash try.sh tokengrill@sh02sahil.github.io.shell-extension.zip
+```
+
+The nested shell reads the sign-ins of your apps, but not the keys in your
+keyring. To try an API key, paste it again in the nested shell. The first key
+asks for a password for a new test keyring. When you close the window, the
+script deletes the test settings and the test keyring.
+
 ## Add an account
 
 1. Sign in to the service with the app of that service. Token Grill does not
@@ -256,6 +272,9 @@ change a preference in the nested shell, the preference also changes on your
 desktop.
 If you enable or disable an extension in the nested shell, the extension also
 changes on your desktop.
+
+To try the build with separate settings and a separate keyring, run
+`npm run pack && npm run try`.
 
 For the full procedure, refer to [CONTRIBUTING.md](CONTRIBUTING.md).
 
