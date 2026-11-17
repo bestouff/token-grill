@@ -69,13 +69,21 @@ const forbidden = [
     new RegExp(["'\\.t3'", "'userdata'"].join(',\\s*')),
 ];
 const textExtensions = new Set(['.md', '.json', '.mjs', '.js', '.ts', '.xml', '.sh', '.css', '.svg', '.txt']);
-const scanned = await listFiles(root, new Set(['.git', 'node_modules', 'dist', 'build', 'venv']));
+const scanned = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {cwd: root, encoding: 'utf8'})
+    .split('\0').filter(Boolean).map(file => path.join(root, file));
 // The checker and the rulebook name the patterns in order to ban them.
 const traceRules = new Set(['tools/release-check.mjs', 'PRACTICES.md']);
 for (const file of scanned.filter(name => textExtensions.has(path.extname(name)))) {
     if (traceRules.has(path.relative(root, file)))
         continue;
-    const text = await readFile(file, 'utf8');
+    let text;
+    try {
+        text = await readFile(file, 'utf8');
+    } catch (error) {
+        if (error.code === 'ENOENT')
+            continue;
+        throw error;
+    }
     for (const pattern of forbidden) {
         if (pattern.test(text))
             errors.push(`Private-development trace in ${path.relative(root, file)}: ${pattern}`);
