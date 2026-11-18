@@ -36,7 +36,7 @@ These are the other functions:
 
 ## Install
 
-Token Grill operates with **GNOME Shell 50 and 51**.
+Token Grill operates with **GNOME Shell 48, 49, 50, and 51**.
 
 After GNOME Shell Extensions approves the first release, search for
 **Token Grill** in [Extension Manager](https://mattjakeman.com/apps/extension-manager)

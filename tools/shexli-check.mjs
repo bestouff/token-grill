@@ -10,6 +10,10 @@ const targets = [
     path.join(root, 'build', 'releases', `${metadata.uuid}.shell-extension.zip`),
 ];
 
+// PRACTICES T-2: Shexli 0.2.1 rejects every major above 50, and the Shexli on EGO no longer does.
+const staleShellVersion = finding => finding.rule_id === 'EGO-M-004' &&
+    metadata['shell-version'].every(version => /^\d+$/.test(version) && Number(version) <= 51);
+
 let failed = false;
 for (const target of targets) {
     const result = spawnSync('uvx', [
@@ -34,15 +38,20 @@ for (const target of targets) {
         failed = true;
         continue;
     }
-    const findingCount = report.summary.finding_count;
-    if (!Number.isInteger(findingCount)) {
+    if (!Number.isInteger(report.summary.finding_count)) {
         console.error(`${label}: Shexli JSON did not contain finding_count.`);
         failed = true;
-    } else if (findingCount > 0) {
-        console.error(`${label}: ${findingCount} Shexli finding${findingCount === 1 ? '' : 's'}.`);
-        for (const finding of report.findings)
+        continue;
+    }
+    const accepted = report.findings.filter(staleShellVersion);
+    const findings = report.findings.filter(finding => !staleShellVersion(finding));
+    if (findings.length > 0) {
+        console.error(`${label}: ${findings.length} Shexli finding${findings.length === 1 ? '' : 's'}.`);
+        for (const finding of findings)
             console.error(`  ${finding.rule_id}: ${finding.message}`);
         failed = true;
+    } else if (accepted.length > 0) {
+        console.log(`${label}: Shexli review clean, except EGO-M-004 for GNOME 51 (accepted, PRACTICES T-2).`);
     } else {
         console.log(`${label}: Shexli review clean.`);
     }

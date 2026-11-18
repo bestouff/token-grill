@@ -1,7 +1,7 @@
 # GNOME Shell Extension Practices (hard rules)
 
 Hard rules for writing and maintaining a GNOME Shell extension (GJS, ESM, GNOME 45+, current
-targets GNOME 50 and 51) so that extensions.gnome.org (EGO) reviewers are never burdened by our code.
+targets GNOME 48 to 51) so that extensions.gnome.org (EGO) reviewers are never burdened by our code.
 Canonical sources were fetched on 2026-10-13. Every rule without a quoted source was re-checked
 against the raw sources and the GNOME 50 code on 2026-11-04.
 The GNOME 51 port guide and the supported targets were re-checked on 2026-11-10.
@@ -91,7 +91,7 @@ Require Maintainership"), the three jrahmatzadeh posts.
 | AI-7 | If the maintainer ever cannot vouch for the code, the extension stays personal/local and is not uploaded. That is the original intent of the notice in AI-5. | `[Best-practice]` `[Project]` |
 | AI-8 | Review replies on EGO MUST be written by the human maintainer. "Some submitters rely on AI to generate replies during the review process"; one pasted the LLM's instructions. Agents MUST NOT draft review replies for pasting. | `[EGO-reject]` |
 | AI-9 | Agents MUST NOT rewrite, squash or hide the history of the public repository that `url` points to. A reviewer who opens it should find the code that produced the zip and how it got there. | `[Project]` |
-| AI-10 | Target GNOME Shell 50 and 51 using their shared APIs (Section 14). Do not add speculative version checks (`typeof X === 'function'`, `?.()` on guaranteed APIs) or support claims for other versions. | `[Project]` |
+| AI-10 | Agents MUST write one code path for the GNOME Shell versions in `shell-version` (Section 14), using only the APIs that all of them share. Multi-version hedges (`typeof X === 'function'`, `?.()` on guaranteed APIs, comments like "works on 48–50") are the primary AI signal named in the Best Practices page. | `[Best-practice]` `[Reviewer request]` |
 
 ---
 
@@ -123,7 +123,7 @@ Sources: https://gjs.guide/extensions/overview/anatomy.html, Review Guidelines
 | `uuid` | Required. Form `extension-id@namespace`; only `[A-Za-z0-9._-]` and one `@`. "MUST NOT use gnome.org as the namespace, but may use a registered web domain or accounts such as username.github.io and username.gmail.com." Shexli also rejects a uuid ending in `.gnome.org` or `@gnome.org`. Never change it after first publication. | `[EGO-reject]` `[Shexli EGO-M-003]` |
 | `name` | Required. "Should not conflict with another extension if possible"; forks MUST have a distinguishing name. | `[EGO-reject]` |
 | `description` | Required. "A reasonable length"; paragraphs separated by `\n` literals, bullet lists with `*`. MUST be accurate about what the extension does. MUST declare clipboard access if any (Section 15). SHOULD state which remote hosts are contacted. | `[EGO-reject]` |
-| `shell-version` | Required. Array of major-version strings, e.g. `["50"]`. "MUST only contain stable releases and up to one development release. Extensions must not claim to support future GNOME Shell versions." Shell matches with `shell-version.some(v => v.startsWith(major))`. Shexli 0.2.1 rejects any major `> 50` as an "implausible future release" and more than one `.alpha/.beta/.rc` entry. | `[EGO-reject]` `[Shexli EGO-M-004]` |
+| `shell-version` | Required. Array of major-version strings, e.g. `["50"]`. "MUST only contain stable releases and up to one development release. Extensions must not claim to support future GNOME Shell versions." Shell matches with `shell-version.some(v => v.startsWith(major))`. Shexli 0.2.1 rejects any major `> 50` as an "implausible future release" and more than one `.alpha/.beta/.rc` entry. The Shexli on EGO no longer rejects 51 (M-2). | `[EGO-reject]` `[Shexli EGO-M-004]` |
 | `url` | Required for EGO. GitHub/GitLab repository "where users can report problems". Reviewers ask "Where is the git URL?" when it is missing. | `[EGO-reject]` |
 | `version` | MUST NOT be set by the developer. "Deprecated: This field is set for internal use by extensions.gnome.org." If present it must be a whole number. | `[EGO-reject]` |
 | `version-name` | Optional user-visible version. "A string that only contains letters, numbers, space and period with a length between 1 and 16 characters": `/^(?!^[. ]+$)[a-zA-Z0-9 .]{1,16}$/`. | `[Best-practice]` |
@@ -136,7 +136,7 @@ Sources: https://gjs.guide/extensions/overview/anatomy.html, Review Guidelines
 | ID   | Rule | Origin |
 |------|------|--------|
 | M-1  | `metadata.json` MUST exist, MUST be valid UTF-8 JSON whose top level is an object, and MUST contain only the keys in the table above. | `[EGO-reject]` `[Shexli EGO-M-001/002]` |
-| M-2  | The supported targets use `shell-version` `["50", "51"]`. List only tested versions. Shexli 0.2.1 still rejects 51, so this port remains a draft until the review check passes (T-2). | `[Project]` `[Shexli EGO-M-004]` |
+| M-2  | `shell-version` is `["48", "49", "50", "51"]`. Each was tested on 2026-11-17 in a nested or headless shell (48.7, 49.10, 50.1, 51.1). EGO reviewer reply to this project (2026-11-17): "We accept 51 and that shexli error is already fixed on EGO." Add a newer major only after it is a released stable (or the single development release) that was actually tested, and after EGO accepts it. | `[EGO-reject]` `[Reviewer request]` `[Shexli EGO-M-004]` |
 
 Reference example (adapted from the Review Guidelines):
 
@@ -390,7 +390,7 @@ disable() {
 | R-7  | Source callbacks MUST return `GLib.SOURCE_CONTINUE` or `GLib.SOURCE_REMOVE` explicitly. | `[Convention]` |
 | R-8  | A source that is re-created MUST be removed first, with the removal placed directly next to the creation line. Reassigning a stored source id without removing the previous one is flagged. | `[Best-practice]` `[Shexli EGO-L-007]` |
 | R-8a | A timeout that bounds an async operation is removed on every path that ends the operation: when its cancellable is cancelled, when its owner is destroyed, and in `disable()`. Remove it inside the cancellable's handler (`cancellable.connect(() => { … GLib.Source.remove(id); … })`) rather than after the operation settles, so a reviewer can see that the source cannot outlive `disable()`. A function that bounds an operation this way takes a required `Gio.Cancellable` and does not check for `null`. EGO review of 0.3.0: "Timeout should be removed on cancel … the function should always send cancellable" (2026-11-02) and "For timeouts, you should cleanup on cancel/destroy/disable" (2026-11-05). | `[Reviewer request]` |
-| R-9  | GNOME 50 adds one-shot `GLib.timeout_add_once()`, `GLib.timeout_add_seconds_once()` and `GLib.idle_add_once()`. They still return an id that MUST be removed in `disable()` if pending. | `[Port-guide 50]` |
+| R-9  | GNOME 50 adds one-shot `GLib.timeout_add_once()`, `GLib.timeout_add_seconds_once()` and `GLib.idle_add_once()`. They still return an id that MUST be removed in `disable()` if pending. GNOME 48 and 49 do not have them: while those versions are supported, use `GLib.timeout_add()` / `GLib.idle_add()` with `GLib.SOURCE_REMOVE` (V-1). | `[Port-guide 50]` |
 | R-10 | Memory pitfalls to avoid: losing the reference to an indicator (it can no longer be destroyed), overwriting a dictionary key (leaks the first object), repeating timeouts whose id was lost, callbacks capturing large objects. | `[Best-practice]` |
 
 Bad / good for R-8 (from the Best Practices page):
@@ -426,7 +426,7 @@ this._sourceId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
 | ID   | Rule | Origin |
 |------|------|--------|
 | R-11 | Create one `Gio.Cancellable` per `enable()`, pass it to every async GIO/Soup call, `cancel()` it in `disable()` and drop the reference. A cancelled cancellable stays cancelled: create a new one on the next `enable()`. | `[Best-practice]` `[Reviewer request]` |
-| R-12 | Filter cancellation with `e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)`; on GNOME 50 use `logErrorUnlessCancelled()` from `resource:///org/gnome/shell/misc/errorUtils.js`. | `[Port-guide 50]` |
+| R-12 | Filter cancellation with `e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)`. `logErrorUnlessCancelled()` in `resource:///org/gnome/shell/misc/errorUtils.js` exists only from GNOME 50; do not use it while 48 and 49 are supported (V-1). | `[Port-guide 50]` |
 | R-13 | Create one `Soup.Session` per `enable()` (not at module scope or in a constructor), store it on `this`, call `session.abort()` in `disable()` (cancels all in-flight messages) and null it. | `[Best-practice]` `[Shexli EGO-L-008]` |
 | R-14 | Keep a reference to every `Gio.FileMonitor` and `cancel()` it in `disable()`. | `[Best-practice]` |
 | R-15 | In `St.DrawingArea` repaint handlers call `cr.$dispose()` before returning. | `[Best-practice]` |
@@ -504,7 +504,7 @@ linter"), GNOME Shell `docs/js-coding-style.md`.
 |------|------|--------|
 | Q-1  | No unnecessary try/catch. "Do not wrap functions in try-catch blocks if they never throw errors during normal execution. Standard methods like destroy(), connect(), disconnect(), abort(), and GLib.Source.remove() do not throw unhandled exceptions." Also `cancellable.cancel()`, `clear()`, `close()` on already-closed streams. Empty or comment-only `catch` blocks are forbidden. Whole-function "render safely" wrappers are forbidden. | `[Best-practice]` |
 | Q-2  | No unnecessary checks. "Do not use optional chaining (?.()) or function type checks (=== 'function') for guaranteed methods or built-in APIs." `?.` is for values that are genuinely nullable by design; `this._indicator?.destroy()` in `disable()` is the one idiom the official docs use. | `[Best-practice]` |
-| Q-3  | Use APIs shared by GNOME Shell 50 and 51. Refer to both port guides before introducing a version-specific path; do not add speculative compatibility shims or claims for untested versions. | `[Project]` |
+| Q-3  | No multi-version shims. "Generate clean code for a single targeted GNOME Shell version. If multi version compatibility is truly necessary, refer to the official EGO Port Guide." Comments such as "reliable across GNOME 48–50" are a hedge and MUST NOT appear. For 48 to 51, write one code path that uses only the APIs all four versions share (V-1). | `[Best-practice]` |
 | Q-4  | Comments: "Write self-explanatory code with clear variable and function names to make redundant comments unnecessary. Comments that explain basic JavaScript syntax, describe trivial operations, or translate code line-by-line into natural language are not allowed." Comments explain *why*, never *what*. | `[Best-practice]` |
 | Q-5  | Line length MUST be at most 200 characters in every shipped `.js` file ("avoids unnecessary horizontal scrolling in the EGO review UI"). One statement per line; no packed `a(); b(); c();` lines. | `[Best-practice]` |
 | Q-6  | No duplication. "Avoid copying and pasting identical code blocks. Repetitive logic should be extracted into modular helper functions." | `[Best-practice]` |
@@ -713,19 +713,19 @@ https://developer.gnome.org/hig/patterns/feedback/notifications.html.
 | UI-1  | A panel indicator MUST be a `PanelMenu.Button` (`addToStatusArea` throws otherwise). `Main.panel.addToStatusArea(role, indicator, position = 0, box = 'right')`; use `this.uuid` as the role (a duplicate role throws). Remove it by `indicator.destroy()`; there is no `removeFromStatusArea`. | `[Best-practice]` |
 | UI-2  | `new PanelMenu.Button(menuAlignment, nameText, dontCreateMenu)`: `nameText` becomes the accessible name. On GNOME 49/50 clicks are handled by `Clutter.ClickGesture` and keys by `Clutter.KeyController`; do not override `vfunc_event` / `vfunc_button_press_event` on it. | `[Port-guide 49]` |
 | UI-3  | Icons: `St.Icon` (or `icon_name` properties) in the Shell, `Gtk.Image` in prefs. "Do not use Unicode emojis as icons." No text glyphs as icons either. Symbolic icons: 16 px, monochrome, `-symbolic` suffix, pixel-aligned. Bundled icon: `gicon: Gio.icon_new_for_string(\`${this.path}/name-symbolic.svg\`)` with `style_class: 'system-status-icon'`. | `[Best-practice]` `[HIG]` |
-| UI-4  | Progress: "Use shell components such as ui.BarLevel or custom St.Bin widgets instead of ASCII progress strings (for example, █░░)." `BarLevel` is in `resource:///org/gnome/shell/ui/barLevel.js`; `Slider` gains `addMark()` / `clearMarks()` on 50. | `[Best-practice]` `[Port-guide 50]` |
+| UI-4  | Progress: "Use shell components such as ui.BarLevel or custom St.Bin widgets instead of ASCII progress strings (for example, █░░)." `BarLevel` is in `resource:///org/gnome/shell/ui/barLevel.js`; `Slider` gains `addMark()` / `clearMarks()` on 50; do not use them while 48 and 49 are supported (V-1). | `[Best-practice]` `[Port-guide 50]` |
 | UI-5  | Layout API: `St.BoxLayout` MUST use `orientation: Clutter.Orientation.VERTICAL`, never `vertical: true` (deprecated 48, removed 51). `add_child` / `remove_child`, `child-added` / `child-removed` (46). `St.Bin` / `St.Button` expand via `x_expand` / `y_expand`, not `ActorAlign.FILL` (46). `St.Button` label is plain text, not Pango markup (46). | `[Port-guide 46]` `[Port-guide 48]` `[Port-guide 51]` |
 | UI-6  | Colours: `Cogl.Color`, not `Clutter.Color` (47). Images: `St.ImageContent`, not `Clutter.Image` (48). Rectangles: `Mtk.Rectangle`, not `Meta.Rectangle` (49). Gestures: `Clutter.ClickGesture` / `LongPressGesture`, not `ClickAction` / `TapAction` (49). | `[Port-guide 47]` `[Port-guide 48]` `[Port-guide 49]` |
 | UI-7  | Do not start using what 51 removes or deprecates: raw `button-press-event` / `key-press-event` signals (use `Clutter.ClickGesture`, `KeyController`, `ScrollController`, `MotionController` via `actor.add_action()`); `St.ButtonMask.ONE/TWO/THREE` (use `PRIMARY/MIDDLE/SECONDARY`); `menu.close(PopupAnimation.NONE)` (use `menu.close({animate: false})`); `Clutter.get_default_backend()` (use `global.stage.context.get_backend()`); `Shell.GLSLEffect`; `ui/pointerWatcher.js` (use `global.backend.get_cursor_tracker()`). | `[Port-guide 51]` |
 | UI-8  | `global` accessors on 48+: `global.compositor.get_window_actors()` (not `Meta.get_window_actors`), `global.backend.get_cursor_tracker()` (not `Meta.CursorTracker.get_for_display`), `global.stage`, `global.display`, `global.settings`, `global.get_current_time()`. | `[Port-guide 48]` |
 | UI-9  | Popup menus: `PopupMenu.PopupMenuItem`, `PopupSeparatorMenuItem`, `PopupSwitchMenuItem`, `PopupSubMenuMenuItem`, `PopupMenuSection`, `menu.addAction(title, cb, icon)`, `setOrnament(PopupMenu.Ornament.*)`. Many PopupMenu classes are plain `EventEmitter`s (no property bindings). A "Settings" entry calls `extension.openPreferences()` and is visible only when `Main.sessionMode.allowSettings`. | `[Reference]` |
 | UI-10 | Styling goes through `style_class` and the stylesheet (selectors by `GTypeName` work). Use theme variables (`-st-accent-color`, `-st-accent-fg-color` on 47+) rather than hard-coded colours. | `[Port-guide 47]` |
-| UI-11 | Animation: `actor.ease({duration, mode, onComplete})`; on 50 `actor.easeAsync({...})` returns a Promise that rejects with CANCELLED when interrupted. Respect reduced motion (`St.Settings.get().reducedMotion` on 51). | `[Port-guide 50]` `[Port-guide 51]` |
+| UI-11 | Animation: `actor.ease({duration, mode, onComplete})`. `actor.easeAsync({...})` (GNOME 50) and `St.Settings.get().reducedMotion` (GNOME 51) are newer than the oldest supported version; do not use them while 48 is supported (V-1). | `[Port-guide 50]` `[Port-guide 51]` |
 | UI-12 | Accessibility: set `accessible_name` on buttons and icon-only controls; link labels with `label-actor`; `can_focus` for keyboard reachability; every control reachable by keyboard; test with large text and high contrast. | `[Best-practice]` `[HIG]` |
 | UI-13 | `GObject.registerClass` options: if `GTypeName` is set it MUST be unique process-wide (prefix with the extension name). Register at module scope; re-registering the same name throws. Property names kebab-case in strings (`'notify::use-markup'`). Emit `this.notify('prop')` in custom setters. | `[Best-practice]` |
 | UI-14 | Notifications (46+): property-object constructors `new MessageTray.Source({title, iconName \| icon, policy})` and `new MessageTray.Notification({source, title, body, iconName \| gicon, urgency})`; `source.addNotification(n)`; `n.addAction(label, cb)` (max 3; 48 adds `removeAction()`); `Main.messageTray.add(source)`. Create the source lazily, re-create after its `destroy` signal, and destroy it in `disable()` (`this._source?.destroy(); this._source = null;`). `Main.notify()` / `Main.notifyError()` for the simple case. | `[Port-guide 46]` `[Port-guide 48]` |
 | UI-15 | Notification content: short title in header capitalization; one-sentence body in sentence case; rate-limit (summaries, not per-event spam); let users disable them; remove stale ones; do not duplicate the default action as a button. | `[HIG]` |
-| UI-16 | Cursor: on GNOME 50, set the cursor on the actor itself with `actor.set_cursor_type(Clutter.CursorType.POINTER)`. It applies only while the pointer is over that actor (Shell does this in `js/ui/messageList.js`). Do not change the cursor of `global.stage`: actors inherit their parent's cursor, so a stage cursor changes it everywhere. If that is ever unavoidable, reset it to `Clutter.CursorType.DEFAULT` when the pointer leaves and in `destroy()`. | `[Reference]` |
+| UI-16 | Cursor: do not set a custom cursor while GNOME 48 and 49 are supported. `actor.set_cursor_type()` exists only from mutter 50 (`clutter/clutter/clutter-actor.h`; Shell uses it in `js/ui/messageList.js`), and it applies only while the pointer is over that actor. Never change the cursor of `global.stage`: actors inherit their parent's cursor, so a stage cursor changes it everywhere. | `[Reference]` |
 
 Reference custom-source notification:
 
@@ -879,7 +879,7 @@ Appendix.
 | TS-1  | "JavaScript code must be readable and reasonably structured; must not be minified or obfuscated; TypeScript must be transpiled to well-formatted JavaScript." No `minify`, no identifier mangling, no whitespace stripping. Shexli flags files where 55 % or more of identifiers are 1–2 characters, or ≤ 4 non-empty lines at ≥ 2000 bytes. | `[EGO-reject]` `[Shexli EGO-A-001]` |
 | TS-2  | "If the codebase of an extension is too messy to properly review it MAY be rejected. This includes obfuscators and transpilers used with TypeScript." Reviewers have refused minified bundles ("I won't review minified code") and a single ~10,000-line bundle. | `[EGO-reject]` |
 | TS-3  | Prefer per-file emission that mirrors the source tree (`tsc`, or esbuild without `--bundle`), so the shipped `.js` tree keeps module boundaries, original import names, `const`/`let`, comments and a small `extension.js`. Avoid giant bundles. | `[Best-practice]` |
-| TS-4  | Transpiler artifacts MUST NOT appear in shipped code: top-level `const` → `var`, renamed duplicate imports (`Gio2`, `GLib8`), imports scattered mid-file, helper shims (`__defProp`, `__publicField`), polyfills. Set `target` ≥ ES2022 (SpiderMonkey 140 on GNOME 49/50 supports ES2023), `useDefineForClassFields` consistent with no shims, no decorators. | `[EGO-reject]` |
+| TS-4  | Transpiler artifacts MUST NOT appear in shipped code: top-level `const` → `var`, renamed duplicate imports (`Gio2`, `GLib8`), imports scattered mid-file, helper shims (`__defProp`, `__publicField`), polyfills. Set `target` ≥ ES2022 (SpiderMonkey 128 on GNOME 48 and 140 on GNOME 49 to 51 support ES2023), `useDefineForClassFields` consistent with no shims, no decorators. | `[EGO-reject]` |
 | TS-5  | If esbuild is used: `--format=esm --platform=neutral --target=es2023 --external:gi://* --external:resource://*`, no `--minify*`, `--keep-names` is unnecessary when nothing is mangled, no `--drop:console`, keep comments. Then format the output to GNOME style (4-space, single quotes, semicolons) and lint it. | `[Convention]` |
 | TS-6  | No Node APIs in output: no `process`, `require`, `node:` imports, `import.meta.dirname`, `Buffer`. They crash at runtime in GJS. | `[Best-practice]` |
 | TS-7  | Entry files (`extension.js`, `prefs.js`, `metadata.json`) at the zip root (P-2). The `url` field points at the repository containing the `.ts` source. | `[Best-practice]` |
@@ -893,12 +893,13 @@ Appendix.
 
 ## 14. Version targeting and port-guide table
 
-Sources: https://gjs.guide/extensions/upgrading/ (45–51), https://release.gnome.org/50/developers/.
+Sources: https://gjs.guide/extensions/upgrading/ (45–51), https://release.gnome.org/50/developers/,
+the EGO reviewer's reply to this project on 2026-11-17 (M-2).
 
 | ID  | Rule | Origin |
 |-----|------|--------|
-| V-1 | Target GNOME Shell 50 and 51 using their shared APIs (Q-3). `shell-version` lists only what was tested (M-2). | `[Best-practice]` |
-| V-2 | Do not use anything the GNOME 51 port guide removes or deprecates (UI-7, L-3). | `[Port-guide 51]` |
+| V-1 | Target GNOME Shell 48, 49, 50 and 51 with one code path. Use only the APIs that GNOME 48 has and that the 51 port guide does not remove. Do not add version checks (Q-3, AI-10). GNOME 48 is the oldest possible version: the code needs `orientation` on St widgets and `getLogger()` (port guide 48) and `Adw.ToggleGroup` (libadwaita 1.7, GNOME 48). GNOME 47 has no `orientation`, and 51 removes `vertical`, so one code path cannot include 47. `shell-version` lists only what was tested (M-2). | `[Best-practice]` `[Port-guide 48]` `[Reviewer request]` |
+| V-2 | Do not use anything the 51 port guide removes or deprecates, even where 48 to 50 still have it (UI-7, L-3). | `[Port-guide 51]` |
 | V-3 | When bumping the target, read the port guide for every intermediate version and apply each change; then re-run Shexli and the nested-shell test. | `[Convention]` |
 
 | Version | Change | Action |
@@ -908,7 +909,7 @@ Sources: https://gjs.guide/extensions/upgrading/ (45–51), https://release.gnom
 | 47 | `fillPreferencesWindow` awaited; `Clutter.Color` → `Cogl.Color`; `-st-accent-color` / `-st-accent-fg-color`; `PopupBaseMenuItem` `:selected`; `Util.fixMarkup` | `async fillPreferencesWindow` allowed; use accent variables |
 | 48 | `vertical` deprecated → `orientation`; `getLogger()`; `Clutter.Image` → `St.ImageContent` (takes `Cogl.Context` first); `Meta.get_window_actors` → `global.compositor.get_window_actors()`; `Meta.CursorTracker.get_for_display` → `global.backend.get_cursor_tracker()`; `Cogl.SnippetHook`; QuickMenuToggle style classes renamed; `Notification.removeAction()`; `MAX_NOTIFICATIONS_PER_SOURCE` = 10, grouped per app | `orientation` everywhere; `getLogger()` |
 | 49 | X11 removed (`--nested` → `--devkit`); `Meta.Rectangle` → `Mtk.Rectangle`; `Clutter.ClickAction` / `TapAction` → `ClickGesture` / `LongPressGesture`; `AppMenuButton` removed; `DoNotDisturbSwitch` moved to quick settings; `Meta.Window.get_maximized` removed; `maximize(Meta.MaximizeFlags)` gone; `set_pointer_visible()` gone; `gnome-extensions upload --accept-tos`; `getScreenshotNotificationSource()`; GJS 1.86 / SpiderMonkey 140 | Testing instructions say `--devkit` |
-| 50 | `easeAsync()`; `logErrorUnlessCancelled()` in `misc/errorUtils.js`; `GLib.timeout_add_once` / `timeout_add_seconds_once` / `idle_add_once`; `Slider.addMark` / `clearMarks`; `holdKeyboard` / `releaseKeyboard` removed; `global.display` `show-restart-message` / `restart` signals removed; `RunDialog._restart()` removed; `gnome-shell-test-tool --extension`; `gnome-extensions install --print-uuid`; libadwaita 1.9 (`AdwSidebar`, reduced motion respected); GTK 4.22; metadata/extension/prefs unchanged | Use new helpers freely; never reference removed restart APIs (Shexli EGO-C50-001/002) |
+| 50 | `easeAsync()`; `logErrorUnlessCancelled()` in `misc/errorUtils.js`; `GLib.timeout_add_once` / `timeout_add_seconds_once` / `idle_add_once`; `Slider.addMark` / `clearMarks`; `holdKeyboard` / `releaseKeyboard` removed; `global.display` `show-restart-message` / `restart` signals removed; `RunDialog._restart()` removed; `gnome-shell-test-tool --extension`; `gnome-extensions install --print-uuid`; libadwaita 1.9 (`AdwSidebar`, reduced motion respected); GTK 4.22; metadata/extension/prefs unchanged | Do not use the new helpers while 48 and 49 are supported (V-1); never reference removed restart APIs (Shexli EGO-C50-001/002) |
 | 51 | `async disable()` throws; `vertical` removed; `St.ButtonMask.PRIMARY/MIDDLE/SECONDARY` (old names deprecated); `menu.open/close({animate, fadeOnly})`; raw Clutter event signals deprecated → controllers via `add_action()`; `Shell.GLSLEffect` removed → `Clutter.ShaderEffect` with `vfunc_get_static_snippet()`; `Clutter.get_default_backend()` removed; `makeProxyWrapper` returns a class (`new`); `St.ReducedMotion`; `ui/pointerWatcher.js` removed; `NoGrabPopup`, `SearchEntry`, `QrCode` added | Do not start using the removed/deprecated forms now |
 
 ---
@@ -942,7 +943,7 @@ https://pypi.org/project/shexli/, `gnome-extensions(1)`, Review Guidelines ("Use
 | ID   | Rule | Origin |
 |------|------|--------|
 | T-1  | ESLint with the GNOME Shell rules (https://gitlab.gnome.org/GNOME/gnome-shell/-/tree/main/lint) MUST pass on the shipped JavaScript before every release. | `[EGO-reject]` |
-| T-2  | Shexli MUST report `clean` on both the built directory and the packed zip before every release. EGO runs the same tool on every submission and shows its output on the review page. | `[Shexli]` |
+| T-2  | Shexli MUST report `clean` on both the built directory and the packed zip before every release. EGO runs the same tool on every submission and shows its output on the review page. The one exception is EGO-M-004 for 51 from Shexli 0.2.1, because the Shexli on EGO no longer reports it (M-2). | `[Shexli]` `[Reviewer request]` |
 | T-3  | Every change touching Shell code MUST be verified in a nested shell (`gnome-shell --devkit --wayland`) with the extension enabled, and `gnome-extensions info <uuid>` MUST show `State: ACTIVE`. Then disable and re-enable, and lock/unlock, with the journal open to catch leaks and criticals. | `[Best-practice]` |
 | T-4  | Pure logic (parsers, math) SHOULD have unit tests under a plain JS runner; UI is tested in the nested shell or with `gnome-shell-test-tool`. | `[Best-practice]` |
 
@@ -971,7 +972,7 @@ uvx --python 3.12 --from shexli==0.2.1 --with tree-sitter==0.25.2 shexli --forma
 | Always exits 0, even with findings | CI MUST parse the summary (`finding_count`, `severity_counts`, `status`) or the JSON; the exit code means nothing. |
 | Crashes on a relative directory path (`path.relative_to` ValueError) | Always pass an absolute directory path; zip paths work either way. |
 | Needs `tree-sitter==0.25.x` | tree-sitter 0.26 breaks it; pin 0.25.2. |
-| Any `shell-version` major > 50 is an "implausible future release" (hard-coded) | EGO-M-004 error. The GNOME 51 port cannot be released until Shexli is updated (T-2). |
+| Any `shell-version` major > 50 is an "implausible future release" (hard-coded) | EGO-M-004 error for 51. The Shexli on EGO no longer reports it, and EGO accepts 51 (M-2). T-2 accepts this one finding. |
 | Only two CLI flags: `--format {json,text}` and the path | No rule selection, no baseline, no suppression. Baselines and `shexli-ci:` comments belong to the third-party `3v1n0/shexli-ci` wrapper, not Shexli. |
 | Limits | 5000 files, 10 MiB per file, 50 MiB total, zip ratio ≤ 1000, rejects symlinks and `..` paths. |
 
@@ -998,7 +999,7 @@ Full rule catalogue (0.2.1, spec 2026-04-02). Sev: E = error, W = warning, MR = 
 | EGO-M-001 | E | `metadata.json` missing | ship it |
 | EGO-M-002 | E | not valid UTF-8 JSON object | fix JSON |
 | EGO-M-003 | E | uuid not matching `[-a-zA-Z0-9@._]+` with `@` after position 0, or ending `.gnome.org` / `@gnome.org` | `name@yourdomain` |
-| EGO-M-004 | E | `shell-version` empty / non-string entries, > 1 dev release, or any major > 50 | list only released majors, at most one dev release |
+| EGO-M-004 | E | `shell-version` empty / non-string entries, > 1 dev release, or any major > 50 (0.2.1; fixed on EGO) | list only released majors, at most one dev release |
 | EGO-M-005 | W | `session-modes` present with exactly `["user"]` | delete the key |
 | EGO-M-006 | E | `session-modes` value other than `user` / `unlock-dialog` | remove it |
 | EGO-M-007 | E | `donations` with unknown keys, > 3 values, non-strings, or `custom` not http(s) | fix or remove |
@@ -1102,7 +1103,7 @@ gnome-extensions upload --accept-tos --user <user> --password-file <file> <zip>
 Metadata and package
 
 - [ ] `metadata.json`: only documented keys; `uuid` unchanged and not under `gnome.org`;
-      `shell-version` lists only tested released majors (`["50", "51"]`); no `version`;
+      `shell-version` lists only tested released majors (`["48", "49", "50", "51"]`); no `version`;
       `session-modes` and `donations` absent unless truly used; description accurate,
       declares clipboard/hosts if applicable (M-1, M-2, table 3.2).
 - [ ] Zip root has `extension.js`, `prefs.js`, `metadata.json`; everything else is read at

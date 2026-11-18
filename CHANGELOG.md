@@ -2,7 +2,7 @@
 
 ## 0.4.0 alpha 2
 
-- Support GNOME Shell 51.
+- Token Grill also operates with GNOME Shell 48, 49, and 51.
 
 ## 0.4.0 alpha 1
 

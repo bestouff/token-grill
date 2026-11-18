@@ -4,6 +4,8 @@
     "uuid": "tokengrill@sh02sahil.github.io",
     "url": "https://github.com/sh02sahil/token-grill",
     "shell-version": [
+        "48",
+        "49",
         "50",
         "51"
     ],
