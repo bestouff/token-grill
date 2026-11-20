@@ -1,8 +1,8 @@
 // Collects one account against the real service with the built extension
 // modules, outside GNOME Shell. Run `npm run build` first.
 //
-//     gjs -m tools/live-smoke.js <codex|claude|kiro|antigravity|copilot|opencode-go|deepseek|kimi> [account-home] [auth-file]
-//     gjs -m tools/live-smoke.js <codex|claude|copilot> --app <opencode|github-cli|copilot-cli>
+//     gjs -m tools/live-smoke.js <codex|claude|kiro|antigravity|copilot|opencode-go|deepseek|kimi|cursor> [account-home] [auth-file]
+//     gjs -m tools/live-smoke.js <codex|claude|copilot|cursor> --app <opencode|github-cli|copilot-cli|cursor-agent>
 //
 // Prints the outcome and the usage windows only: no tokens and no e-mail address.
 import GLib from 'gi://GLib';
@@ -17,7 +17,7 @@ const [, metadata] = GLib.file_get_contents(`${root}/metadata.json`);
 const dist = `${root}/dist/${JSON.parse(new TextDecoder().decode(metadata)).uuid}`;
 const load = module => import(`file://${dist}/${module}`);
 
-const [{newProvider}, {providerMetadata}, {UNTRANSLATED}, {defaultHome, displayPath, providerPaths}, {emptySnapshot}, base, {createCollectors}, kiroAuth] = await Promise.all([
+const [{newProvider}, {providerMetadata}, {UNTRANSLATED}, {cursorAgentHome, defaultHome, displayPath, providerPaths}, {emptySnapshot}, base, {createCollectors}, kiroAuth] = await Promise.all([
     load('core/config.js'),
     load('core/providerMetadata.js'),
     load('core/i18n.js'),
@@ -30,10 +30,11 @@ const [{newProvider}, {providerMetadata}, {UNTRANSLATED}, {defaultHome, displayP
 
 const collectors = createCollectors();
 if (!(kind in collectors)) {
-    console.error('Usage: gjs -m tools/live-smoke.js <codex|claude|kiro|antigravity|copilot|opencode-go|deepseek|kimi> [account-home] [auth-file]');
+    console.error('Usage: gjs -m tools/live-smoke.js <codex|claude|kiro|antigravity|copilot|opencode-go|deepseek|kimi|cursor> [account-home] [auth-file]');
     throw new Error(`Unknown kind: ${kind}`);
 }
-const instance = {...newProvider(kind, app ?? providerMetadata(kind).apps[0], home ?? defaultHome(kind)), authFileOverride: authFile ?? null};
+const accountHome = home ?? (app === 'cursor-agent' ? cursorAgentHome() : defaultHome(kind));
+const instance = {...newProvider(kind, app ?? providerMetadata(kind).apps[0], accountHome), authFileOverride: authFile ?? null};
 const session = new Soup.Session({timeout: 30, user_agent: base.USER_AGENT});
 const cancellable = new Gio.Cancellable();
 const context = {

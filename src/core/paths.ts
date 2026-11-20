@@ -12,6 +12,7 @@ const DEFAULT_HOMES: Record<ProviderKind, string[]> = {
     'opencode-go': [],
     'deepseek': ['.claude'],
     'kimi': ['.kimi-code'],
+    'cursor': [],
 };
 
 // Antigravity tools have written their OAuth credentials under each of these names.
@@ -26,6 +27,7 @@ const AUTH_FILES: Record<ProviderKind, string> = {
     'opencode-go': 'auth.json',
     'deepseek': 'settings.json',
     'kimi': 'credentials/kimi-code.json',
+    'cursor': 'User/globalStorage/state.vscdb',
 };
 
 const HISTORY_DIRECTORIES: Record<ProviderKind, string[]> = {
@@ -37,6 +39,7 @@ const HISTORY_DIRECTORIES: Record<ProviderKind, string[]> = {
     'opencode-go': [],
     'deepseek': [],
     'kimi': [],
+    'cursor': [],
 };
 
 export function expandPath(value: string): string {
@@ -64,7 +67,14 @@ export function defaultHome(kind: ProviderKind): string {
         return GLib.build_filenamev([GLib.get_user_data_dir(), 'kiro-cli']);
     if (kind === 'opencode-go')
         return GLib.build_filenamev([GLib.get_user_data_dir(), 'opencode']);
+    if (kind === 'cursor')
+        return GLib.build_filenamev([GLib.get_user_config_dir(), 'Cursor']);
     return GLib.build_filenamev([GLib.get_home_dir(), ...DEFAULT_HOMES[kind]]);
+}
+
+// The Cursor CLI keeps its sign-in apart from the Cursor app, in a lower-case folder.
+export function cursorAgentHome(): string {
+    return GLib.build_filenamev([GLib.get_user_config_dir(), 'cursor']);
 }
 
 export function openCodeAuthPath(): string {
@@ -79,9 +89,10 @@ export function providerPaths(instance: ProviderInstance): ProviderPaths {
     if (instance.app === 'keyring')
         return {authFile: '', historyDirectories: []};
     const home = expandPath(instance.accountHome);
+    const authName = instance.app === 'cursor-agent' ? 'auth.json' : AUTH_FILES[instance.kind];
     const authFile = instance.authFileOverride
         ? expandPath(instance.authFileOverride)
-        : GLib.build_filenamev([home, AUTH_FILES[instance.kind]]);
+        : GLib.build_filenamev([home, authName]);
     const historyDirectories = instance.sessionsDirectoryOverride
         ? [expandPath(instance.sessionsDirectoryOverride)]
         : HISTORY_DIRECTORIES[instance.kind].map(name => GLib.build_filenamev([home, name]));

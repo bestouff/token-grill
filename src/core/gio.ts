@@ -3,6 +3,7 @@ import GLib from 'gi://GLib';
 
 // Promise overloads for the async GIO calls used by both processes. Patching the
 // prototypes creates no objects, so it is safe at module scope.
+Gio._promisify(Gio.File.prototype, 'delete_async', 'delete_finish');
 Gio._promisify(Gio.File.prototype, 'enumerate_children_async', 'enumerate_children_finish');
 Gio._promisify(Gio.File.prototype, 'load_contents_async', 'load_contents_finish');
 Gio._promisify(Gio.File.prototype, 'make_directory_async', 'make_directory_finish');

@@ -78,7 +78,7 @@ npm test               # bundles pure modules into build/tests/, then node --tes
 npm run build          # per-file tsc emit into dist/<uuid>/, then GNOME ESLint over dist/
 npm run release:check  # metadata, package tree, development traces, line length
 npm run review:check   # pack, then Shexli on dist/ and on the zip; must report zero findings
-npm run test:kiro-gda  # synthetic kiro-cli database through the real Gda code (no network)
+npm run test:gda       # synthetic kiro-cli and Cursor databases through the real Gda code (no network)
 npm run test:live -- <codex|claude|kiro|antigravity> [home] [auth-file]
                        # one real collection with the user's credentials; prints no secrets
 npm run install:local  # replaces the user's installed copy: only after nested-shell checks
@@ -203,11 +203,14 @@ Other rules:
 These exceptions are intentional. Do not change them if the reason stays the
 same.
 
-- **Token Grill reads the Kiro database synchronously through libgda 5.**
-  libgda 5 has no asynchronous API. Token Grill first examines the size and
-  the modification time of the database and its `-wal` file asynchronously.
-  It reads the database only after a change (`kiro/auth.ts`,
-  `kiro/collector.ts`).
+- **Token Grill reads the Kiro and Cursor databases synchronously through
+  libgda 5.** libgda 5 has no asynchronous API. Token Grill first examines the
+  size and the modification time of the database and its `-wal` file
+  asynchronously. It reads the database only after a change
+  (`providers/sqlite.ts`, `kiro/collector.ts`, `cursor/collector.ts`). A
+  write-ahead-log database without its `-wal` and `-shm` files is read from a
+  private copy in `$XDG_RUNTIME_DIR/token-grill/`, because SQLite creates
+  those files beside a database that it opens.
 
 - **`jsonl.ts` calls `input.seek()` synchronously.** No asynchronous seek
   exists, and lseek does no disk I/O.

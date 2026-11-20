@@ -2,7 +2,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import {newProvider} from '../core/config.js';
-import {authFileCandidates, defaultHome, pathExists, providerPaths} from '../core/paths.js';
+import {authFileCandidates, cursorAgentHome, defaultHome, pathExists, providerPaths} from '../core/paths.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import type {ProviderInstance} from '../core/types.js';
 
@@ -65,6 +65,16 @@ export function kiroHomes(): ProviderInstance[] {
 
 export function kimiHomes(): ProviderInstance[] {
     const provider = newProvider('kimi', 'kimi-cli', defaultHome('kimi'));
+    return hasCredentials(provider) ? [provider] : [];
+}
+
+export function cursorHomes(): ProviderInstance[] {
+    const provider = newProvider('cursor', 'cursor', defaultHome('cursor'));
+    return hasCredentials(provider) ? [provider] : [];
+}
+
+export function cursorAgentHomes(): ProviderInstance[] {
+    const provider = newProvider('cursor', 'cursor-agent', cursorAgentHome());
     return hasCredentials(provider) ? [provider] : [];
 }
 

@@ -13,7 +13,7 @@ import {readCredentialJson} from '../providers/credentials.js';
 import {deepSeekKeyFromClaudeSettings} from '../providers/deepseek/normalize.js';
 import {readOpenCodeEntries} from '../providers/opencode/authFile.js';
 import type {OpenCodeEntry} from '../providers/opencode/entries.js';
-import {antigravityHomes, cliHomes, githubCliHomes, kimiHomes, kiroHomes} from './discovery.js';
+import {antigravityHomes, cliHomes, cursorAgentHomes, cursorHomes, githubCliHomes, kimiHomes, kiroHomes} from './discovery.js';
 
 // A sign-in that cannot be read is simply not offered.
 async function readOrNull<T>(read: () => Promise<T>): Promise<T | null> {
@@ -121,6 +121,8 @@ const FINDERS: Record<AccountApp, (search: Search) => Promise<Candidate[]>> = {
     'kiro-cli': search => homeCandidates(kiroHomes(), search.configured, search.identities, search.cancellable),
     'antigravity': search => homeCandidates(antigravityHomes(), search.configured, search.identities, search.cancellable),
     'kimi-cli': search => homeCandidates(kimiHomes(), search.configured, search.identities, search.cancellable),
+    'cursor': search => homeCandidates(cursorHomes(), search.configured, search.identities, search.cancellable),
+    'cursor-agent': search => homeCandidates(cursorAgentHomes(), search.configured, search.identities, search.cancellable),
     'github-cli': search => homeCandidates(githubCliHomes(), search.configured, search.identities, search.cancellable),
     'copilot-cli': search => copilotCliCandidates(search.configured, search.cancellable),
     'opencode': search => Promise.resolve(openCodeCandidates(search.entries, search.configured, search.identities,

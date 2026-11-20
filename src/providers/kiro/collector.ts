@@ -66,7 +66,7 @@ export class KiroCollector extends BaseCollector {
         const cached = this._stored.get(path);
         if (cached?.stamp === stamp)
             return cached;
-        const auth = await readKiroAuth(path);
+        const auth = await readKiroAuth(path, context.cancellable);
         const entry = {stamp, auth, fingerprint: storedFingerprint(path, auth)};
         this._stored.set(path, entry);
         return entry;

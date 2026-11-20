@@ -12,7 +12,7 @@ you can see the remaining usage of each account and the reset times.
 These are the functions of the top bar and the popup:
 
 - Token Grill monitors Codex, Claude, Kiro, Antigravity, GitHub Copilot,
-  OpenCode Go, and Kimi Code accounts, and the DeepSeek balance. You can add
+  OpenCode Go, Kimi Code, and Cursor accounts, and the DeepSeek balance. You can add
   more than one account for each service.
 - The top bar shows one entry for each service. Each entry shows the limits
   that you checked for each account, as text, as rings, or as bars.
@@ -95,6 +95,7 @@ These are the apps that Token Grill reads:
 | OpenCode Go    | OpenCode                                                 |
 | DeepSeek       | OpenCode, Claude Code settings, or a key that you paste  |
 | Kimi Code      | Kimi CLI, OpenCode                                       |
+| Cursor         | Cursor, Cursor CLI                                       |
 
 Each home directory is a different account. For example, `~/.codex` and
 `~/.codex2` are two Codex accounts. Token Grill does not read the Copilot
@@ -110,7 +111,7 @@ distribution:
 
 | Service                                       | Library                          | Debian or Ubuntu package |
 | --------------------------------------------- | -------------------------------- | ------------------------ |
-| Kiro                                          | Gda 5.0 with the SQLite provider | `gir1.2-gda-5.0`         |
+| Kiro, Cursor                                  | Gda 5.0 with the SQLite provider | `gir1.2-gda-5.0`         |
 | Antigravity CLI (keyring sign-in)             | libsecret 1                      | `gir1.2-secret-1`        |
 | GitHub Copilot (keyring sign-in)              | libsecret 1                      | `gir1.2-secret-1`        |
 | DeepSeek (a key that you paste)               | libsecret 1                      | `gir1.2-secret-1`        |
@@ -137,6 +138,7 @@ connects only to these hosts:
 | OpenCode Go | `opencode.ai`                                                                                                 | Usage limits                            |
 | DeepSeek    | `api.deepseek.com`                                                                                            | Prepaid balance                         |
 | Kimi Code   | `api.kimi.com`, or `api.kimi.ai` when Kimi Code is set to that region                                         | Usage limits                            |
+| Cursor      | `api2.cursor.sh`                                                                                              | Plan and usage limits                   |
 
 Each request obeys these limits:
 
@@ -148,7 +150,7 @@ Each request obeys these limits:
 Each request uses this User-Agent:
 
 ```text
-TokenGrill (+https://github.com/sh02sahil/token-grill; usage monitor for Codex, Claude, Kiro, Antigravity, Copilot, OpenCode Go, DeepSeek and Kimi Code)
+TokenGrill (+https://github.com/sh02sahil/token-grill; usage monitor for Codex, Claude, Kiro, Antigravity, Copilot, OpenCode Go, DeepSeek, Kimi Code and Cursor)
 ```
 
 The Antigravity quota service gives data only when the User-Agent contains
@@ -200,6 +202,18 @@ For the new services, Token Grill reads these files and keyring items:
 - Copilot CLI: the keyring item of the Copilot CLI (`service=copilot-cli`).
 - Kimi CLI: `~/.kimi-code/credentials/kimi-code.json` and
   `~/.kimi-code/config.toml`.
+- Cursor: `<home>/User/globalStorage/state.vscdb`, the `cursorAuth/accessToken`
+  and `cursorAuth/cachedEmail` rows. The default home is
+  `$XDG_CONFIG_HOME/Cursor`. Token Grill opens the database read-only, as for
+  Kiro. When Cursor is closed, Token Grill reads a private copy in
+  `$XDG_RUNTIME_DIR/token-grill/` and removes it at once, because SQLite would
+  otherwise create files beside the database. Cursor renews its own sign-in;
+  Token Grill does not. The popup shows the e-mail address of the account.
+  Newer Cursor versions can encrypt this sign-in with a key from the system
+  keyring. Token Grill does not decrypt the sign-ins of other apps, so it then
+  shows that the sign-in is encrypted. Use the Cursor CLI sign-in instead.
+- Cursor CLI: `~/.config/cursor/auth.json`, the `accessToken` that
+  `agent login` stores. The CLI renews its own sign-in; Token Grill does not.
 - DeepSeek: the `env` of Claude Code `settings.json`, when Claude Code uses
   DeepSeek. A key that you paste is in the GNOME keyring, in an item of Token
   Grill (`org.gnome.shell.extensions.tokengrill.ApiKey`). When you remove the
@@ -293,8 +307,8 @@ I did not find an extension with all these functions. Thus, I made this
 extension, and I share it.
 
 The first release monitored Codex, Claude, Kiro, and Antigravity, because I use
-these services. Version 0.4.0 adds GitHub Copilot, OpenCode Go, DeepSeek, and
-Kimi Code. Token Grill can monitor more services in the future, if they
+these services. Version 0.4.0 adds GitHub Copilot, OpenCode Go, DeepSeek,
+Kimi Code, and Cursor. Token Grill can monitor more services in the future, if they
 do not decrease the privacy or the reliability of the extension.
 
 ## AI development declaration
@@ -311,7 +325,7 @@ and explaining the code.
 ## Troubleshooting
 
 - **Sign-in required:** Open the CLI of the service and sign in again.
-- **Kiro database unreadable:** Install the Gda 5.0 SQLite library. Then close
+- **Kiro or Cursor database unreadable:** Install the Gda 5.0 SQLite library. Then close
   the preferences window and open it again.
 - **System keyring or libsecret 1 unavailable:** Install the libsecret 1
   library. Then unlock the keyring. Token Grill does not unlock the keyring.

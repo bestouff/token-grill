@@ -28,7 +28,7 @@ You must also have these items:
 - The Mutter devkit (`/usr/libexec/mutter-devkit`) for the nested shell. On
   Debian or Ubuntu, the package is `mutter-dev-bin`.
 - [`uv`](https://docs.astral.sh/uv/) for the GNOME Extensions review scan.
-- The Gda 5.0 SQLite library (`gir1.2-gda-5.0`) for Kiro accounts.
+- The Gda 5.0 SQLite library (`gir1.2-gda-5.0`) for Kiro and Cursor accounts.
 - The libsecret 1 library (`gir1.2-secret-1`) for the keyring of the
   Antigravity CLI.
 
@@ -169,9 +169,10 @@ GNOME Shell. The scripts only read data.
 
 This check does not use the network or real data:
 
-- `npm run test:kiro-gda` makes a test `kiro-cli` database in a temporary
-  directory. It reads the database through the Gda code of Token Grill. Then
-  it makes sure that a read-only connection refuses a write.
+- `npm run test:gda` makes a test `kiro-cli` database and a test Cursor
+  database in temporary directories. It reads them through the Gda code of
+  Token Grill. Then it makes sure that a read-only connection refuses a write,
+  and that a read of a closed Cursor database creates no files.
 
 This check uses your real credentials:
 

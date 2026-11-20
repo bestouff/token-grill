@@ -8,7 +8,7 @@
         "build": "node tools/build.mjs",
         "check": "tsc --noEmit && eslint src tools tests eslint.config.js",
         "test": "node tools/test-build.mjs && node --test tests/unit/*.test.mjs",
-        "test:kiro-gda": "npm run build && gjs -m tools/kiro-gda-test.js",
+        "test:gda": "npm run build && gjs -m tools/gda-test.js",
         "test:live": "npm run build && gjs -m tools/live-smoke.js",
         "install:local": "node tools/install.mjs",
         "dev:shell": "bash tools/nested-shell.sh",

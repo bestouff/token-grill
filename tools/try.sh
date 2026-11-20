@@ -66,6 +66,11 @@ for app in opencode kiro-cli; do
         ln -s "$source_dir" "$data/$app"
     fi
 done
+# Cursor keeps its sign-in in the config folder. Token Grill only reads it.
+cursor_dir="${XDG_CONFIG_HOME:-$HOME/.config}/Cursor"
+if [[ -e "$cursor_dir" ]]; then
+    ln -s "$cursor_dir" "$scratch/config/Cursor"
+fi
 
 # A separate dconf database. Preferences and the nested shell tell each other
 # about changes through D-Bus, which does not depend on free file watches.

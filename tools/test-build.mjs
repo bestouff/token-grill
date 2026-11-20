@@ -64,6 +64,7 @@ const MODULES = [
     ['src/providers/copilot/normalize.ts', 'copilot-normalize.mjs'],
     ['src/providers/codex/normalize.ts', 'codex-normalize.mjs'],
     ['src/providers/codex/resetCreditsNormalize.ts', 'reset-credits-normalize.mjs'],
+    ['src/providers/cursor/normalize.ts', 'cursor-normalize.mjs'],
     ['src/providers/deepseek/normalize.ts', 'deepseek-normalize.mjs'],
     ['src/providers/kimi/normalize.ts', 'kimi-normalize.mjs'],
     ['src/providers/kiro/authRecords.ts', 'kiro-auth-records.mjs'],

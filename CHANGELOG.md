@@ -3,6 +3,11 @@
 ## 0.4.0 alpha 2
 
 - Token Grill also operates with GNOME Shell 48, 49, and 51.
+- Cursor: the monthly total and the two pools, Cursor models and other models.
+  Token Grill reads the sign-in of the Cursor CLI (`agent login`) or of the
+  Cursor app. The Cursor app sign-in needs the Gda 5.0 SQLite library, as Kiro
+  does. If the Cursor app encrypts its sign-in, Token Grill does not read it;
+  use the Cursor CLI sign-in.
 
 ## 0.4.0 alpha 1
 

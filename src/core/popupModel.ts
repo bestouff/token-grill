@@ -165,6 +165,8 @@ function withSignInHint(tr: Translator, kind: ProviderKind, app: AccountApp, mes
         return formatText(_('%s Open OpenCode and sign in again.'), message);
     if (app === 'copilot-cli')
         return formatText(_('%s Run copilot and sign in with /login.'), message);
+    if (app === 'cursor-agent')
+        return formatText(_('%s Run agent login.'), message);
     const templates: Record<ProviderKind, string> = {
         codex: _('%s Run codex login.'),
         claude: _('%s Run claude auth login.'),
@@ -174,6 +176,7 @@ function withSignInHint(tr: Translator, kind: ProviderKind, app: AccountApp, mes
         'opencode-go': _('%s Run opencode auth login.'),
         'deepseek': _('%s Check the DeepSeek API key in Preferences.'),
         'kimi': _('%s Start kimi and run /login.'),
+        'cursor': _('%s Open Cursor and sign in again, or run agent login and add the Cursor CLI account.'),
     };
     return formatText(templates[kind], message);
 }
