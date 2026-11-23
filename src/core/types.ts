@@ -60,6 +60,8 @@ export interface ProviderInstance {
     localHistoryEnabled: boolean;
     topBar: TopBarSelection;
     lowBalance: number | null;
+    // Whether the popup and the top bar show how fast the limits are used.
+    showPace: boolean;
 }
 
 export interface UsageWindow {
@@ -70,6 +72,8 @@ export interface UsageWindow {
     limit: number | null;
     percent: number | null;
     resetAt: number | null;
+    // The length of the window when the service reports it; usage pace needs it.
+    durationSeconds: number | null;
     unit: 'credits' | null;
 }
 

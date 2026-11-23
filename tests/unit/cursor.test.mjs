@@ -58,3 +58,11 @@ test('only a plain JWT counts as a readable sign-in', () => {
     assert.equal(isJwtLike('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0'), false);
     assert.equal(isJwtLike(''), false);
 });
+
+
+test('the billing cycle gives the length of every pool, for usage pace', () => {
+    const [total] = normalizeCursorUsage(usage);
+    assert.equal(total.durationSeconds, (1795436935685 - 1792758535685) / 1000);
+    const [unknown] = normalizeCursorUsage({...usage, billingCycleStart: undefined});
+    assert.equal(unknown.durationSeconds, null);
+});

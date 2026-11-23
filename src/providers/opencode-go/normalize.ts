@@ -22,7 +22,7 @@ export function normalizeOpenCodeGoUsage(payload: unknown): UsageWindow[] {
         const used = stringAt(item, 'status') === 'rate-limited' ? 1 : Math.max(0, Math.min(1, percent / 100));
         return [{
             id, canonicalWindow, label: windowLabel(canonicalWindow, id), used: null, limit: null,
-            percent: used, resetAt: toEpochMs(item.resetsAt), unit: null,
+            percent: used, resetAt: toEpochMs(item.resetsAt), durationSeconds: null, unit: null,
         }];
     });
 }

@@ -10,6 +10,8 @@ export interface ProviderMetadata {
     // The apps an account can be read from; the first is the default.
     apps: readonly [AccountApp, ...AccountApp[]];
     measure: 'limits' | 'balance';
+    // The service reports how long its windows last, so usage pace can be shown.
+    reportsWindowLength: boolean;
 }
 
 export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
@@ -22,6 +24,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: true,
         apps: ['codex-cli', 'opencode'],
         measure: 'limits',
+        reportsWindowLength: true,
     },
     claude: {
         label: 'Claude',
@@ -32,6 +35,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: true,
         apps: ['claude-code', 'opencode'],
         measure: 'limits',
+        reportsWindowLength: false,
     },
     kiro: {
         label: 'Kiro',
@@ -42,6 +46,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: false,
         apps: ['kiro-cli'],
         measure: 'limits',
+        reportsWindowLength: false,
     },
     antigravity: {
         label: 'Antigravity',
@@ -52,6 +57,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: false,
         apps: ['antigravity'],
         measure: 'limits',
+        reportsWindowLength: false,
     },
     copilot: {
         label: 'Copilot',
@@ -62,6 +68,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: false,
         apps: ['github-cli', 'copilot-cli', 'opencode'],
         measure: 'limits',
+        reportsWindowLength: false,
     },
     'opencode-go': {
         label: 'OpenCode Go',
@@ -72,6 +79,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: false,
         apps: ['opencode'],
         measure: 'limits',
+        reportsWindowLength: false,
     },
     'deepseek': {
         label: 'DeepSeek',
@@ -82,6 +90,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: false,
         apps: ['keyring', 'opencode', 'claude-settings'],
         measure: 'balance',
+        reportsWindowLength: false,
     },
     'kimi': {
         label: 'Kimi Code',
@@ -92,6 +101,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: false,
         apps: ['kimi-cli', 'opencode'],
         measure: 'limits',
+        reportsWindowLength: true,
     },
     'cursor': {
         label: 'Cursor',
@@ -102,6 +112,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         localHistorySupported: false,
         apps: ['cursor', 'cursor-agent'],
         measure: 'limits',
+        reportsWindowLength: true,
     },
 };
 

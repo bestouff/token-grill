@@ -116,6 +116,7 @@ export function newProvider(kind: ProviderKind, app: AccountApp, accountHome: st
         localHistoryEnabled: false,
         topBar: {automatic: true, limits: []},
         lowBalance: null,
+        showPace: false,
     };
 }
 
@@ -188,5 +189,6 @@ export function normalizeProvider(value: unknown): ProviderInstance[] {
         localHistoryEnabled: metadata.localHistorySupported && app === metadata.apps[0] && item.localHistoryEnabled === true,
         topBar: normalizeTopBar(item.topBar),
         lowBalance: typeof item.lowBalance === 'number' && Number.isFinite(item.lowBalance) && item.lowBalance >= 0 ? item.lowBalance : null,
+        showPace: item.showPace === true,
     }];
 }

@@ -30,6 +30,7 @@ export interface IndicatorController {
     selectService(kind: ProviderKind): void;
     toggleLimit(providerId: string, key: string): void;
     setAutomatic(providerId: string, on: boolean): void;
+    signIn(providerId: string): void;
     openPreferences(): void;
     setPaused(paused: boolean): void;
 }
@@ -173,8 +174,9 @@ class ChooserItem extends StaticMenuItem {
         if (group.attention)
             content.add_child(attentionIcon());
         const names = [group.label];
-        const detail = count > 1 ? ngettext('%d account', '%d accounts', count).format(count) : group.accounts[0]?.displayName;
-        if (detail && detail !== group.label)
+        // A group exists only once it holds an account.
+        const detail = count > 1 ? ngettext('%d account', '%d accounts', count).format(count) : group.accounts[0]!.displayName;
+        if (detail !== group.label)
             names.push(detail);
         if (group.attention)
             names.push(_('needs attention'));
@@ -185,9 +187,7 @@ class ChooserItem extends StaticMenuItem {
             accessibleName: names.join(', '),
             onActivate: () => {
                 const remembered = group.accounts.find(account => account.id === this._lastByKind.get(group.kind));
-                const account = remembered ?? group.accounts[0];
-                if (account)
-                    this._onSelect(account.id);
+                this._onSelect((remembered ?? group.accounts[0]!).id);
             },
         };
     }
@@ -234,6 +234,7 @@ export class TokenGrillIndicator extends PanelMenu.Button {
             refresh: provider => controller.refreshProvider(provider.id),
             toggleLimit: (provider, key) => controller.toggleLimit(provider.id, key),
             setAutomatic: (provider, on) => controller.setAutomatic(provider.id, on),
+            signIn: provider => controller.signIn(provider.id),
         });
         menu.addMenuItem(detail);
         const empty = new InfoItem();
@@ -262,8 +263,8 @@ export class TokenGrillIndicator extends PanelMenu.Button {
 
     // St has no currentColor, so the toggle tints and meter colours in
     // stylesheet.css are chosen per shell style from the actual text colour of
-    // the menu and of the panel.  Theme nodes exist
-    // only on stage, so this runs from update() once the menu has been added.
+    // the menu and of the panel. Theme nodes exist only on stage, so this runs
+    // from update() and on theme changes, never from the constructor.
     private _updateThemeClasses(): void {
         const {menuBox, panelBox} = this._ui!;
         if (hasLightText(panelBox))

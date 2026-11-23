@@ -13,8 +13,10 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {displayLabel, displayPercent, formatMoney, limitName, pressureClass} from '../core/display.js';
 import {historyMetrics} from '../core/historyMetrics.js';
 import {formatText} from '../core/i18n.js';
+import {windowPace, type Pace} from '../core/pace.js';
 import {errorText, historySummary, refreshStatusText, windowCaption} from '../core/popupModel.js';
 import {providerMetadata} from '../core/providerMetadata.js';
+import {signInCommand} from '../core/signIn.js';
 import {durationUntil, formatDuration} from '../core/timeMath.js';
 import {isShown, limitKey, orderedLimits, shownLimits} from '../core/topBar.js';
 import type {
@@ -25,13 +27,14 @@ import type {
     ProviderSnapshot,
     UsageWindow,
 } from '../core/types.js';
-import {providerMark} from './accountChip.js';
+import {paceGicon, providerMark} from './accountChip.js';
 import {TRANSLATOR} from './translator.js';
 
 export interface ProviderDetailActions {
     refresh: (provider: ProviderInstance) => void;
     toggleLimit: (provider: ProviderInstance, key: string) => void;
     setAutomatic: (provider: ProviderInstance, on: boolean) => void;
+    signIn: (provider: ProviderInstance) => void;
 }
 
 interface LimitRow {
@@ -159,9 +162,14 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
     private _value: St.Label;
     private _meter: BarLevel.BarLevel;
     private _caption: St.Label;
+    private _extensionPath: string;
+    private _pace: St.BoxLayout;
+    private _paceIcon: St.Icon;
+    private _paceText: St.Label;
 
-    constructor(title: string, onSelect: () => void) {
+    constructor(extensionPath: string, title: string, onSelect: () => void) {
         super({style_class: 'tokengrill-window-item'});
+        this._extensionPath = extensionPath;
         this._title = title;
         this._onSelect = onSelect;
         this.setOrnament(PopupMenu.Ornament.NONE);
@@ -183,18 +191,32 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
             accessible_name: _('%s usage').format(title),
         });
         this._caption = wrappingLabel('tokengrill-caption');
+        this._pace = new St.BoxLayout({style_class: 'tokengrill-pace', visible: false});
+        this._paceIcon = new St.Icon({icon_size: 16, style_class: 'tokengrill-pace-icon', y_align: Clutter.ActorAlign.START});
+        this._paceText = wrappingLabel('tokengrill-caption', {x_expand: true});
+        this._pace.add_child(this._paceIcon);
+        this._pace.add_child(this._paceText);
         box.add_child(head);
         box.add_child(this._meter);
         box.add_child(this._caption);
+        box.add_child(this._pace);
         this.add_child(box);
         this.label_actor = nameLabel;
+    }
+
+    private _updatePace(pace: Pace | null): void {
+        this._pace.visible = pace !== null;
+        if (!pace)
+            return;
+        this._paceIcon.gicon = paceGicon(this._extensionPath, pace.state);
+        this._paceText.set_text(pace.text);
     }
 
     override activate(_event: Clutter.Event): void {
         this._onSelect();
     }
 
-    update(window: UsageWindow | null, mode: PanelPercentageMode, shown: boolean, automatic: boolean): void {
+    update(window: UsageWindow | null, mode: PanelPercentageMode, shown: boolean, automatic: boolean, pace: Pace | null): void {
         const percent = displayPercent(window, mode);
         const pressure = pressureClass(window);
         const value = window ? displayLabel(TRANSLATOR, window, mode) : _('Unavailable');
@@ -212,6 +234,7 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
         // Pressure is shown with an icon as well as the number, never colour alone.
         this._warning.visible = pressure !== 'neutral';
         this.setOrnament(shown ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE);
+        this._updatePace(pace);
 
         const parts = [this._title, value];
         if (window?.resetAt)
@@ -220,6 +243,8 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
             parts.push(_('almost exhausted'));
         else if (pressure === 'warning')
             parts.push(_('running low'));
+        if (pace)
+            parts.push(pace.text);
         if (shown)
             parts.push(automatic ? _('shown in the top bar, chosen automatically') : _('shown in the top bar'));
         this.accessible_name = parts.join(', ');
@@ -265,6 +290,7 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
     private _instance: ProviderInstance | null = null;
     private _identity: IdentityItem;
     private _error: InfoItem;
+    private _signIn: PopupMenu.PopupMenuItem;
     private _legend: InfoItem;
     private _limits: WindowItem[] = [];
     private _limitKeys = '';
@@ -282,6 +308,8 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
         this._actions = actions;
         this._identity = new IdentityItem(() => this._withInstance(instance => this._actions.refresh(instance)));
         this._error = new InfoItem('dialog-warning-symbolic');
+        this._signIn = new PopupMenu.PopupMenuItem(_('Sign In Again in a Terminal'));
+        this._signIn.connectObject('activate', () => this._withInstance(instance => this._actions.signIn(instance)), this._signIn);
         this._legend = new InfoItem();
         this._balance = new InfoItem();
         this._automatic = new PopupMenu.PopupSwitchMenuItem(_('Pick Automatically'), false);
@@ -290,7 +318,7 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
         this._credits = new PopupMenu.PopupSubMenuMenuItem(_('Reset Credits'), false);
         this._creditsNone = new InfoItem();
         this._history = new InfoItem();
-        this._items = [this._identity, this._error, this._legend, this._balance, this._automatic, this._credits, this._creditsNone, this._history];
+        this._items = [this._identity, this._error, this._signIn, this._legend, this._balance, this._automatic, this._credits, this._creditsNone, this._history];
         for (const item of this._items)
             this.addMenuItem(item);
     }
@@ -321,13 +349,16 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
             for (const item of this._limits)
                 item.destroy();
             this._limits = rows.map((row, index) => {
-                const item = new WindowItem(row.title, () => this._withInstance(current => this._actions.toggleLimit(current, row.key)));
+                const item = new WindowItem(this._extensionPath, row.title, () => this._withInstance(current => this._actions.toggleLimit(current, row.key)));
                 this.addMenuItem(item, this._items.indexOf(this._legend) + 1 + index);
                 return item;
             });
         }
         const shown = new Set(shownLimits(instance, snapshot).map(limitKey));
-        rows.forEach((row, index) => this._limits[index]!.update(row.window, mode, shown.has(row.key), instance.topBar.automatic));
+        rows.forEach((row, index) => {
+            const pace = instance.showPace && row.window ? windowPace(TRANSLATOR, row.window, timestamp => formatTime(new Date(timestamp))) : null;
+            this._limits[index]!.update(row.window, mode, shown.has(row.key), instance.topBar.automatic, pace);
+        });
         this._legend.setText(isShown(instance)
             ? _('Checked limits are shown in the top bar')
             : _('Not shown in the top bar. Check a limit to show it.'));
@@ -364,6 +395,7 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
         this._identity.setBusy(runtime !== null && runtime.phase !== 'idle');
 
         this._error.setText(errorText(TRANSLATOR, snapshot, instance));
+        this._signIn.visible = snapshot?.errorInfo?.recovery === 'reauthenticate' && signInCommand(instance) !== null;
         this._updateLimits(instance, snapshot, mode);
         const balance = snapshot?.balance ?? null;
         this._balance.setText(balance ? formatText(_('%s left · prepaid balance'), formatMoney(balance, 2)) : null);
@@ -391,7 +423,7 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
         if (credits.length < count) {
             const note = new InfoItem();
             if (credits.length)
-                note.setText(_('%d of %d expiry dates supplied by the provider').format(credits.length, count));
+                note.setText(ngettext('%d of %d expiry date supplied by the provider', '%d of %d expiry dates supplied by the provider', count).format(credits.length, count));
             else
                 note.setText(ngettext('%d usage-limit reset available', '%d usage-limit resets available', count).format(count));
             this._credits.menu.addMenuItem(note);

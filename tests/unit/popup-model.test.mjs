@@ -114,7 +114,7 @@ test('claude reauthentication hint names claude auth login', () => {
 test('OpenCode accounts are told to open OpenCode', () => {
     const snapshot = {error: 'The OpenCode sign-in has expired.', errorInfo: {code: 'auth-expired', message: '', recovery: 'reauthenticate'}};
     assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'opencode'}), 'The OpenCode sign-in has expired. Open OpenCode and sign in again.');
-    assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'codex-cli'}), 'The OpenCode sign-in has expired. Run codex login.');
+    assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'codex-cli', accountHome: '~/.codex'}), 'The OpenCode sign-in has expired. Run codex login.');
 });
 
 test('accentRgb returns the colour channels as fractions', () => {

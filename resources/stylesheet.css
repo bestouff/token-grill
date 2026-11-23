@@ -113,6 +113,7 @@
 .tokengrill-caption { font-size: 0.818em; }
 
 .tokengrill-window-box { spacing: 4px; }
+.tokengrill-pace { spacing: 6px; }
 .tokengrill-window-name { font-weight: bold; }
 .tokengrill-value { font-feature-settings: "tnum"; margin-left: 6px; }
 .tokengrill-meter { height: 8px; }

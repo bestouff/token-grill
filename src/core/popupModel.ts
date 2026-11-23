@@ -1,10 +1,13 @@
 // Pure presentation helpers for the top-bar popup.  Kept free of GNOME imports
 // so the wording and grouping can be unit-tested.
+import {activeProvider} from './display.js';
 import {formatTokenCount, type HistoryMetrics} from './historyMetrics.js';
 import {formatText, type Translator} from './i18n.js';
+import {displayPath} from './paths.js';
 import {providerMetadata} from './providerMetadata.js';
+import {signInCommand} from './signIn.js';
 import {durationUntil, formatDuration} from './timeMath.js';
-import type {AccountApp, ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from './types.js';
+import type {ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from './types.js';
 
 export interface ChooserAccount {
     id: string;
@@ -30,12 +33,12 @@ type SnapshotLookup = Pick<Map<string, Pick<ProviderSnapshot, 'error'> | null>, 
 export function shortAccountName(displayName: string, providerLabel: string): string {
     const escaped = providerLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const match = displayName.match(new RegExp(`^${escaped}\\s*[-–—·:/|]\\s*(.+)$`, 'i'));
-    return match?.[1] ? match[1].trim() : displayName;
+    return match ? match[1]!.trim() : displayName;
 }
 
 export function accountGroups(providers: ProviderInstance[], activeId: string, snapshots: SnapshotLookup): ChooserGroup[] {
     const enabled = providers.filter(provider => provider.enabled);
-    const active = enabled.find(provider => provider.id === activeId) || enabled[0] || null;
+    const active = activeProvider(providers, activeId);
     const groups: ChooserGroup[] = [];
     for (const provider of enabled) {
         let group = groups.find(item => item.kind === provider.kind);
@@ -158,9 +161,15 @@ export function historySummary(tr: Translator, metrics: HistoryMetrics): string 
     return formatText(_('Today %s tokens · 30 days %s tokens · ≈ $%s at API prices'), today, month, metrics.monthCost.toFixed(2));
 }
 
+type HintInstance = Pick<ProviderInstance, 'kind' | 'app' | 'accountHome'>;
+
 // Provider messages state the problem; the fix is added here once, per service.
-function withSignInHint(tr: Translator, kind: ProviderKind, app: AccountApp, message: string): string {
+// A CLI signed in to another home needs the variable that points it there.
+function withSignInHint(tr: Translator, {kind, app, accountHome}: HintInstance, message: string): string {
     const {_} = tr;
+    const command = signInCommand({app, accountHome});
+    if (command?.home)
+        return formatText(_('%s Run %s with %s set to %s.'), message, command.login, command.home.variable, displayPath(command.home.path));
     if (app === 'opencode')
         return formatText(_('%s Open OpenCode and sign in again.'), message);
     if (app === 'copilot-cli')
@@ -172,22 +181,22 @@ function withSignInHint(tr: Translator, kind: ProviderKind, app: AccountApp, mes
         claude: _('%s Run claude auth login.'),
         kiro: _('%s Run kiro-cli login.'),
         antigravity: _('%s Sign in again with Antigravity or agy.'),
-        'copilot': _('%s Run gh auth login.'),
+        copilot: _('%s Run gh auth login.'),
         'opencode-go': _('%s Run opencode auth login.'),
-        'deepseek': _('%s Check the DeepSeek API key in Preferences.'),
-        'kimi': _('%s Start kimi and run /login.'),
-        'cursor': _('%s Open Cursor and sign in again, or run agent login and add the Cursor CLI account.'),
+        deepseek: _('%s Check the DeepSeek API key in Preferences.'),
+        kimi: _('%s Start kimi and run /login.'),
+        cursor: _('%s Open Cursor and sign in again, or run agent login and add the Cursor CLI account.'),
     };
     return formatText(templates[kind], message);
 }
 
-export function errorText(tr: Translator, snapshot: Pick<ProviderSnapshot, 'error' | 'errorInfo'> | null, instance: Pick<ProviderInstance, 'kind' | 'app'>): string | null {
+export function errorText(tr: Translator, snapshot: Pick<ProviderSnapshot, 'error' | 'errorInfo'> | null, instance: HintInstance): string | null {
     const {_} = tr;
     if (!snapshot?.error)
         return null;
     switch (snapshot.errorInfo?.recovery) {
     case 'reauthenticate':
-        return withSignInHint(tr, instance.kind, instance.app, snapshot.error);
+        return withSignInHint(tr, instance, snapshot.error);
     case 'retry':
         return formatText(_('%s Try again later.'), snapshot.error);
     default:

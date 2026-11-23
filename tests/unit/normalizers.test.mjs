@@ -11,6 +11,7 @@ test('Codex weekly-only response is a valid weekly window', () => {
     assert.equal(result.windows[0].canonicalWindow, 'weekly');
     assert.equal(result.windows[0].percent, 0.26);
     assert.equal(result.windows[0].resetAt, 1786598031000);
+    assert.equal(result.windows[0].durationSeconds, 604800);
 });
 
 test('Codex duration, rather than primary/secondary naming, identifies windows', () => {
@@ -123,7 +124,7 @@ test('Kiro precision credit usage maps to a monthly window', () => {
     assert.equal(result.plan, 'KIRO PRO+');
     assert.deepEqual(result.windows[0], {
         id: 'monthly-credits', canonicalWindow: 'monthly', label: 'Monthly credits', used: 0.04, limit: 2000,
-        percent: 0.00002, resetAt: 1788192000000, unit: 'credits',
+        percent: 0.00002, resetAt: 1788192000000, durationSeconds: null, unit: 'credits',
     });
 });
 

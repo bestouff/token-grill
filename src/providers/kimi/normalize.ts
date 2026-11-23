@@ -1,7 +1,7 @@
 // Kimi Code's usage endpoint is undocumented and public descriptions of it
 // disagree, so both layouts are read: `usages.limit_*` with used ratios, and a
 // `usage` block plus `limits[]` with counts (numbers may be strings).
-import {isRecord, recordAt, stringAt, toEpochMs} from '../../core/json.js';
+import {isRecord, recordAt, stringAt, toEpochMs, toNumber} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
 import {claimType, windowLabel} from '../windows.js';
 
@@ -12,41 +12,42 @@ const RATIO_WINDOWS: [string, CanonicalQuotaWindow, string][] = [
     ['limit_month_code', 'other', 'Monthly Code'],
 ];
 
-function count(value: unknown): number | null {
-    const number = typeof value === 'string' && value.trim() ? Number(value) : value;
-    return typeof number === 'number' && Number.isFinite(number) ? number : null;
-}
+const UNIT_SECONDS: Record<string, number> = {MINUTE: 60, HOUR: 3600, DAY: 86400};
 
-function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: string, percent: number, reset: unknown): UsageWindow {
+function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: string, percent: number, reset: unknown, durationSeconds: number | null): UsageWindow {
     return {
         id, canonicalWindow, label: windowLabel(canonicalWindow, label), used: null, limit: null,
-        percent: Math.max(0, Math.min(1, percent)), resetAt: toEpochMs(reset), unit: null,
+        percent: Math.max(0, Math.min(1, percent)), resetAt: toEpochMs(reset), durationSeconds, unit: null,
     };
 }
 
 function ratioWindows(usages: Record<string, unknown>): UsageWindow[] {
     return RATIO_WINDOWS.flatMap(([id, canonical, label]) => {
         const item = recordAt(usages, id);
-        const ratio = item ? count(item.used_ratio) : null;
-        return item && ratio !== null ? [makeWindow(id, canonical, label, ratio, item.reset_time)] : [];
+        const ratio = item ? toNumber(item.used_ratio) : null;
+        return item && ratio !== null ? [makeWindow(id, canonical, label, ratio, item.reset_time, null)] : [];
     });
 }
 
-function windowKind(window: Record<string, unknown> | null): CanonicalQuotaWindow {
-    const duration = window ? count(window.duration) : null;
-    const unit = window ? stringAt(window, 'timeUnit') : null;
-    if ((unit === 'MINUTE' && duration === 300) || (unit === 'HOUR' && duration === 5))
-        return 'five-hour';
-    return unit === 'DAY' && duration === 7 ? 'weekly' : 'other';
+function windowSeconds(window: Record<string, unknown> | null): number | null {
+    const duration = window ? toNumber(window.duration) : null;
+    const unit = window ? UNIT_SECONDS[stringAt(window, 'timeUnit') ?? ''] : undefined;
+    return duration !== null && duration > 0 && unit !== undefined ? duration * unit : null;
 }
 
-function countWindow(id: string, canonical: CanonicalQuotaWindow, label: string, detail: Record<string, unknown>): UsageWindow | null {
-    const limit = count(detail.limit);
-    const remaining = count(detail.remaining);
-    const used = count(detail.used) ?? (limit !== null && remaining !== null ? limit - remaining : null);
+function windowKind(seconds: number | null): CanonicalQuotaWindow {
+    if (seconds === 5 * 3600)
+        return 'five-hour';
+    return seconds === 7 * 86400 ? 'weekly' : 'other';
+}
+
+function countWindow(id: string, canonical: CanonicalQuotaWindow, label: string, detail: Record<string, unknown>, seconds: number | null): UsageWindow | null {
+    const limit = toNumber(detail.limit);
+    const remaining = toNumber(detail.remaining);
+    const used = toNumber(detail.used) ?? (limit !== null && remaining !== null ? limit - remaining : null);
     if (limit === null || limit <= 0 || used === null)
         return null;
-    return makeWindow(id, canonical, label, used / limit, detail.resetTime ?? detail.reset_time);
+    return makeWindow(id, canonical, label, used / limit, detail.resetTime ?? detail.reset_time, seconds);
 }
 
 export function normalizeKimiUsage(payload: unknown): UsageWindow[] {
@@ -59,7 +60,7 @@ export function normalizeKimiUsage(payload: unknown): UsageWindow[] {
     const windows: UsageWindow[] = [];
     const claimed = new Set<CanonicalQuotaWindow>();
     const usage = recordAt(payload, 'usage');
-    const weekly = usage ? countWindow('usage', 'weekly', '', usage) : null;
+    const weekly = usage ? countWindow('usage', 'weekly', '', usage, null) : null;
     if (weekly) {
         claimed.add('weekly');
         windows.push(weekly);
@@ -68,8 +69,9 @@ export function normalizeKimiUsage(payload: unknown): UsageWindow[] {
     limits.forEach((item, index) => {
         if (!isRecord(item))
             return;
-        const type = claimType(claimed, windowKind(recordAt(item, 'window')), stringAt(item, 'name') ?? 'Usage Limit');
-        const window = countWindow(`limit-${index}`, type.canonicalWindow, type.label, recordAt(item, 'detail') ?? item);
+        const seconds = windowSeconds(recordAt(item, 'window'));
+        const type = claimType(claimed, windowKind(seconds), stringAt(item, 'name') ?? 'Usage Limit');
+        const window = countWindow(`limit-${index}`, type.canonicalWindow, type.label, recordAt(item, 'detail') ?? item, seconds);
         if (window)
             windows.push(window);
     });

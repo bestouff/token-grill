@@ -8,10 +8,11 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 import {accentRgb} from '../core/accent.js';
 import {displayLabel, displayPercent, formatMoney, limitName, pressureClass} from '../core/display.js';
 import {formatText} from '../core/i18n.js';
+import type {PaceState} from '../core/pace.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import type {TopBarAccount, TopBarGroup} from '../core/topBar.js';
 import type {PanelDisplayStyle, PanelPercentageMode, UsageWindow} from '../core/types.js';
-import {accentDot, providerIcon} from './accountChip.js';
+import {accentDot, paceIcon, providerIcon} from './accountChip.js';
 import {TRANSLATOR} from './translator.js';
 
 // Ring radius and stroke width per number of nested limits, on a 19 px canvas.
@@ -27,6 +28,13 @@ const BAR_HEIGHT = 15;
 const GAP = 2;
 const DOT_SIZE = 5;
 const TRACK_ALPHA = 0.25;
+
+// The pace icon is only visible, so its meaning is spoken too.
+const PACE_NAMES: Record<PaceState, () => string> = {
+    'high': () => _('using it fast'),
+    'on-track': () => _('on pace'),
+    'low': () => _('using it slowly'),
+};
 
 type Rgb = [number, number, number];
 
@@ -140,12 +148,14 @@ function numbers(account: TopBarAccount, mode: PanelPercentageMode): St.Label {
     return label;
 }
 
-function accountReading(account: TopBarAccount, style: PanelDisplayStyle, mode: PanelPercentageMode): St.Widget {
+function accountReading(extensionPath: string, account: TopBarAccount, style: PanelDisplayStyle, mode: PanelPercentageMode): St.Widget {
     const box = new St.BoxLayout({style_class: 'tokengrill-panel-account', y_align: Clutter.ActorAlign.CENTER});
     if (account.limits.length) {
         box.add_child(style === 'text' ? dot(account) : drawnReading(account, style, mode));
         if (style === 'text')
             box.add_child(numbers(account, mode));
+        if (account.pace)
+            box.add_child(paceIcon(extensionPath, account.pace, 14));
         if (account.low)
             box.add_child(attention());
     } else if (account.balance) {
@@ -173,13 +183,15 @@ function accountDescription(account: TopBarAccount, mode: PanelPercentageMode): 
     if (account.missing)
         return formatText(_('%s, no reading yet'), account.name);
     const limits = account.limits.map(window => {
+        // Translators: a limit name and its reading, such as "Weekly 40% left".
         const reading = formatText(_('%s %s'), limitName(TRANSLATOR, window), displayLabel(TRANSLATOR, window, mode));
         const pressure = pressureClass(window);
         if (pressure === 'critical')
-            return `${reading}, ${_('almost exhausted')}`;
-        return pressure === 'warning' ? `${reading}, ${_('running low')}` : reading;
+            return formatText(_('%s, almost exhausted'), reading);
+        return pressure === 'warning' ? formatText(_('%s, running low'), reading) : reading;
     });
-    return [account.name, ...limits, ...low].join(', ');
+    const pace = account.pace ? [PACE_NAMES[account.pace]()] : [];
+    return [account.name, ...limits, ...pace, ...low].join(', ');
 }
 
 export function entryDescription(group: TopBarGroup, mode: PanelPercentageMode): string {
@@ -195,7 +207,7 @@ export function createTopBarEntry(extensionPath: string, group: TopBarGroup, sty
     });
     entry.add_child(providerIcon(extensionPath, group.kind, 16));
     for (const account of group.accounts)
-        entry.add_child(accountReading(account, style, mode));
+        entry.add_child(accountReading(extensionPath, account, style, mode));
     entry.set_accessible_name(entryDescription(group, mode));
     return entry;
 }

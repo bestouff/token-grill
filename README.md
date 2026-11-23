@@ -19,7 +19,19 @@ These are the functions of the top bar and the popup:
 - The popup shows the limits of each account and their reset times in your
   local time zone. To show a limit in the top bar, check it in the popup.
 - If a refresh gets an error, the popup keeps the last good values and shows
-  the error.
+  the error. The last values stay after a lock, a restart, or an update,
+  with the time of the reading, until a refresh works.
+- If a sign-in is missing or expired, **Sign In Again in a Terminal** opens
+  your terminal with the login command of that account, for example
+  `codex login` with `CODEX_HOME` set to the home of the account. Token Grill
+  does not sign in again by itself: Codex and Claude use each refresh token
+  only once, so a renewal by Token Grill would sign out the CLI.
+- For Codex, Kimi Code, and Cursor accounts, **Usage Pace** in the account
+  preferences shows whether a limit is used faster or slower than its period
+  passes. The popup shows one line for each limit, and the top bar shows an
+  icon: a flame for a fast pace, a check mark for an even pace, and a
+  snowflake for a slow pace. The other services do not report the length of
+  their periods, so Token Grill does not guess a pace for them.
 
 These are the other functions:
 
@@ -145,7 +157,7 @@ Each request obeys these limits:
 - The request goes only to a host on a fixed list.
 - The request uses only HTTPS.
 - Token Grill does not accept redirects.
-- Token Grill stops after 1 MiB of response data.
+- Token Grill rejects a response larger than 1 MiB.
 
 Each request uses this User-Agent:
 
@@ -157,8 +169,10 @@ The Antigravity quota service gives data only when the User-Agent contains
 the word Antigravity. Thus, the User-Agent names all the services that Token Grill
 monitors.
 
-Token Grill does not start other programs. It does not collect telemetry. It
-does not read or send prompts or responses.
+Token Grill starts no other program by itself. Only when you click
+**Sign In Again in a Terminal**, it opens your terminal with the login command
+of the CLI. It does not collect telemetry. It does not read or send prompts or
+responses.
 
 The Kiro usage request gets the e-mail address of the account. The popup shows
 this address. Thus, you can see which account `kiro-cli` uses. Token Grill does not
@@ -227,8 +241,9 @@ or the keyring of the service.
 
 - `$XDG_DATA_HOME/token-grill/` contains the usage totals.
 - `$XDG_STATE_HOME/token-grill/` contains the history checkpoints, the
-  notification state, the full DeepSeek balance after each top-up, and the
-  diagnostics.
+  notification state, the full DeepSeek balance after each top-up, the
+  diagnostics, and the last reading of each account (`readings-v1.json`: the
+  plan, the limits, and their reset times, without the e-mail address).
 
 The diagnostics contain the latest 200 refresh steps: the host and path of each
 request, the field names and types of each response, and the error codes.
@@ -324,7 +339,9 @@ and explaining the code.
 
 ## Troubleshooting
 
-- **Sign-in required:** Open the CLI of the service and sign in again.
+- **Sign-in required:** Click **Sign In Again in a Terminal** in the popup, or
+  open the CLI of the service and sign in again. If no terminal opens, install
+  a terminal that GLib can start, such as GNOME Console or GNOME Terminal.
 - **Kiro or Cursor database unreadable:** Install the Gda 5.0 SQLite library. Then close
   the preferences window and open it again.
 - **System keyring or libsecret 1 unavailable:** Install the libsecret 1

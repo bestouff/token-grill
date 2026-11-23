@@ -131,6 +131,15 @@ export class AccountPage extends Adw.NavigationPage {
             history.connect('notify::active', () => this._apply({localHistoryEnabled: history.active}));
             main.add(history);
         }
+        if (metadata.reportsWindowLength) {
+            const pace = new Adw.SwitchRow({
+                title: _('Usage Pace'),
+                subtitle: _('Shows whether a limit is used faster or slower than its period passes, in the popup and next to the limits in the top bar'),
+                active: provider.showPace,
+            });
+            pace.connect('notify::active', () => this._apply({showPace: pace.active}));
+            main.add(pace);
+        }
         page.add(main);
 
         const colors = new Adw.PreferencesGroup({title: _('Color')});

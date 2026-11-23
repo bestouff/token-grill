@@ -27,7 +27,7 @@ function snapshotWindow(snapshot: unknown, id: string, canonicalWindow: Canonica
     const entitlement = numberAt(snapshot, 'entitlement');
     if (entitlement === null || entitlement <= 0)
         return null;
-    const base = {id, canonicalWindow, label: windowLabel(canonicalWindow, label), resetAt};
+    const base = {id, canonicalWindow, label: windowLabel(canonicalWindow, label), resetAt, durationSeconds: null};
     // Plans billed in AI Credits report the credits spent; count them out of the entitlement.
     const creditsUsed = snapshot.token_based_billing === true ? numberAt(snapshot, 'credits_used') : null;
     if (creditsUsed !== null && creditsUsed >= 0)

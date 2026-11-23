@@ -14,6 +14,8 @@ import {parseTestNotificationRequest} from './core/notificationPolicy.js';
 import {providerPaths} from './core/paths.js';
 import {Scheduler, type SchedulerJob} from './core/scheduler.js';
 import {snapshotFingerprint} from './core/snapshotFingerprint.js';
+import {signInCommand} from './core/signIn.js';
+import {restoredSnapshot} from './core/storedReading.js';
 import {isShown, setAutomatic, toggleLimit} from './core/topBar.js';
 import {
     emptySnapshot,
@@ -31,11 +33,13 @@ import {requestJson, USER_AGENT, type CollectorContext, type ProviderCollector} 
 import {createCollectors} from './providers/registry.js';
 import {TokenGrillIndicator, type IndicatorController} from './shell/indicator.js';
 import {NotificationStore} from './shell/notifications.js';
+import {openSignIn} from './shell/signIn.js';
 import {TRANSLATOR} from './shell/translator.js';
 import {AggregateStore} from './storage/aggregateStore.js';
 import {BalanceStore} from './storage/balanceStore.js';
 import {CheckpointStore} from './storage/checkpointStore.js';
 import {DiagnosticsStore} from './storage/diagnosticsStore.js';
+import {SnapshotStore} from './storage/snapshotStore.js';
 
 const SOURCE_PHASES: Record<RefreshSource, RefreshPhase> = {
     'limits': 'fetching-limits',
@@ -56,6 +60,7 @@ export class Runtime implements IndicatorController {
     private _aggregates: AggregateStore | null;
     private _checkpoints: CheckpointStore | null;
     private _balances: BalanceStore | null;
+    private _readings: SnapshotStore | null;
     private _notifications: NotificationStore | null;
     private _diagnostics: DiagnosticsStore | null;
     private _collectors: Record<ProviderKind, ProviderCollector> | null = createCollectors();
@@ -66,7 +71,6 @@ export class Runtime implements IndicatorController {
     private _providers: ProviderInstance[] = [];
     private readonly _snapshots = new Map<string, ProviderSnapshot>();
     private readonly _runtimeStates = new Map<string, ProviderRuntimeState>();
-    private _paused = false;
     private _lastTestNonce = '';
 
     constructor(extension: Extension) {
@@ -75,6 +79,7 @@ export class Runtime implements IndicatorController {
         this._aggregates = new AggregateStore(extension.getLogger());
         this._checkpoints = new CheckpointStore(extension.getLogger());
         this._balances = new BalanceStore(extension.getLogger());
+        this._readings = new SnapshotStore(extension.getLogger());
         this._notifications = new NotificationStore(extension);
         this._diagnostics = new DiagnosticsStore(extension.getLogger(), GLib.get_home_dir(),
             {version: String(extension.metadata['version-name']), shell: Config.PACKAGE_VERSION});
@@ -111,13 +116,15 @@ export class Runtime implements IndicatorController {
 
         // Final writes touch only our own state files, never Shell objects, so they may finish after disable().
         const logger = this._extension.getLogger();
-        Promise.all([this._aggregates!.flush(), this._checkpoints!.flush(), this._balances!.flush(), this._notifications!.flush(), this._diagnostics!.flush()])
+        Promise.all([this._aggregates!.flush(), this._checkpoints!.flush(), this._balances!.flush(), this._readings!.flush(),
+            this._notifications!.flush(), this._diagnostics!.flush()])
             .catch(error => logger.warn(error));
         this._notifications!.destroy();
         this._notifications = null;
         this._aggregates = null;
         this._checkpoints = null;
         this._balances = null;
+        this._readings = null;
         this._diagnostics = null;
         this._settings = null;
 
@@ -168,15 +175,22 @@ export class Runtime implements IndicatorController {
         this._render();
     }
 
+    signIn(providerId: string): void {
+        const provider = this._providers.find(item => item.id === providerId);
+        const command = provider ? signInCommand(provider) : null;
+        if (command)
+            openSignIn(command.argv);
+    }
+
     openPreferences(): void {
         this._extension.openPreferences();
     }
 
     setPaused(paused: boolean): void {
-        if (paused === this._paused)
+        const scheduler = this._scheduler!;
+        if (paused === scheduler.paused)
             return;
-        this._paused = paused;
-        this._scheduler!.setPaused(paused);
+        scheduler.setPaused(paused);
         this._render();
     }
 
@@ -187,6 +201,7 @@ export class Runtime implements IndicatorController {
             this._aggregates!.initialize(cancellable),
             this._checkpoints!.initialize(cancellable),
             this._balances!.initialize(cancellable),
+            this._readings!.initialize(cancellable),
             this._notifications!.initialize(cancellable),
             this._diagnostics!.initialize(cancellable),
         ]);
@@ -198,6 +213,7 @@ export class Runtime implements IndicatorController {
         migrateProviderSettings(settings);
         this._providers = readProviders(settings);
         this._ensureActiveProvider();
+        this._restoreReadings();
 
         this._indicator = new TokenGrillIndicator(this._extension.path, this);
         Main.panel.addToStatusArea(this._extension.uuid, this._indicator, 1, 'right');
@@ -251,6 +267,14 @@ export class Runtime implements IndicatorController {
         this._scheduler!.refresh(next.filter(provider => provider.enabled && needsRefresh(before.get(provider.id), provider)).map(provider => provider.id));
     }
 
+    private _restoreReadings(): void {
+        for (const provider of this._providers) {
+            const reading = provider.liveUsageEnabled ? this._readings!.get(provider.id) : null;
+            if (reading)
+                this._snapshots.set(provider.id, restoredSnapshot(provider.id, reading));
+        }
+    }
+
     // Startup and configuration changes refresh silently, so a paused session is not reported as failed.
     private _refreshEnabled(): void {
         this._scheduler!.refresh(this._providers.filter(provider => provider.enabled).map(provider => provider.id));
@@ -260,7 +284,9 @@ export class Runtime implements IndicatorController {
         const aggregates = this._aggregates!;
         const checkpoints = this._checkpoints!;
         const balances = this._balances!;
-        Promise.all(providerIds.flatMap(id => [aggregates.removeProvider(id), checkpoints.removeProvider(id), balances.removeProvider(id)]))
+        const readings = this._readings!;
+        Promise.all(providerIds.flatMap(id => [aggregates.removeProvider(id), checkpoints.removeProvider(id), balances.removeProvider(id),
+            readings.removeProvider(id)]))
             .catch(error => this._extension.getLogger().warn(error));
     }
 
@@ -299,7 +325,8 @@ export class Runtime implements IndicatorController {
             this._render();
         }
         this._scheduler!.complete();
-        this._diagnostics!.flush().catch(error => this._extension.getLogger().warn(error));
+        const logger = this._extension.getLogger();
+        Promise.all([this._readings!.flush(), this._diagnostics!.flush()]).catch(error => logger.warn(error));
     }
 
     private async _refreshProvider(provider: ProviderInstance, manual: boolean, cancellable: Gio.Cancellable): Promise<void> {
@@ -348,6 +375,7 @@ export class Runtime implements IndicatorController {
             return;
 
         this._snapshots.set(provider.id, snapshot);
+        this._readings!.set(snapshot);
         // Sign-in problems end a refresh before any request, so they are recorded here.
         if (snapshot.errorInfo)
             this._record(provider, 'error', `refresh: ${snapshot.errorInfo.code}`);
@@ -433,7 +461,7 @@ export class Runtime implements IndicatorController {
             mode: this._percentageMode(),
             style: this._displayStyle(),
             accountPicker: this._settings!.get_string('popup-account-picker') === 'dropdown' ? 'dropdown' : 'buttons',
-            paused: this._paused,
+            paused: this._scheduler!.paused,
         });
     }
 }

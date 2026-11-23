@@ -18,6 +18,6 @@ export function balanceWindow(balance: Balance, reference: BalanceReference): Us
     const used = reference.full > 0 ? 1 - balance.amount / reference.full : 1;
     return {
         id: BALANCE_KEY, canonicalWindow: 'other', label: 'Balance', used: null, limit: null,
-        percent: Math.max(0, Math.min(1, used)), resetAt: null, unit: null,
+        percent: Math.max(0, Math.min(1, used)), resetAt: null, durationSeconds: null, unit: null,
     };
 }

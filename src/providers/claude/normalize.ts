@@ -33,6 +33,7 @@ function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: st
         limit: null,
         percent: clampFraction(percentagePoints / 100),
         resetAt: toEpochMs(reset),
+        durationSeconds: null,
         unit: null,
     };
 }

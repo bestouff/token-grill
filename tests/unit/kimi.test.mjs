@@ -51,3 +51,10 @@ test('a second Kimi window of the same type stays a limit of its own', () => {
     const windows = normalizeKimiUsage({limits: [limit('Chat', 300, 'MINUTE'), limit('Agent', 5, 'HOUR')]});
     assert.deepEqual(windows.map(item => [item.canonicalWindow, item.label]), [['five-hour', 'Five-hour'], ['other', 'Agent · Five-hour']]);
 });
+
+
+test('only the limits layout reports a window length', () => {
+    const windows = normalizeKimiUsage(described);
+    assert.deepEqual(windows.map(window => window.durationSeconds), [null, 5 * 3600, 86400]);
+    assert.equal(normalizeKimiUsage({usages: {limit_5h: {used_ratio: 0.3}}})[0].durationSeconds, null);
+});

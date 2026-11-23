@@ -37,6 +37,7 @@ export function normalizeKiroUsage(payload: unknown): KiroUsage {
             // A zero limit means pooled or unlimited credits, which have no meaningful percentage.
             percent: used !== null && limit !== null && limit > 0 ? clampFraction(used / limit) : null,
             resetAt: toEpochMs(credits.nextDateReset) ?? toEpochMs(payload.nextDateReset),
+            durationSeconds: null,
             unit: 'credits',
         }],
     };

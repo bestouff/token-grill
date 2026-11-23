@@ -75,7 +75,7 @@ export class NotificationStore {
     }
 
     removeProvider(providerId: string): void {
-        const keys = Object.keys(this._state.windows).filter(key => this._state.windows[key]?.providerId === providerId);
+        const keys = Object.entries(this._state.windows).filter(([, state]) => state.providerId === providerId).map(([key]) => key);
         for (const key of keys)
             delete this._state.windows[key];
         const hadBalance = providerId in this._state.lowBalance;

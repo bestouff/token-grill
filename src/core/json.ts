@@ -42,6 +42,12 @@ export function toEpochMs(value: unknown): number | null {
     return null;
 }
 
+// Some services send numbers as decimal strings.
+export function toNumber(value: unknown): number | null {
+    const number = typeof value === 'string' && value.trim() ? Number(value) : value;
+    return typeof number === 'number' && Number.isFinite(number) ? number : null;
+}
+
 export function clampFraction(value: number): number {
     return Math.max(0, Math.min(1, value));
 }

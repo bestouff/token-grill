@@ -60,6 +60,7 @@ export function normalizeQuotaSummary(payload: unknown): UsageWindow[] {
         limit: null,
         percent: 1 - bucket.remainingFraction,
         resetAt: bucket.resetAt,
+        durationSeconds: null,
         unit: null,
     }));
 }

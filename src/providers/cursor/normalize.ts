@@ -33,15 +33,17 @@ export function normalizeCursorUsage(payload: unknown): UsageWindow[] {
     const usage = isRecord(payload) ? recordAt(payload, 'planUsage') : null;
     if (!isRecord(payload) || !usage)
         return [];
+    const start = epochMs(payload.billingCycleStart);
     const resetAt = epochMs(payload.billingCycleEnd);
-    const cycle = cycleType(epochMs(payload.billingCycleStart), resetAt);
+    const cycle = cycleType(start, resetAt);
+    const durationSeconds = start !== null && resetAt !== null && resetAt > start ? (resetAt - start) / 1000 : null;
     const claimed = new Set<CanonicalQuotaWindow>();
     return POOLS.flatMap(([key, id, name]) => {
         const percent = numberAt(usage, key);
         if (percent === null)
             return [];
         // Cursor reports percentage points, 0 to 100.
-        return [{id, ...claimType(claimed, cycle, name), used: null, limit: null, percent: clampFraction(percent / 100), resetAt, unit: null}];
+        return [{id, ...claimType(claimed, cycle, name), used: null, limit: null, percent: clampFraction(percent / 100), resetAt, durationSeconds, unit: null}];
     });
 }
 

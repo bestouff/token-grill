@@ -35,8 +35,10 @@ const copies = [
     ['resources/icons/token-grill-symbolic.svg', 'token-grill-symbolic.svg'],
     ['schemas/org.gnome.shell.extensions.tokengrill.gschema.xml', 'schemas/org.gnome.shell.extensions.tokengrill.gschema.xml'],
 ];
-for (const icon of await readdir(path.join(root, 'resources', 'icons', 'providers')))
-    copies.push([`resources/icons/providers/${icon}`, `icons/providers/${icon}`]);
+for (const folder of ['providers', 'pace']) {
+    for (const icon of await readdir(path.join(root, 'resources', 'icons', folder)))
+        copies.push([`resources/icons/${folder}/${icon}`, `icons/${folder}/${icon}`]);
+}
 
 for (const [source, target] of copies) {
     await mkdir(path.dirname(path.join(dist, target)), {recursive: true});

@@ -28,7 +28,8 @@ function normalizeWindow(window: Record<string, unknown>, name: string | null, i
     const percentagePoints = numberAt(window, 'used_percent');
     if (percentagePoints === null)
         return null;
-    const duration = canonicalFor(numberAt(window, 'limit_window_seconds'));
+    const seconds = numberAt(window, 'limit_window_seconds');
+    const duration = canonicalFor(seconds);
     const type = claimType(claimed, duration, name ?? 'Usage limit');
     return {
         id: name === null ? `${type.canonicalWindow}-${index}` : `${name}:${duration}`,
@@ -37,6 +38,7 @@ function normalizeWindow(window: Record<string, unknown>, name: string | null, i
         limit: null,
         percent: clampFraction(percentagePoints / 100),
         resetAt: toEpochMs(window.reset_at),
+        durationSeconds: seconds !== null && seconds > 0 ? seconds : null,
         unit: null,
     };
 }

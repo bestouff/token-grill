@@ -2,6 +2,7 @@
 // ticked in the popup.  Pure, so the Shell code only draws the result.
 import {limitName, mostUsedWindow} from './display.js';
 import type {Translator} from './i18n.js';
+import {accountPace, type PaceState} from './pace.js';
 import {BALANCE_KEY} from './types.js';
 import type {
     AccentValue,
@@ -33,6 +34,8 @@ export interface TopBarAccount {
     low: boolean;
     // Nothing to draw: the ticked limits are not in the latest reading.
     missing: boolean;
+    // How fast the shown limits are used, when the account shows its pace.
+    pace: PaceState | null;
 }
 
 export interface TopBarGroup {
@@ -115,7 +118,8 @@ export function topBarGroups(providers: ProviderInstance[], snapshots: Map<strin
         const showsBalance = provider.topBar.limits.includes(BALANCE_KEY) || limits.some(window => limitKey(window) === BALANCE_KEY);
         const balance = showsBalance ? snapshot?.balance ?? null : null;
         const low = balance !== null && provider.lowBalance !== null && balance.amount < provider.lowBalance;
-        group.accounts.push({id: provider.id, name: provider.displayName, accent: provider.accent, limits, balance, low, missing: !limits.length && !balance});
+        const pace = provider.showPace ? accountPace(limits) : null;
+        group.accounts.push({id: provider.id, name: provider.displayName, accent: provider.accent, limits, balance, low, missing: !limits.length && !balance, pace});
     }
     return groups;
 }

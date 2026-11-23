@@ -4,6 +4,7 @@ import St from 'gi://St';
 
 import {accentRgb} from '../core/accent.js';
 import {providerIconFile} from '../core/providerMetadata.js';
+import type {PaceState} from '../core/pace.js';
 import type {ProviderInstance, ProviderKind} from '../core/types.js';
 
 const MARK_DOT_SIZE = 6;
@@ -20,6 +21,14 @@ export function providerIcon(extensionPath: string, kind: ProviderKind, size: nu
         x_align: Clutter.ActorAlign.CENTER,
         y_align: Clutter.ActorAlign.CENTER,
     });
+}
+
+export function paceGicon(extensionPath: string, state: PaceState): Gio.Icon {
+    return Gio.icon_new_for_string(`${extensionPath}/icons/pace/pace-${state}-symbolic.svg`);
+}
+
+export function paceIcon(extensionPath: string, state: PaceState, size: number): St.Icon {
+    return new St.Icon({gicon: paceGicon(extensionPath, state), icon_size: size, y_align: Clutter.ActorAlign.CENTER});
 }
 
 // A small dot in the account's colour.  It always sits next to the account

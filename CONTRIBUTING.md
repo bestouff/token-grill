@@ -176,7 +176,7 @@ This check does not use the network or real data:
 
 This check uses your real credentials:
 
-- `npm run test:live -- <codex|claude|kiro|antigravity> [account-home] [auth-file]`
+- `npm run test:live -- <codex|claude|kiro|antigravity|copilot|opencode-go|deepseek|kimi|cursor> [account-home] [auth-file]`
   gets the usage of one account from the real service, with your real
   credentials. It shows only the result and the usage limits. It does not show
   tokens or e-mail addresses. For Kiro, the check fails if the `kiro-cli`

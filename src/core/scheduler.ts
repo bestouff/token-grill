@@ -30,8 +30,9 @@ export class Scheduler {
         });
     }
 
+    // The schema keeps the interval between 60 and 3600 seconds.
     setIntervalSeconds(seconds: number): void {
-        this._intervalSeconds = Math.max(60, Math.min(seconds, 3600));
+        this._intervalSeconds = seconds;
     }
 
     setProviders(providers: ProviderInstance[]): void {
@@ -41,6 +42,10 @@ export class Scheduler {
             if (!this._due.has(provider.id))
                 this._due.set(provider.id, now + Math.random() * this._intervalSeconds * 1000);
         }
+    }
+
+    get paused(): boolean {
+        return this._paused;
     }
 
     setPaused(paused: boolean): void {

@@ -3,6 +3,14 @@
 ## 0.4.0 alpha 2
 
 - Token Grill also operates with GNOME Shell 48, 49, and 51.
+- The popup and the top bar keep the last reading of each account after a
+  lock, a restart, or an update. They show its time until a refresh works.
+- Sign In Again in a Terminal: when a sign-in is missing or expired, the popup
+  opens your terminal with the login command of that account and its home.
+  The hint names the home variable for accounts outside the default home.
+- Usage Pace for Codex, Kimi Code, and Cursor accounts: a line in the popup and
+  an icon in the top bar show whether a limit is used faster or slower than its
+  period passes. Turn it on for each account in Preferences.
 - Cursor: the monthly total and the two pools, Cursor models and other models.
   Token Grill reads the sign-in of the Cursor CLI (`agent login`) or of the
   Cursor app. The Cursor app sign-in needs the Gda 5.0 SQLite library, as Kiro

@@ -1,7 +1,8 @@
 # Token Grill: notes for coding agents
 
 Token Grill is a GNOME Shell extension in TypeScript. It shows the usage
-limits of Codex, Claude, Kiro, and Antigravity accounts in the top bar. It
+limits of Codex, Claude, Kiro, Antigravity, GitHub Copilot, OpenCode Go, Kimi
+Code, and Cursor accounts and the DeepSeek balance in the top bar. It
 operates with GNOME Shell 48, 49, 50, and 51. The target is
 extensions.gnome.org.
 
@@ -20,33 +21,38 @@ modules of the other process.
   This file contains nothing more.
 
 - `src/runtime.ts`: owns all objects that `enable()` creates. These are the
-  settings, the cancellable, the Soup session, the stores, the collectors, the
-  scheduler, the indicator, and the notification store. `stop()` releases all
-  of them.
+  settings, the cancellable, the Soup session, the stores (totals, checkpoints,
+  balances, last readings, diagnostics), the collectors, the scheduler, the
+  indicator, and the notification store. `stop()` releases all of them.
 
 - `src/core/scheduler.ts`: owns its one timeout. It selects the accounts for
   the next refresh.
 
 - `src/providers/`: one collector for each service (`codex/`, `claude/`,
-  `kiro/`, `antigravity/`). `registry.ts` creates the collectors.
+  `kiro/`, `antigravity/`, `copilot/`, `opencode-go/`, `deepseek/`, `kimi/`,
+  `cursor/`). `opencode/` reads the OpenCode sign-in file for several services.
+  `registry.ts` creates the collectors.
 
 More modules of the Shell process:
 
 - `src/providers/base.ts`: the HTTP client and the shared snapshot and history
   steps. The client uses a fixed list of hosts and only HTTPS. It accepts no
-  redirects, stops after 1 MiB, and sends the single `USER_AGENT`.
+  redirects, rejects responses over 1 MiB, and sends the single `USER_AGENT`.
 
-- `src/providers/credentials.ts`: reads the credential files of other tools.
+- `src/providers/credentials.ts`, `keyring.ts`, `sqlite.ts`, `jwt.ts`: read the
+  credential files, keyring items, and databases of other tools, read-only.
 
 - `src/providers/history.ts`: reads the JSONL session logs.
 
 - `src/storage/`: `atomicJson.ts` (limited reads, private atomic writes,
   `SerialWriter`), `aggregateStore.ts` (daily token totals),
-  `checkpointStore.ts` (read offsets), and `jsonl.ts` (line reader).
+  `checkpointStore.ts` (read offsets), `balanceStore.ts` (full prepaid
+  balances), `snapshotStore.ts` (the last reading of each account, without the
+  e-mail address), `diagnosticsStore.ts`, and `jsonl.ts` (line reader).
 
-- `src/shell/`: the panel button and the popup (`indicator.ts`,
-  `providerCard.ts`, `accountChip.ts`, `toggleGroup.ts`), and the
-  notifications.
+- `src/shell/`: the panel button and the popup (`indicator.ts`, `topBar.ts`,
+  `providerCard.ts`, `accountChip.ts`, `toggleGroup.ts`), the notifications,
+  and `signIn.ts` (opens a CLI login in the user's terminal).
 
 **Preferences process** (`prefs.js`): `src/prefs.ts` makes the window from the
 pages and dialogs in `src/prefs/`. To show the credential state, it also
@@ -79,7 +85,7 @@ npm run build          # per-file tsc emit into dist/<uuid>/, then GNOME ESLint 
 npm run release:check  # metadata, package tree, development traces, line length
 npm run review:check   # pack, then Shexli on dist/ and on the zip; must report zero findings
 npm run test:gda       # synthetic kiro-cli and Cursor databases through the real Gda code (no network)
-npm run test:live -- <codex|claude|kiro|antigravity> [home] [auth-file]
+npm run test:live -- <codex|claude|kiro|antigravity|copilot|opencode-go|deepseek|kimi|cursor> [home] [auth-file]
                        # one real collection with the user's credentials; prints no secrets
 npm run install:local  # replaces the user's installed copy: only after nested-shell checks
 npm run dev:shell      # nested GNOME Shell with the installed copy
@@ -178,7 +184,14 @@ Rules for the network and data:
 
 - Read the files and keyrings of other tools asynchronously and read-only. Do
   not write to them. Keep refreshed tokens only in memory. Do not unlock a
-  keyring.
+  keyring. Do not decrypt the secrets of another app.
+
+- Do not refresh a token whose refresh token is single-use (Codex, Claude):
+  the CLI keeps the old one, so a refresh by Token Grill signs the CLI out.
+  Kiro and Antigravity tokens can be refreshed in memory.
+
+- Usage pace needs `UsageWindow.durationSeconds` from a real response field.
+  Do not guess a window length from its type.
 
 - Do not hardcode an account, an e-mail address, or a personal path (for
   example `~/.t3`). The data that the CLI of each service keeps is correct.
@@ -254,3 +267,11 @@ same.
   session. Thus, the single `USER_AGENT` identifies Token Grill and names the
   services that it reads (X-10, Q-12). It does not claim to be the Antigravity
   app or the agy CLI.
+
+
+- **"Sign In Again in a Terminal" launches the CLI login of an account.** It
+  runs only when the user clicks it. `shell/signIn.ts` uses
+  `Gio.AppInfo.create_from_commandline()` with `NEEDS_TERMINAL`, so GLib picks
+  the terminal and no shell parses the command. The account home goes through
+  `env` and the CLI's own variable (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`,
+  `GH_CONFIG_DIR`), so the right account signs in (X-3, X-4).
