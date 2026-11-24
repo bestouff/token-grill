@@ -53,8 +53,15 @@ test('a second Kimi window of the same type stays a limit of its own', () => {
 });
 
 
-test('only the limits layout reports a window length', () => {
+test('window lengths come from the reported duration or the key names', () => {
     const windows = normalizeKimiUsage(described);
     assert.deepEqual(windows.map(window => window.durationSeconds), [null, 5 * 3600, 86400]);
-    assert.equal(normalizeKimiUsage({usages: {limit_5h: {used_ratio: 0.3}}})[0].durationSeconds, null);
+    const ratio = normalizeKimiUsage({
+        usages: {
+            limit_5h: {used_ratio: 0.3},
+            limit_7d: {used_ratio: 0.3},
+            limit_month_total: {used_ratio: 0.3, reset_time: '2026-12-01T00:00:00Z'},
+        },
+    });
+    assert.deepEqual(ratio.map(window => window.durationSeconds), [5 * 3600, 7 * 86400, 30 * 86400]);
 });

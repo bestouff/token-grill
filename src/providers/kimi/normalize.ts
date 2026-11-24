@@ -3,13 +3,14 @@
 // `usage` block plus `limits[]` with counts (numbers may be strings).
 import {isRecord, recordAt, stringAt, toEpochMs, toNumber} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
-import {claimType, windowLabel} from '../windows.js';
+import {claimType, monthBefore, namedLength, windowLabel} from '../windows.js';
 
-const RATIO_WINDOWS: [string, CanonicalQuotaWindow, string][] = [
-    ['limit_5h', 'five-hour', ''],
-    ['limit_7d', 'weekly', ''],
-    ['limit_month_total', 'monthly', ''],
-    ['limit_month_code', 'other', 'Monthly Code'],
+// The key names give the length of each window.
+const RATIO_WINDOWS: [string, CanonicalQuotaWindow, string, 'five-hour' | 'weekly' | 'month'][] = [
+    ['limit_5h', 'five-hour', '', 'five-hour'],
+    ['limit_7d', 'weekly', '', 'weekly'],
+    ['limit_month_total', 'monthly', '', 'month'],
+    ['limit_month_code', 'other', 'Monthly Code', 'month'],
 ];
 
 const UNIT_SECONDS: Record<string, number> = {MINUTE: 60, HOUR: 3600, DAY: 86400};
@@ -22,10 +23,13 @@ function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: st
 }
 
 function ratioWindows(usages: Record<string, unknown>): UsageWindow[] {
-    return RATIO_WINDOWS.flatMap(([id, canonical, label]) => {
+    return RATIO_WINDOWS.flatMap(([id, canonical, label, length]) => {
         const item = recordAt(usages, id);
         const ratio = item ? toNumber(item.used_ratio) : null;
-        return item && ratio !== null ? [makeWindow(id, canonical, label, ratio, item.reset_time, null)] : [];
+        if (!item || ratio === null)
+            return [];
+        const seconds = length === 'month' ? monthBefore(toEpochMs(item.reset_time)) : namedLength(length);
+        return [makeWindow(id, canonical, label, ratio, item.reset_time, seconds)];
     });
 }
 

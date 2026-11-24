@@ -77,6 +77,7 @@ const MODULES = [
     ['src/providers/kiro/usagePolicy.ts', 'kiro-usage-policy.mjs'],
     ['src/providers/opencode/entries.ts', 'opencode-entries.mjs'],
     ['src/providers/opencode-go/normalize.ts', 'opencode-go-normalize.mjs'],
+    ['src/providers/windows.ts', 'windows.mjs'],
 ];
 
 await rm(out, {recursive: true, force: true});

@@ -1,17 +1,18 @@
 import {clampFraction, isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
-import {windowLabel} from '../windows.js';
+import {FIVE_HOURS, WEEK, windowLabel} from '../windows.js';
 
-const LEGACY_WINDOWS: Array<[string, CanonicalQuotaWindow]> = [
-    ['five_hour', 'five-hour'],
-    ['seven_day', 'weekly'],
-    ['seven_day_opus', 'other'],
-    ['seven_day_sonnet', 'other'],
+// The key names give the length of each window.
+const LEGACY_WINDOWS: Array<[string, CanonicalQuotaWindow, number]> = [
+    ['five_hour', 'five-hour', FIVE_HOURS],
+    ['seven_day', 'weekly', WEEK],
+    ['seven_day_opus', 'other', WEEK],
+    ['seven_day_sonnet', 'other', WEEK],
 ];
 
-const LIMIT_GROUPS: Record<string, CanonicalQuotaWindow> = {
-    session: 'five-hour',
-    weekly: 'weekly',
+const LIMIT_GROUPS: Record<string, [CanonicalQuotaWindow, number]> = {
+    session: ['five-hour', FIVE_HOURS],
+    weekly: ['weekly', WEEK],
 };
 
 function scopeName(scope: Record<string, unknown> | null): string | null {
@@ -24,7 +25,7 @@ function scopeName(scope: Record<string, unknown> | null): string | null {
 
 // Claude reports utilization in percentage points (0-100), including
 // fractional values: 1 means 1% used, not a fully consumed ratio.
-function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: string, percentagePoints: number, reset: unknown): UsageWindow {
+function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: string, percentagePoints: number, reset: unknown, durationSeconds: number): UsageWindow {
     return {
         id,
         canonicalWindow,
@@ -33,7 +34,7 @@ function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: st
         limit: null,
         percent: clampFraction(percentagePoints / 100),
         resetAt: toEpochMs(reset),
-        durationSeconds: null,
+        durationSeconds,
         unit: null,
     };
 }
@@ -54,16 +55,17 @@ function limitWindows(limits: unknown, legacyKeys: Set<string>, present: Set<Can
     for (const item of limits.filter(isRecord)) {
         const percent = numberAt(item, 'percent');
         const group = stringAt(item, 'group') ?? '';
-        const canonicalWindow = LIMIT_GROUPS[group];
-        if (percent === null || !canonicalWindow)
+        const groupWindow = LIMIT_GROUPS[group];
+        if (percent === null || !groupWindow)
             continue;
+        const [canonicalWindow, seconds] = groupWindow;
         const scope = scopeName(recordAt(item, 'scope'));
         if (scope && legacyKeys.has(`seven_day_${modelOf(scope)}`))
             continue;
         const kind = stringAt(item, 'kind') ?? group;
         const base = windowLabel(canonicalWindow, kind);
         const id = scope ? `limits:${kind}:${scope}` : `limits:${kind}`;
-        const window = makeWindow(id, canonicalWindow, scope ? `${base} · ${scope}` : base, percent, item.resets_at);
+        const window = makeWindow(id, canonicalWindow, scope ? `${base} · ${scope}` : base, percent, item.resets_at, seconds);
         entries.push({canonicalWindow, scope, window});
     }
     const fills = new Map<CanonicalQuotaWindow, Entry>();
@@ -85,12 +87,12 @@ export function normalizeClaudeUsage(payload: unknown): UsageWindow[] {
         return [];
     const windows: UsageWindow[] = [];
     const legacyKeys: string[] = [];
-    for (const [key, canonicalWindow] of LEGACY_WINDOWS) {
+    for (const [key, canonicalWindow, seconds] of LEGACY_WINDOWS) {
         const item = recordAt(payload, key);
         const utilization = item ? numberAt(item, 'utilization') : null;
         if (item && utilization !== null) {
             legacyKeys.push(key);
-            windows.push(makeWindow(key, canonicalWindow, windowLabel(canonicalWindow, key.replaceAll('_', ' ')), utilization, item.resets_at));
+            windows.push(makeWindow(key, canonicalWindow, windowLabel(canonicalWindow, key.replaceAll('_', ' ')), utilization, item.resets_at, seconds));
         }
     }
     windows.push(...limitWindows(payload.limits, new Set(legacyKeys), new Set(windows.map(window => window.canonicalWindow))));

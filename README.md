@@ -26,12 +26,15 @@ These are the functions of the top bar and the popup:
   `codex login` with `CODEX_HOME` set to the home of the account. Token Grill
   does not sign in again by itself: Codex and Claude use each refresh token
   only once, so a renewal by Token Grill would sign out the CLI.
-- For Codex, Kimi Code, and Cursor accounts, **Usage Pace** in the account
-  preferences shows whether a limit is used faster or slower than its period
-  passes. The popup shows one line for each limit, and the top bar shows an
-  icon: a flame for a fast pace, a check mark for an even pace, and a
-  snowflake for a slow pace. The other services do not report the length of
-  their periods, so Token Grill does not guess a pace for them.
+- **Usage Pace** in the account preferences shows whether a limit is used
+  faster or slower than its period passes. The popup shows one line for each
+  limit, and the top bar shows an icon: a flame for a fast pace, a check mark
+  for an even pace, and a snowflake for a slow pace. The length of each period
+  comes from the service: Codex and Cursor report it, Claude, Antigravity,
+  Kimi Code, and OpenCode Go name their five-hour and weekly windows, and the
+  monthly allowances of Copilot, Kiro, Kimi Code, and OpenCode Go run from one
+  reset date to the same date the month before. A limit
+  whose length is not known shows no pace.
 
 These are the other functions:
 
@@ -91,6 +94,11 @@ script deletes the test settings and the test keyring.
 4. Select **Add Account…**, and then select the app that you sign in with.
    Token Grill shows the signed-in accounts of that app.
 5. Check the accounts to add, and then select **Add**.
+
+If the account is in a folder that Token Grill did not find, or is not signed
+in yet, type or choose its home folder under **Another Home Folder**. For
+example, `~/.codex-work` adds a Codex account there. If it is not signed in,
+the popup shows **Sign In Again in a Terminal**.
 
 To find the accounts of all the supported apps, select **Discover…**. Token
 Grill adds the accounts that you check and shows them in the top bar.

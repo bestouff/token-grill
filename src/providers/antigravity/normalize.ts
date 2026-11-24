@@ -1,6 +1,6 @@
 import {clampFraction, isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
-import {windowLabel} from '../windows.js';
+import {namedLength, windowLabel} from '../windows.js';
 
 export interface QuotaSummaryBucket {
     canonicalWindow: CanonicalQuotaWindow;
@@ -60,7 +60,8 @@ export function normalizeQuotaSummary(payload: unknown): UsageWindow[] {
         limit: null,
         percent: 1 - bucket.remainingFraction,
         resetAt: bucket.resetAt,
-        durationSeconds: null,
+        // The buckets are named "5h" and "weekly".
+        durationSeconds: namedLength(bucket.canonicalWindow),
         unit: null,
     }));
 }

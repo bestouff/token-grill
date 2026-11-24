@@ -8,6 +8,26 @@ const LABELS: Record<Exclude<CanonicalQuotaWindow, 'other'>, string> = {
     'monthly': 'Monthly',
 };
 
+export const FIVE_HOURS = 5 * 3600;
+export const WEEK = 7 * 86400;
+
+// A window the service names "5h" or "seven_day" lasts that long; usage pace
+// needs the length to know how much of the window has passed.
+export function namedLength(canonicalWindow: CanonicalQuotaWindow): number | null {
+    if (canonicalWindow === 'five-hour')
+        return FIVE_HOURS;
+    return canonicalWindow === 'weekly' ? WEEK : null;
+}
+
+// A monthly allowance that resets on a date runs from the same day a month before.
+export function monthBefore(resetAt: number | null): number | null {
+    if (resetAt === null)
+        return null;
+    const start = new Date(resetAt);
+    start.setUTCMonth(start.getUTCMonth() - 1);
+    return (resetAt - start.getTime()) / 1000;
+}
+
 export interface WindowType {
     canonicalWindow: CanonicalQuotaWindow;
     label: string;

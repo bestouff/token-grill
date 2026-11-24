@@ -1,5 +1,6 @@
 import {clampFraction, isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
 import type {UsageWindow} from '../../core/types.js';
+import {monthBefore} from '../windows.js';
 
 export interface KiroUsage {
     windows: UsageWindow[];
@@ -25,6 +26,7 @@ export function normalizeKiroUsage(payload: unknown): KiroUsage {
     const limit = credits ? preciseNumber(credits, 'usageLimit') : null;
     if (!credits || (used === null && limit === null))
         return {windows: [], plan, account};
+    const resetAt = toEpochMs(credits.nextDateReset) ?? toEpochMs(payload.nextDateReset);
     return {
         plan,
         account,
@@ -36,8 +38,8 @@ export function normalizeKiroUsage(payload: unknown): KiroUsage {
             limit,
             // A zero limit means pooled or unlimited credits, which have no meaningful percentage.
             percent: used !== null && limit !== null && limit > 0 ? clampFraction(used / limit) : null,
-            resetAt: toEpochMs(credits.nextDateReset) ?? toEpochMs(payload.nextDateReset),
-            durationSeconds: null,
+            resetAt,
+            durationSeconds: monthBefore(resetAt),
             unit: 'credits',
         }],
     };

@@ -15,9 +15,9 @@ import {topBarSummary} from '../core/topBar.js';
 import {ACCENTS, type AccentColor, type AccountApp, type ProviderInstance} from '../core/types.js';
 import {credentialLabel, credentialState} from './credentialStatus.js';
 import {clearApiKey, presentKeyError, storeApiKey} from './keyStore.js';
-import {validateProviderDraft, type ProviderValidationCode} from './providerValidation.js';
+import {validateProviderDraft} from './providerValidation.js';
 import {TRANSLATOR} from './translator.js';
-import {accentName, setAccessibleLabel} from './widgets.js';
+import {accentName, markField, setAccessibleLabel} from './widgets.js';
 
 const PROVIDERS_KEY = 'provider-instances-json';
 
@@ -44,25 +44,6 @@ const APP_NAMES: Record<AccountApp, string> = {
 
 // Apps whose sign-in is a file in the account home, so the home and file can be changed.
 const FILE_APPS: AccountApp[] = ['codex-cli', 'claude-code', 'kiro-cli', 'antigravity', 'github-cli', 'claude-settings', 'kimi-cli', 'cursor', 'cursor-agent'];
-
-function validationMessage(code: ProviderValidationCode): string {
-    const messages: Record<ProviderValidationCode, string> = {
-        'required': _('This field is required'),
-        'not-absolute': _('Use an absolute path or one that starts with ~/'),
-        'duplicate-home': _('Another account already uses this home'),
-    };
-    return messages[code];
-}
-
-function markField(row: Adw.EntryRow, code: ProviderValidationCode | undefined): void {
-    if (code) {
-        row.add_css_class('error');
-        row.tooltip_text = validationMessage(code);
-    } else {
-        row.remove_css_class('error');
-        row.tooltip_text = null;
-    }
-}
 
 function hexFromRgba(rgba: Gdk.RGBA): string {
     const channel = (value: number) => Math.round(value * 255).toString(16).padStart(2, '0');
@@ -131,7 +112,7 @@ export class AccountPage extends Adw.NavigationPage {
             history.connect('notify::active', () => this._apply({localHistoryEnabled: history.active}));
             main.add(history);
         }
-        if (metadata.reportsWindowLength) {
+        if (metadata.measure === 'limits') {
             const pace = new Adw.SwitchRow({
                 title: _('Usage Pace'),
                 subtitle: _('Shows whether a limit is used faster or slower than its period passes, in the popup and next to the limits in the top bar'),

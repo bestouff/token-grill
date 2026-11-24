@@ -6,7 +6,7 @@
 import {CollectorError} from '../../core/errors.js';
 import {isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
-import {windowLabel} from '../windows.js';
+import {monthBefore, windowLabel} from '../windows.js';
 
 const SNAPSHOTS: [string, CanonicalQuotaWindow, string][] = [
     ['premium_interactions', 'monthly', 'Premium Requests'],
@@ -27,7 +27,7 @@ function snapshotWindow(snapshot: unknown, id: string, canonicalWindow: Canonica
     const entitlement = numberAt(snapshot, 'entitlement');
     if (entitlement === null || entitlement <= 0)
         return null;
-    const base = {id, canonicalWindow, label: windowLabel(canonicalWindow, label), resetAt, durationSeconds: null};
+    const base = {id, canonicalWindow, label: windowLabel(canonicalWindow, label), resetAt, durationSeconds: monthBefore(resetAt)};
     // Plans billed in AI Credits report the credits spent; count them out of the entitlement.
     const creditsUsed = snapshot.token_based_billing === true ? numberAt(snapshot, 'credits_used') : null;
     if (creditsUsed !== null && creditsUsed >= 0)

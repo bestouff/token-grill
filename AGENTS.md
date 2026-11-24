@@ -190,8 +190,11 @@ Rules for the network and data:
   the CLI keeps the old one, so a refresh by Token Grill signs the CLI out.
   Kiro and Antigravity tokens can be refreshed in memory.
 
-- Usage pace needs `UsageWindow.durationSeconds` from a real response field.
-  Do not guess a window length from its type.
+- Usage pace needs `UsageWindow.durationSeconds`. Take it from what the
+  service reports: a duration field (Codex), the window's own name, such as
+  Claude's `five_hour` or Antigravity's `5h` bucket (`namedLength()`), or the
+  month before a monthly reset date (`monthBefore()`). Do not derive it from a
+  type that Token Grill assigned itself.
 
 - Do not hardcode an account, an e-mail address, or a personal path (for
   example `~/.t3`). The data that the CLI of each service keeps is correct.

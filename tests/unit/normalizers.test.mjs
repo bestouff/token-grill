@@ -124,7 +124,7 @@ test('Kiro precision credit usage maps to a monthly window', () => {
     assert.equal(result.plan, 'KIRO PRO+');
     assert.deepEqual(result.windows[0], {
         id: 'monthly-credits', canonicalWindow: 'monthly', label: 'Monthly credits', used: 0.04, limit: 2000,
-        percent: 0.00002, resetAt: 1788192000000, durationSeconds: null, unit: 'credits',
+        percent: 0.00002, resetAt: 1788192000000, durationSeconds: 31 * 86400, unit: 'credits',
     });
 });
 
@@ -177,4 +177,15 @@ test('Codex model limits stay separate from the plan limits, with stable ids', (
         {limit_name: 'Spark', rate_limit: {primary_window: window(18000, 30), secondary_window: window(604800, 40)}},
     ]));
     assert.ok(reordered.windows.some(item => item.id === 'Spark:weekly'), 'a model limit keeps its id when the list changes');
+});
+
+test('Claude window lengths come from the key and group names', () => {
+    const windows = normalizeClaudeUsage({
+        five_hour: {utilization: 10, resets_at: '2026-11-24T15:00:00Z'},
+        seven_day: {utilization: 20, resets_at: '2026-11-28T03:00:00Z'},
+        limits: [{kind: 'weekly_scoped', group: 'weekly', percent: 5, resets_at: '2026-11-28T03:00:00Z', scope: {model: {display_name: 'Fable'}}}],
+    });
+    assert.deepEqual(windows.map(window => [window.id, window.durationSeconds]), [
+        ['five_hour', 5 * 3600], ['seven_day', 7 * 86400], ['limits:weekly_scoped:Fable', 7 * 86400],
+    ]);
 });

@@ -37,3 +37,13 @@ test('the top bar shows the pace of the most pressed limit', () => {
     assert.equal(accountPace([window(0.2), window(0.5)], now), 'on-track');
     assert.equal(accountPace([window(0.5, {durationSeconds: null})], now), null);
 });
+
+test('named windows and monthly reset dates give the window length', async () => {
+    const {namedLength, monthBefore} = await import('../../build/tests/windows.mjs');
+    assert.equal(namedLength('five-hour'), 5 * 3600);
+    assert.equal(namedLength('weekly'), 7 * 86400);
+    assert.equal(namedLength('other'), null);
+    assert.equal(monthBefore(Date.parse('2026-03-01T00:00:00Z')), 28 * 86400);
+    assert.equal(monthBefore(Date.parse('2026-12-01T00:00:00Z')), 30 * 86400);
+    assert.equal(monthBefore(null), null);
+});

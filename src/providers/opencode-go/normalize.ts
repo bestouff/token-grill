@@ -3,7 +3,7 @@
 // optionally wrapped in `usage`.
 import {isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
-import {windowLabel} from '../windows.js';
+import {monthBefore, namedLength, windowLabel} from '../windows.js';
 
 const WINDOWS: [string, CanonicalQuotaWindow][] = [
     ['rolling', 'five-hour'],
@@ -20,9 +20,11 @@ export function normalizeOpenCodeGoUsage(payload: unknown): UsageWindow[] {
             return [];
         // A rate-limited window is closed before its percentage reaches 100.
         const used = stringAt(item, 'status') === 'rate-limited' ? 1 : Math.max(0, Math.min(1, percent / 100));
+        const resetAt = toEpochMs(item.resetsAt);
+        const durationSeconds = canonicalWindow === 'monthly' ? monthBefore(resetAt) : namedLength(canonicalWindow);
         return [{
             id, canonicalWindow, label: windowLabel(canonicalWindow, id), used: null, limit: null,
-            percent: used, resetAt: toEpochMs(item.resetsAt), durationSeconds: null, unit: null,
+            percent: used, resetAt, durationSeconds, unit: null,
         }];
     });
 }

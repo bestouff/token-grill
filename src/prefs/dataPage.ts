@@ -6,18 +6,13 @@ import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {formatReport, redact} from '../core/diagnostics.js';
-import {isCancellation} from '../core/gio.js';
 import {displayPath} from '../core/paths.js';
 import {dataPath, statePath} from '../storage/atomicJson.js';
 import {readDiagnostics} from '../storage/diagnosticsStore.js';
+import {isDismissal} from './widgets.js';
 
 Gio._promisify(Gtk.FileDialog.prototype, 'save', 'save_finish');
 Gio._promisify(Gio.File.prototype, 'replace_contents_async', 'replace_contents_finish');
-
-// Closing the file dialog is a choice, not a failure.
-function isDismissal(error: unknown): boolean {
-    return isCancellation(error) || (error instanceof GLib.Error && error.matches(Gtk.DialogError, Gtk.DialogError.DISMISSED));
-}
 
 export class DataPage extends Adw.PreferencesPage {
     static {
