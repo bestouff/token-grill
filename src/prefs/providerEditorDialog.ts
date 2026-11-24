@@ -189,7 +189,6 @@ export class ProviderEditorDialog extends Adw.Dialog {
         panel.add(this._quotaWindow);
         page.add(panel);
 
-
         if (provider)
             page.add(this._buildRemoval());
 

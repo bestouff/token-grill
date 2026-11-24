@@ -71,7 +71,7 @@ export async function lookupAgyKeyringToken(cancellable: Gio.Cancellable): Promi
         const service = await secretService(Secret, lookup);
         items = await service.search(schema, AGY_KEYRING_ATTRIBUTES, Secret.SearchFlags.LOAD_SECRETS, lookup);
     } catch (error) {
-        if (!timedOut && (isCancellation(error) || !(error instanceof GLib.Error)))
+        if (!(error instanceof GLib.Error) || (!timedOut && isCancellation(error)))
             throw error;
         throw new CollectorError('dependency', KEYRING_UNAVAILABLE);
     } finally {
