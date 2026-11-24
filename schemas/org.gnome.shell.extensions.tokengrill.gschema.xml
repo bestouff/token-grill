@@ -71,5 +71,14 @@
             <summary>Panel display style</summary>
             <description>Show the selected limit in the top bar as text, a ring, or a bar.</description>
         </key>
+        <key name="panel-position" type="s">
+            <choices>
+                <choice value="left"/>
+                <choice value="right"/>
+            </choices>
+            <default>'right'</default>
+            <summary>Panel position</summary>
+            <description>Show Token Grill on the left or the right side of the top bar.</description>
+        </key>
     </schema>
 </schemalist>

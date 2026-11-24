@@ -3,6 +3,8 @@
 ## 0.4.0 alpha 2
 
 - Token Grill also operates with GNOME Shell 48, 49, and 51.
+- Preferences → General → Position puts Token Grill on the left or the right
+  side of the top bar.
 - The popup and the top bar keep the last reading of each account after a
   lock, a restart, or an update. They show its time until a refresh works.
 - Sign In Again in a Terminal: when a sign-in is missing or expired, the popup

@@ -55,6 +55,12 @@ export class GeneralPage extends Adw.PreferencesPage {
             subtitle: _('How much of each limit is left, or how much is used'),
             choices: [['remaining', _('Remaining')], ['used', _('Used')]],
         }));
+        appearance.add(toggleRow(settings, {
+            key: 'panel-position',
+            title: _('Position'),
+            subtitle: _('The side of the top bar that Token Grill sits on'),
+            choices: [['left', _('Left')], ['right', _('Right')]],
+        }));
         this.add(appearance);
 
         this._shown = new Adw.PreferencesGroup({

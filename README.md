@@ -15,7 +15,9 @@ These are the functions of the top bar and the popup:
   OpenCode Go, Kimi Code, and Cursor accounts, and the DeepSeek balance. You can add
   more than one account for each service.
 - The top bar shows one entry for each service. Each entry shows the limits
-  that you checked for each account, as text, as rings, or as bars.
+  that you checked for each account, as text, as rings, or as bars. In
+  Preferences, **Position** puts Token Grill on the left or the right side of
+  the top bar.
 - The popup shows the limits of each account and their reset times in your
   local time zone. To show a limit in the top bar, check it in the popup.
 - If a refresh gets an error, the popup keeps the last good values and shows

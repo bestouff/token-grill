@@ -223,11 +223,11 @@ test('notification preferences write scoped test requests handled without milest
 test('runtime storage and pricing initialization precede Shell UI and scheduling', async () => {
     const [entry, source] = await Promise.all([read('src/extension.ts'), read('src/runtime.ts')]);
     const initialize = source.indexOf('await Promise.all([');
-    const indicator = source.indexOf('this._indicator = new TokenGrillIndicator');
+    const indicator = source.indexOf('this._placeIndicator();');
     const scheduler = source.indexOf('scheduler.start()');
     assert.ok(initialize >= 0 && initialize < indicator && indicator < scheduler);
     assert.match(source, /if \(cancellable\.is_cancelled\(\)\)\s*return;/);
-    assert.match(source, /Main\.panel\.addToStatusArea\(this\._extension\.uuid/);
+    assert.match(source, /Main\.panel\.addToStatusArea\(this\._extension\.uuid, this\._indicator, 1, side\)/);
     assert.match(source, /new Soup\.Session\(\{timeout: 30, user_agent: USER_AGENT\}\)/);
     assert.match(entry, /this\._runtime = new Runtime\(this\);\s*this\._runtime\.start\(\);/);
     assert.match(entry, /this\._runtime\?\.stop\(\);\s*this\._runtime = null;/);

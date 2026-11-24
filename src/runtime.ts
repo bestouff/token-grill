@@ -215,8 +215,7 @@ export class Runtime implements IndicatorController {
         this._ensureActiveProvider();
         this._restoreReadings();
 
-        this._indicator = new TokenGrillIndicator(this._extension.path, this);
-        Main.panel.addToStatusArea(this._extension.uuid, this._indicator, 1, 'right');
+        this._placeIndicator();
         this._settingsChangedId = settings.connect('changed', (_settings, key) => this._onSettingChanged(key));
 
         const scheduler = this._scheduler!;
@@ -237,6 +236,10 @@ export class Runtime implements IndicatorController {
             break;
         case 'refresh-interval-seconds':
             this._scheduler!.setIntervalSeconds(this._settings!.get_uint(key));
+            break;
+        case 'panel-position':
+            this._placeIndicator();
+            this._render();
             break;
         default:
             this._render();
@@ -273,6 +276,15 @@ export class Runtime implements IndicatorController {
             if (reading)
                 this._snapshots.set(provider.id, restoredSnapshot(provider.id, reading));
         }
+    }
+
+    // The panel has no public way to move a button between its boxes, so the
+    // indicator is rebuilt in the chosen box; its state lives in this runtime.
+    private _placeIndicator(): void {
+        this._indicator?.destroy();
+        const side = this._settings!.get_string('panel-position') === 'left' ? 'left' : 'right';
+        this._indicator = new TokenGrillIndicator(this._extension.path, this);
+        Main.panel.addToStatusArea(this._extension.uuid, this._indicator, 1, side);
     }
 
     // Startup and configuration changes refresh silently, so a paused session is not reported as failed.
