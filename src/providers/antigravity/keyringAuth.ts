@@ -10,7 +10,7 @@ import {AGY_KEYRING_ATTRIBUTES, AGY_KEYRING_SCHEMA, parseAgyKeyringPayload, type
 // D-Bus activation waits about 25 seconds, which would stall every refresh.
 const LOOKUP_TIMEOUT_MS = 3000;
 
-const KEYRING_UNAVAILABLE: ErrorText = ({_}) => _('The system keyring is not available, so the agy sign-in cannot be read.');
+const KEYRING_UNAVAILABLE: ErrorText = ({_}) => _('The system keyring is locked or not available, so the agy sign-in cannot be read.');
 
 async function importSecret(): Promise<typeof Secret> {
     let module: {default: typeof Secret};
@@ -19,12 +19,27 @@ async function importSecret(): Promise<typeof Secret> {
     } catch {
         throw new CollectorError('dependency', ({_}) => _('Antigravity CLI accounts need the libsecret library (gir1.2-secret-1).'));
     }
-    Gio._promisify(module.default, 'password_lookup', 'password_lookup_finish');
+    Gio._promisify(module.default.Service.prototype, 'search', 'search_finish');
     return module.default;
 }
 
+// The typings give Service.get no promise form.
+function secretService(library: typeof Secret, cancellable: Gio.Cancellable): Promise<Secret.Service> {
+    return new Promise((resolve, reject) => {
+        library.Service.get(library.ServiceFlags.NONE, cancellable, (_source, result) => {
+            try {
+                resolve(library.Service.get_finish(result));
+            } catch (error) {
+                reject(error);
+            }
+        });
+    });
+}
+
 // Never asks the keyring to unlock: a password prompt during a background
-// refresh would be hostile, so a locked keyring counts as unavailable.
+// refresh would be hostile, so a locked keyring counts as unavailable. A plain
+// lookup would unlock a locked match, so this searches without
+// SearchFlags.UNLOCK and reads only items that are already unlocked.
 export async function lookupAgyKeyringToken(cancellable: Gio.Cancellable): Promise<AgyKeyringToken | null> {
     const Secret = await importSecret();
     const schema = Secret.Schema.new(AGY_KEYRING_SCHEMA, Secret.SchemaFlags.NONE, {
@@ -51,9 +66,10 @@ export async function lookupAgyKeyringToken(cancellable: Gio.Cancellable): Promi
         removeTimeout();
         lookup.cancel();
     });
-    let raw: string | null;
+    let items: Secret.Item[];
     try {
-        raw = await Secret.password_lookup(schema, AGY_KEYRING_ATTRIBUTES, lookup);
+        const service = await secretService(Secret, lookup);
+        items = await service.search(schema, AGY_KEYRING_ATTRIBUTES, Secret.SearchFlags.LOAD_SECRETS, lookup);
     } catch (error) {
         if (!timedOut && (isCancellation(error) || !(error instanceof GLib.Error)))
             throw error;
@@ -62,6 +78,10 @@ export async function lookupAgyKeyringToken(cancellable: Gio.Cancellable): Promi
         removeTimeout();
         cancellable.disconnect(parentId);
     }
+    const unlocked = items.find(item => !item.get_locked());
+    if (!unlocked && items.length)
+        throw new CollectorError('dependency', KEYRING_UNAVAILABLE);
+    const raw = unlocked?.get_secret()?.get_text() ?? null;
     if (!raw)
         return null;
     const token = parseAgyKeyringPayload(raw);
