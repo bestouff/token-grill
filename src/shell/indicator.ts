@@ -228,7 +228,7 @@ export class TokenGrillIndicator extends PanelMenu.Button {
         const refreshAll = new StayOpenMenuItem(_('Refresh All Accounts'), () => controller.refreshAll());
         menu.addMenuItem(refreshAll);
         const automatic = new PopupMenu.PopupSwitchMenuItem(_('Automatic Updates'), true);
-        automatic.connect('toggled', (_item, state) => controller.setPaused(!state));
+        automatic.connectObject('toggled', (_item: PopupMenu.PopupSwitchMenuItem, state: boolean) => controller.setPaused(!state), automatic);
         menu.addMenuItem(automatic);
         if (Main.sessionMode.allowSettings)
             menu.addAction(_('Preferences…'), () => controller.openPreferences());

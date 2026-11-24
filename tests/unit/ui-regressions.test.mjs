@@ -241,7 +241,7 @@ test('UI signals are disconnected and owned actors are released', async () => {
         read('src/shell/indicator.ts'),
     ]);
     // Child actors are destroyed with their parent, so only long-lived emitters are disconnected.
-    assert.match(dashboard, /this\._refreshButton\.connect\('clicked', \(\) => onRefresh\(\)\)/);
+    assert.match(dashboard, /this\._refreshButton\.connectObject\('clicked', \(\) => onRefresh\(\), this\._refreshButton\)/);
     assert.match(indicator, /this\._box\.destroy_all_children\(\)/);
     assert.match(indicator, /this\._themeContext!\.disconnect\(this\._themeChangedId!\);\s*this\._themeChangedId = null;\s*this\._themeContext = null;\s*this\._ui = null;\s*super\.destroy\(\)/);
     assert.doesNotMatch(indicator, /resetShellCursor|open-state-changed|menu\.removeAll/);

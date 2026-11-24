@@ -34,7 +34,7 @@ export function createToggleGroup(items: ToggleItem[], flat: boolean): {group: S
             accessible_name: item.accessibleName,
             accessible_role: Atk.Role.RADIO_BUTTON,
         });
-        button.connect('clicked', () => item.onActivate());
+        button.connectObject('clicked', () => item.onActivate(), button);
         group.add_child(button);
         return {id: item.id, button};
     });

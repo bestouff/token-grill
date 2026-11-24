@@ -121,11 +121,13 @@ class IdentityItem extends StaticMenuItem {
             child: new St.Icon({icon_name: 'view-refresh-symbolic'}),
             accessible_name: _('Refresh This Account'),
         });
-        this._refreshButton.connect('clicked', () => onRefresh());
+        this._refreshButton.connectObject('clicked', () => onRefresh(), this._refreshButton);
         this.add_child(this._refreshButton);
     }
 
     setMark(actor: Clutter.Actor): void {
+        // set_child() only removes the old mark, and a mark is built on every update.
+        this._markBin.get_child()?.destroy();
         this._markBin.set_child(actor);
     }
 

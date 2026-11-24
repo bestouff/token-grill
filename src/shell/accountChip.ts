@@ -114,7 +114,7 @@ function createMeter(percent: number | null, ring: boolean): St.DrawingArea {
         y_align: Clutter.ActorAlign.CENTER,
         y_expand: false,
     });
-    area.connect('repaint', () => {
+    area.connectObject('repaint', () => {
         const cr = area.get_context();
         const color = area.get_theme_node().get_foreground_color();
         const value = Math.max(0, Math.min(percent ?? 0, 1));
@@ -143,6 +143,6 @@ function createMeter(percent: number | null, ring: boolean): St.DrawingArea {
             cr.restore();
         }
         cr.$dispose();
-    });
+    }, area);
     return area;
 }
