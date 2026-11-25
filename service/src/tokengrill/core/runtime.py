@@ -1,0 +1,350 @@
+"""Owns the stores, the scheduler and the collectors; reports what changes through an Emitter."""
+
+import asyncio
+import logging
+import random
+from collections.abc import Callable
+from pathlib import Path
+from typing import Protocol
+
+import tokengrill
+from tokengrill.core.config import Config, ConfigStore
+from tokengrill.core.pace import with_pace
+from tokengrill.core.paths import provider_paths
+from tokengrill.core.readings import restored_snapshot, snapshot_fingerprint
+from tokengrill.core.scheduler import Scheduler, SchedulerJob
+from tokengrill.core.timemath import now_ms
+from tokengrill.core.types import (
+    Alert,
+    ProviderInstance,
+    ProviderKind,
+    ProviderRuntimeState,
+    ProviderSnapshot,
+    RefreshOutcome,
+    RefreshPhase,
+    RefreshSource,
+    ServiceState,
+    Settings,
+    SourceResult,
+    empty_snapshot,
+)
+from tokengrill.net.http import HttpClient
+from tokengrill.providers.base import Collector, CollectorContext
+from tokengrill.providers.pricing import PricingCatalog, load_catalog
+from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.balances import BalanceStore
+from tokengrill.storage.checkpoints import CheckpointStore
+from tokengrill.storage.diagnostics import DiagnosticEntry, DiagnosticsStore
+from tokengrill.storage.readings import ReadingStore
+
+ACCOUNT_LIMIT_MS = 30_000
+ALL_ACCOUNTS_LIMIT_MS = 60_000
+
+_LOG = logging.getLogger("tokengrill.runtime")
+
+
+class Emitter(Protocol):
+    """Where the runtime reports changes; the D-Bus layer implements it."""
+
+    def account_changed(self, account_id: str, snapshot: ProviderSnapshot, runtime: ProviderRuntimeState) -> None: ...
+
+    def accounts_changed(self, accounts: list[ProviderInstance]) -> None: ...
+
+    def settings_changed(self, settings: Settings) -> None: ...
+
+    def alert(self, alert: Alert) -> None: ...
+
+
+def _idle_state() -> ProviderRuntimeState:
+    return {
+        "phase": "idle",
+        "outcome": None,
+        "completedAt": None,
+        "sources": {"limits": None, "reset-credits": None, "history": None},
+    }
+
+
+def _copy_state(state: ProviderRuntimeState) -> ProviderRuntimeState:
+    return {**state, "sources": dict(state["sources"])}
+
+
+class Runtime:
+    def __init__(
+        self,
+        config: ConfigStore,
+        emitter: Emitter,
+        http: HttpClient,
+        collectors: dict[ProviderKind, Collector],
+        clock: Callable[[], int] = now_ms,
+    ) -> None:
+        self._config_store = config
+        self._emitter = emitter
+        self._http = http
+        self._collectors = collectors
+        self._clock = clock
+        self._config: Config | None = None
+        self._catalog: PricingCatalog = {}
+        self._aggregates = AggregateStore()
+        self._checkpoints = CheckpointStore()
+        self._balances = BalanceStore()
+        self._readings = ReadingStore()
+        self._diagnostics = DiagnosticsStore(None, str(Path.home()), {"version": tokengrill.__version__, "shell": ""})
+        self._scheduler = Scheduler(self._collect, 300, clock=lambda: clock() / 1000, rng=random.Random())
+        self._shell_connected = False
+        self._paused = False
+        self._snapshots: dict[str, ProviderSnapshot] = {}
+        self._runtime_states: dict[str, ProviderRuntimeState] = {}
+        self._last_account_request: dict[str, int] = {}
+        self._last_all_request: int | None = None
+        # One collection at a time, so progress shows per account and requests are not bursty.
+        self._collecting = asyncio.Lock()
+        self._tasks: set[asyncio.Task[None]] = set()
+
+    async def start(self) -> None:
+        """Loads the stores and shows the saved readings as stale until the first refresh."""
+        self._config = self._config_store.load()
+        self._catalog = await asyncio.to_thread(load_catalog)
+        for store in (self._aggregates, self._checkpoints, self._balances, self._readings, self._diagnostics):
+            await store.load()
+        self._scheduler.set_interval(self._config["refreshIntervalSeconds"])
+        self._scheduler.set_providers(self._config["accounts"])
+        for account in self._config["accounts"]:
+            reading = self._readings.get(account["id"]) if account["liveUsageEnabled"] else None
+            if reading:
+                self._snapshots[account["id"]] = restored_snapshot(account["id"], reading)
+
+    async def stop(self) -> None:
+        """Cancels the running collections, then writes every store."""
+        self._scheduler.stop()
+        tasks = list(self._tasks)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        await self._flush()
+
+    def set_shell_connected(self, connected: bool) -> None:
+        if connected == self._shell_connected:
+            return
+        self._shell_connected = connected
+        if not connected:
+            self._scheduler.stop()
+            # The scheduler forgot its queue and cancelled the running batch; no account stays queued.
+            for account_id, state in list(self._runtime_states.items()):
+                if state["phase"] == "queued":
+                    self._finish(account_id, "failed")
+            return
+        accounts = self._accounts()
+        self._scheduler.set_paused(self._paused)
+        self._scheduler.set_providers(accounts)
+        self._scheduler.start()
+        # As 0.4.1 on every enable: all enabled accounts are read now, silently when paused.
+        self._scheduler.request([account["id"] for account in accounts if account["enabled"]])
+
+    async def refresh(self, account_id: str) -> None:
+        if not any(account["id"] == account_id and account["enabled"] for account in self._accounts()):
+            return
+        now = self._clock()
+        if self._merged(account_id, now):
+            return
+        if not self._paused:
+            self._last_account_request[account_id] = now
+        await self._request([account_id])
+
+    async def refresh_all(self) -> None:
+        ids = [account["id"] for account in self._accounts() if account["enabled"]]
+        now = self._clock()
+        if not ids or (self._last_all_request is not None and now - self._last_all_request < ALL_ACCOUNTS_LIMIT_MS):
+            return
+        # A request refused while paused must not delay the first real one after resuming.
+        if not self._paused:
+            self._last_all_request = now
+            for account_id in ids:
+                self._last_account_request[account_id] = now
+        await self._request(ids)
+
+    def set_paused(self, paused: bool) -> None:
+        self._paused = paused
+        self._scheduler.set_paused(paused)
+
+    def state(self) -> ServiceState:
+        now = self._clock()
+        accounts = self._accounts()
+        by_id = {account["id"]: account for account in accounts}
+        return {
+            "schema": 1,
+            "apiVersion": tokengrill.API_VERSION,
+            "serviceVersion": tokengrill.__version__,
+            "paused": self._paused,
+            "settings": self._settings(),
+            "accounts": accounts,
+            "snapshots": {
+                id_: with_pace(snapshot, by_id[id_], now) for id_, snapshot in self._snapshots.items() if id_ in by_id
+            },
+            "runtime": {id_: _copy_state(state) for id_, state in self._runtime_states.items()},
+        }
+
+    def _accounts(self) -> list[ProviderInstance]:
+        return self._config["accounts"] if self._config else []
+
+    def _settings(self) -> Settings:
+        config = self._config
+        if config is None:
+            return self._config_store.load()
+        return {
+            "refreshIntervalSeconds": config["refreshIntervalSeconds"],
+            "alertsEnabled": config["alertsEnabled"],
+            "alertStepPercent": config["alertStepPercent"],
+            "journalDiagnostics": config["journalDiagnostics"],
+        }
+
+    def _interval_seconds(self) -> int:
+        return self._settings()["refreshIntervalSeconds"]
+
+    def _older_than(self, account_id: str, age_ms: int) -> bool:
+        updated = self._snapshots.get(account_id, empty_snapshot(account_id))["lastUpdated"]
+        return updated is None or self._clock() - updated >= age_ms
+
+    def _merged(self, account_id: str, now: int) -> bool:
+        """A request inside the limit is covered by the one that came before it."""
+        last = self._last_account_request.get(account_id)
+        return last is not None and now - last < ACCOUNT_LIMIT_MS
+
+    async def _request(self, ids: list[str]) -> None:
+        if self._paused:
+            for account_id in ids:
+                self._finish(account_id, "failed")
+            return
+        for account_id in ids:
+            self._runtime_states[account_id] = {**_idle_state(), "phase": "queued"}
+            self._emit(account_id)
+        if self._shell_connected:
+            self._scheduler.request(ids)
+            return
+        # Without a shell client there is no scheduler loop, so the explicit refresh runs here.
+        accounts = {account["id"]: account for account in self._accounts()}
+        jobs: list[SchedulerJob] = [{"provider": accounts[id_], "manual": True} for id_ in ids]
+        task = asyncio.get_running_loop().create_task(self._collect(jobs))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        # wait() does not raise when stop() cancels the task.
+        await asyncio.wait({task})
+
+    async def _collect(self, jobs: list[SchedulerJob]) -> None:
+        current = asyncio.current_task()
+        if current is not None:
+            self._tasks.add(current)
+        try:
+            async with self._collecting:
+                for job in jobs:
+                    await self._refresh_account(job["provider"], job["manual"])
+                await self._flush_quietly()
+        except asyncio.CancelledError:
+            # Losing the shell client or stopping must not leave an account mid-refresh.
+            for job in jobs:
+                state = self._runtime_states.get(job["provider"]["id"])
+                if state is not None and state["phase"] != "idle":
+                    self._finish(job["provider"]["id"], "failed")
+            raise
+        finally:
+            if current is not None:
+                self._tasks.discard(current)
+
+    async def _refresh_account(self, instance: ProviderInstance, manual: bool) -> None:
+        account_id = instance["id"]
+        state = _idle_state()
+        state["phase"] = "fetching-limits"
+        self._runtime_states[account_id] = state
+        self._emit(account_id)
+
+        def on_phase(phase: RefreshPhase) -> None:
+            state["phase"] = phase
+            self._emit(account_id)
+
+        def on_source(source: RefreshSource, result: SourceResult) -> None:
+            state["sources"][source] = result
+
+        ctx = CollectorContext(
+            http=self._http,
+            pricing=self._catalog,
+            aggregates=self._aggregates,
+            checkpoints=self._checkpoints,
+            on_phase=on_phase,
+            on_source=on_source,
+            on_record=lambda step, detail: self._record(instance, step, detail),
+            manual=manual,
+            history_enabled=self._shell_connected,
+        )
+        self._record(instance, "sign-in", self._sign_in_source(instance))
+        previous = self._snapshots.get(account_id)
+        try:
+            snapshot = await self._collectors[instance["kind"]].collect(
+                instance, previous or empty_snapshot(account_id), ctx
+            )
+        except Exception:  # noqa: BLE001 - an expected failure comes back in the snapshot; anything raised is a bug
+            _LOG.exception("collector for %s failed", instance["kind"])
+            self._finish(account_id, "failed")
+            return
+
+        self._snapshots[account_id] = snapshot
+        self._readings.set(snapshot)
+        if snapshot["errorInfo"]:
+            # Sign-in problems end a refresh before any request, so they are recorded here.
+            self._record(instance, "error", f"refresh: {snapshot['errorInfo']['code']}")
+        # Alert decisions (milestones, low balance) run here once alerts exist, only while a shell client is connected.
+        if snapshot["errorInfo"]:
+            self._finish(account_id, "failed")
+        elif "failed" in state["sources"].values():
+            self._finish(account_id, "partial")
+        elif previous is not None and snapshot_fingerprint(previous) == snapshot_fingerprint(snapshot):
+            self._finish(account_id, "unchanged")
+        else:
+            self._finish(account_id, "changed")
+
+    def _finish(self, account_id: str, outcome: RefreshOutcome) -> None:
+        state = self._runtime_states.get(account_id) or _idle_state()
+        self._runtime_states[account_id] = {
+            **state,
+            "phase": "idle",
+            "outcome": outcome,
+            "completedAt": self._clock(),
+        }
+        self._emit(account_id)
+
+    def _emit(self, account_id: str) -> None:
+        instance = next((account for account in self._accounts() if account["id"] == account_id), None)
+        if instance is None:
+            return
+        snapshot = with_pace(self._snapshots.get(account_id) or empty_snapshot(account_id), instance, self._clock())
+        state = self._runtime_states.get(account_id) or _idle_state()
+        self._emitter.account_changed(account_id, snapshot, _copy_state(state))
+
+    def _sign_in_source(self, instance: ProviderInstance) -> str:
+        """Testers' reports show which file or keyring item an app's sign-in came from."""
+        path = "" if instance["app"] in ("keyring", "copilot-cli") else provider_paths(instance)["authFile"]
+        return f"{instance['app']} {path}" if path else f"{instance['app']} keyring"
+
+    def _record(self, instance: ProviderInstance, step: str, detail: str) -> None:
+        same_kind = [account["id"] for account in self._accounts() if account["kind"] == instance["kind"]]
+        kind_index = same_kind.index(instance["id"]) if instance["id"] in same_kind else len(same_kind)
+        entry: DiagnosticEntry = {
+            "at": self._clock(),
+            "account": f"{instance['kind']}-{kind_index + 1}",
+            "kind": instance["kind"],
+            "app": instance["app"],
+            "step": step,  # type: ignore[typeddict-item]
+            "detail": detail,
+        }
+        kept = self._diagnostics.record(entry)
+        if self._settings()["journalDiagnostics"]:
+            _LOG.info("%s (%s) %s: %s", kept["account"], kept["app"], kept["step"], kept["detail"])
+
+    async def _flush(self) -> None:
+        for store in (self._aggregates, self._checkpoints, self._balances, self._readings, self._diagnostics):
+            await store.flush()
+
+    async def _flush_quietly(self) -> None:
+        try:
+            await self._readings.flush()
+            await self._diagnostics.flush()
+        except OSError:
+            _LOG.warning("could not write the state files", exc_info=True)

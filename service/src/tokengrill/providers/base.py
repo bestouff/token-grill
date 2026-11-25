@@ -58,6 +58,7 @@ class CollectorContext:
         on_source: Callable[[RefreshSource, SourceResult], None] = _ignore_source,
         on_record: Callable[[str, str], None] = _ignore_record,
         manual: bool = False,
+        history_enabled: bool = True,
     ) -> None:
         self.http = http
         self.pricing = pricing
@@ -65,6 +66,8 @@ class CollectorContext:
         self.checkpoints = checkpoints
         # True when the user explicitly asked for this refresh.
         self.manual = manual
+        # History scans run only while a shell client is connected.
+        self.history_enabled = history_enabled
         self._on_phase = on_phase
         self._on_source = on_source
         self._on_record = on_record
@@ -121,6 +124,8 @@ async def collect_history(
     snapshot: ProviderSnapshot,
     parse_line: Callable[[str], UsageEvent | None],
 ) -> ProviderSnapshot:
+    if not ctx.history_enabled:
+        return snapshot
     ctx.report_phase("scanning-history")
     try:
         await scan_history(instance, parse_line, ctx.aggregates, ctx.checkpoints)

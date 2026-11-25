@@ -5,6 +5,10 @@ import time
 from typing import TypedDict
 
 
+def now_ms() -> int:
+    return int(time.time() * 1000)
+
+
 class DurationParts(TypedDict):
     expired: bool
     totalMinutes: int

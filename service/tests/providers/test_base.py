@@ -171,3 +171,19 @@ async def test_history_bug_propagates(tmp_path: Path) -> None:
 
     with pytest.raises(KeyError):
         await collect_history(ctx, make_instance(tmp_path), empty_snapshot("acct"), buggy)
+
+
+async def test_history_is_skipped_without_a_shell_client(tmp_path: Path) -> None:
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    (sessions / "a.jsonl").write_text('{"tokens": 1000000}\n')
+    recorder = Recorder()
+    ctx = make_context(tmp_path, recorder)
+    ctx.history_enabled = False
+    snapshot = empty_snapshot("acct")
+    result = await collect_history(ctx, make_instance(tmp_path), snapshot, _parse)
+    assert result == snapshot
+    assert recorder.phases == []
+    assert recorder.sources == []
+    assert not (tmp_path / "agg.json").exists()
+    assert not (tmp_path / "cp.json").exists()
