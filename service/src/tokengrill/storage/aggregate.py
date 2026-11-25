@@ -8,6 +8,7 @@ from typing import Any, TypedDict
 
 from tokengrill.core.json_util import is_record
 from tokengrill.core.types import TokenTotals
+from tokengrill.providers.pricing import PricingCatalog, cost_for
 from tokengrill.storage.atomic_json import Persisted, data_path
 
 
@@ -111,6 +112,15 @@ class AggregateStore(Persisted):
         total = empty_totals()
         for bucket in self.buckets_since(provider_id, since_ms):
             total = add_totals(total, bucket["totals"])
+        return total
+
+    def cost(self, provider_id: str, since_ms: float, catalog: PricingCatalog) -> float | None:
+        """None when no model in the range has a known price."""
+        total: float | None = None
+        for bucket in self.buckets_since(provider_id, since_ms):
+            rate = catalog.get(bucket["model"])
+            if rate is not None:
+                total = (total or 0) + cost_for(bucket["totals"], rate)
         return total
 
     async def remove_provider(self, provider_id: str) -> None:
