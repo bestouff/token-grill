@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ACCENT_COLORS, accentHex, accentRgb, normalizeAccent} from '../../build/tests/accent.mjs';
 import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
-import {accountGroups, errorText, historySummary, refreshStatusText, shortAccountName, windowCaption} from '../../build/tests/popup-model.mjs';
+import {accountGroups, errorText, historySummary, refreshStatusText, shortAccountName, windowCaption, withCodeErrorText} from '../../build/tests/popup-model.mjs';
 
 const provider = (id, kind, displayName, extra = {}) => ({id, kind, displayName, enabled: true, accent: 'blue', localHistoryEnabled: false, panelWindowPreference: 'automatic', ...extra});
 
@@ -115,6 +115,25 @@ test('OpenCode accounts are told to open OpenCode', () => {
     const snapshot = {error: 'The OpenCode sign-in has expired.', errorInfo: {code: 'auth-expired', message: '', recovery: 'reauthenticate'}};
     assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'opencode'}), 'The OpenCode sign-in has expired. Open OpenCode and sign in again.');
     assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'codex-cli', accountHome: '~/.codex'}), 'The OpenCode sign-in has expired. Run codex login.');
+});
+
+// Service snapshots carry an error code and a message id but no text; until the message table
+// exists, the popup shows the generic text of the code and never an undefined message.
+test('a service snapshot shows the generic text of its error code', () => {
+    const codes = ['auth-missing', 'auth-expired', 'auth-invalid', 'unsupported-account', 'dependency', 'permission', 'offline',
+        'timeout', 'rate-limited', 'http', 'response-shape', 'local-history', 'internal'];
+    for (const code of codes) {
+        const view = withCodeErrorText(UNTRANSLATED, {state: 'error', errorInfo: {code, messageId: 'x.y', params: {}, recovery: 'none'}});
+        assert.equal(typeof view.error, 'string', code);
+        assert.ok(view.error.length > 0, code);
+        assert.equal(view.errorInfo.message, view.error, code);
+    }
+    const expired = withCodeErrorText(UNTRANSLATED, {state: 'error', errorInfo: {code: 'auth-expired', messageId: 'codex.auth-expired', params: {}, recovery: 'reauthenticate'}});
+    assert.equal(errorText(UNTRANSLATED, expired, {kind: 'codex'}), 'The sign-in has expired. Run codex login.');
+    assert.deepEqual(expired.errorInfo, {code: 'auth-expired', message: 'The sign-in has expired.', recovery: 'reauthenticate'});
+    const healthy = withCodeErrorText(UNTRANSLATED, {state: 'ready', errorInfo: null});
+    assert.equal(healthy.error, null);
+    assert.equal(errorText(UNTRANSLATED, healthy, {kind: 'codex'}), null);
 });
 
 test('accentRgb returns the colour channels as fractions', () => {

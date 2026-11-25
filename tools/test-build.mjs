@@ -45,6 +45,7 @@ const MODULES = [
     ['src/core/errors.ts', 'errors.mjs'],
     ['src/core/historyMetrics.ts', 'history-metrics.mjs'],
     ['src/core/i18n.ts', 'i18n.mjs'],
+    ['src/core/migration.ts', 'migration.mjs'],
     ['src/core/notificationPolicy.ts', 'notification-policy.mjs'],
     ['src/core/pace.ts', 'pace.mjs'],
     ['src/core/serviceState.ts', 'service-state.mjs'],

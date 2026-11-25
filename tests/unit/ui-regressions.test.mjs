@@ -138,11 +138,12 @@ test('persisted state uses private permissions and bounded regular files', async
     assert.doesNotMatch(source, /GLib\.chmod|replace_contents\(/);
 });
 
-test('notification state is initialized only after the extension is enabled', async () => {
-    const source = await read('src/shell/notifications.ts');
-    assert.match(source, /export class NotificationStore/);
-    assert.match(source, /async initialize\(cancellable:[\s\S]*await readJson<.+>\(this\._writer\.path/);
-    assert.doesNotMatch(source, /readJsonSync|constructor\([^)]*\) \{[^}]*readJson/);
+// The service decides when an alert is due, so the Shell keeps no milestone state.
+test('notifications keep no alert state of their own', async () => {
+    const [source, policy] = await Promise.all([read('src/shell/notifications.ts'), read('src/core/notificationPolicy.ts')]);
+    assert.match(source, /export class Notifier/);
+    assert.doesNotMatch(source, /storage\/|SerialWriter|readJson|checkMilestone|lowBalance|flush\(/);
+    assert.doesNotMatch(policy, /checkMilestone|shouldNotify|nextCheckpoint|migrateNotificationState|parseTestNotificationRequest/);
 });
 
 test('notifications use per-account sources with symbolic icons and lifecycle cleanup', async () => {
@@ -154,17 +155,17 @@ test('notifications use per-account sources with symbolic icons and lifecycle cl
     assert.match(notification, /new MessageTray\.Source\(\{title, icon\}\)/);
     assert.match(notification, /existing\.title = title;/);
     assert.match(notification, /new MessageTray\.Notification/);
-    assert.match(notification, /providerGicon\(this\._extension\.path, instance\.kind\)/);
+    assert.match(notification, /providerGicon\(this\._extensionPath, instance\.kind\)/);
     assert.doesNotMatch(notification, /EmblemedIcon|BytesIcon|<svg|accentColor|catch\(\(\) => \{\}\)/);
-    assert.match(notification, /notifyTest\(instance:[\s\S]*testNotificationText/);
     assert.match(notification, /this\._sourceFor\(instance, text\.source\)/);
     assert.doesNotMatch(notification, / - Token Grill/);
     assert.match(notification, /private readonly _sources = new Map<string, MessageTray\.Source>\(\)/);
     assert.match(notification, /source\.connect\('destroy', \(\) => this\._sources\.delete\(instance\.id\)\)/);
     assert.match(notification, /source\.destroy\(MessageTray\.NotificationDestroyedReason\.SOURCE_CLOSED\)/);
-    assert.match(runtime, /new NotificationStore\(extension\)/);
+    assert.match(runtime, /new Notifier\(extension\.path\)/);
+    assert.match(runtime, /alertText\(TRANSLATOR, alert, instance,/);
     assert.match(runtime, /get_string\('panel-percentage-mode'\) === 'used'/);
-    assert.match(runtime, /this\._notifications!\.destroy\(\)/);
+    assert.match(runtime, /this\._notifier!\.destroy\(\)/);
 });
 
 test('provider preferences use direct editing, confirmed deletion, and normalized reorder controls', async () => {
@@ -206,40 +207,53 @@ test('local history shows real figures or its scan state, and nothing when unsup
     assert.doesNotMatch(metrics, /TOKENS|USD|Waiting.../);
 });
 
-test('notification preferences write scoped test requests handled without milestone writes', async () => {
-    const [prefs, runtime, notifications, schema] = await Promise.all([
-        read('src/prefs/notificationsPage.ts'), read('src/runtime.ts'), read('src/shell/notifications.ts'), read('schemas/org.gnome.shell.extensions.tokengrill.gschema.xml'),
+test('notification preferences write scoped test requests', async () => {
+    const [prefs, schema] = await Promise.all([
+        read('src/prefs/notificationsPage.ts'), read('schemas/org.gnome.shell.extensions.tokengrill.gschema.xml'),
     ]);
     assert.match(prefs, /title: _\('Send Test Notification'\)/);
     assert.match(prefs, /notification-test-request/);
     assert.match(prefs, /provider\.enabled \? provider\.displayName/);
-    assert.match(runtime, /parseTestNotificationRequest/);
-    assert.match(runtime, /_notifications!\.notifyTest/);
-    const notifyTest = notifications.slice(notifications.indexOf('notifyTest('), notifications.indexOf('removeProvider('));
-    assert.doesNotMatch(notifyTest, /this\._state|_persist\(/);
     assert.match(schema, /name="notification-test-request"/);
 });
 
-test('runtime storage and pricing initialization precede Shell UI and scheduling', async () => {
+// The collectors, stores and scheduler live in the service; the Shell only shows what it sends.
+test('the runtime drives the popup from the service client', async () => {
     const [entry, source] = await Promise.all([read('src/extension.ts'), read('src/runtime.ts')]);
-    const initialize = source.indexOf('await Promise.all([');
-    const indicator = source.indexOf('this._placeIndicator();');
-    const scheduler = source.indexOf('scheduler.start()');
-    assert.ok(initialize >= 0 && initialize < indicator && indicator < scheduler);
-    assert.match(source, /if \(cancellable\.is_cancelled\(\)\)\s*return;/);
+    assert.doesNotMatch(source, /from '\.\/(providers|storage)\//);
+    assert.doesNotMatch(source, /gi:\/\/Soup|Scheduler|createCollectors|SerialWriter/);
+    assert.match(source, /new ServiceClient\('shell', \{/);
+    assert.match(source, /this\._client!\.connect\(\)/);
+    assert.match(source, /if \(status === 'connected'\)[\s\S]*this\._migrate\(\)/);
+    assert.match(source, /migrateOnce\(this\._settings!, this\._client!\)/);
     assert.match(source, /Main\.panel\.addToStatusArea\(this\._extension\.uuid, this\._indicator, 1, side\)/);
-    assert.match(source, /new Soup\.Session\(\{timeout: 30, user_agent: USER_AGENT\}\)/);
     assert.match(entry, /this\._runtime = new Runtime\(this\);\s*this\._runtime\.start\(\);/);
     assert.match(entry, /this\._runtime\?\.stop\(\);\s*this\._runtime = null;/);
     assert.doesNotMatch(source + entry, /sessionMode\.connect|setLocked|pause-when-session-locked/);
+    assert.doesNotMatch(source, /notification-test-request|refresh-interval-seconds|notifications-enabled/);
 });
 
-test('collectors are runtime-owned and dropped with the runtime', async () => {
-    const [registry, runtime] = await Promise.all([read('src/providers/registry.ts'), read('src/runtime.ts')]);
-    assert.doesNotMatch(registry, /^const collectors/m);
-    assert.match(registry, /export function createCollectors\(\)[\s\S]*new CodexCollector\(\)/);
-    assert.match(runtime, /_collectors: Record<ProviderKind, ProviderCollector> \| null = createCollectors\(\)/);
-    assert.match(runtime, /this\._collectors = null/);
+test('popup actions go to the service and their replies are dropped after disable', async () => {
+    const source = await read('src/runtime.ts');
+    assert.match(source, /client => client\.refreshAll\(\)/);
+    assert.match(source, /client => client\.refresh\(providerId\)/);
+    assert.match(source, /client => client\.toggleLimit\(providerId, key\)/);
+    assert.match(source, /client => client\.setAutomatic\(providerId, on\)/);
+    assert.match(source, /client => client\.setPaused\(paused\)/);
+    assert.match(source, /client\.signInCommand\(providerId\)/);
+    assert.match(source, /openSignIn\(argv, env\)/);
+    const request = source.slice(source.indexOf('private _request('));
+    assert.match(request, /if \(client\.status !== 'connected'\)\s*return;/);
+    assert.match(request, /if \(cancellable\.is_cancelled\(\)\)\s*return;/);
+});
+
+// 0.4.1 put the account home in argv through env; the service now returns it as a dictionary.
+test('sign-in passes the account home through env without a shell', async () => {
+    const source = await read('src/shell/signIn.ts');
+    assert.match(source, /export function openSignIn\(argv: string\[\], env: Record<string, string>\)/);
+    assert.match(source, /\['env', \.\.\.assignments, \.\.\.argv\]/);
+    assert.match(source, /GLib\.shell_quote\(arg\)/);
+    assert.match(source, /Gio\.AppInfoCreateFlags\.NEEDS_TERMINAL/);
 });
 
 test('UI signals are disconnected and owned actors are released', async () => {
@@ -261,31 +275,28 @@ test('UI signals are disconnected and owned actors are released', async () => {
 
 test('runtime releases all lifecycle-owned references during stop', async () => {
     const source = await read('src/runtime.ts');
-    for (const name of ['scheduler', 'session', 'collectors', 'aggregates', 'checkpoints', 'balances', 'notifications', 'diagnostics', 'settings', 'cancellable', 'indicator'])
-        assert.match(source, new RegExp(`this\\._${name} = null`));
-    assert.match(source, /this\._settingsChangedId = null/);
-    assert.match(source, /this\._session!\.abort\(\)/);
-    const finalFlush = source.match(/Promise\.all\(\[([^\]]+)\]\)\s*\.catch\(error => logger\.warn\(error\)\)/)?.[1] ?? '';
-    for (const store of ['aggregates', 'checkpoints', 'balances', 'notifications', 'diagnostics'])
-        assert.ok(finalFlush.includes(`this._${store}!.flush()`), `${store} is flushed on stop`);
+    const stop = source.slice(source.indexOf('    stop(): void {'), source.indexOf('\n    }\n', source.indexOf('    stop(): void {')));
+    for (const name of ['client', 'notifier', 'settings', 'cancellable', 'indicator', 'settingsChangedId'])
+        assert.match(stop, new RegExp(`this\\._${name} = null`));
+    assert.match(stop, /this\._cancellable!\.cancel\(\);/);
+    // Goodbye tells the service that this Shell client left; the Shell bus connection never closes.
+    assert.match(stop, /this\._client!\.destroy\(\);\s*this\._client = null;/);
+    assert.match(stop, /this\._settings!\.disconnect\(this\._settingsChangedId!?\)/);
 });
 
 test('store writes are serialized and cancellation bypasses provider failures', async () => {
-    const [atomic, aggregate, checkpoint, notification, base, runtime] = await Promise.all([
+    const [atomic, aggregate, checkpoint, base] = await Promise.all([
         read('src/storage/atomicJson.ts'),
         read('src/storage/aggregateStore.ts'),
         read('src/storage/checkpointStore.ts'),
-        read('src/shell/notifications.ts'),
         read('src/providers/base.ts'),
-        read('src/runtime.ts'),
     ]);
     assert.match(atomic, /this\._pending = this\._pending\.then\(write, write\)/);
     assert.match(atomic, /this\._dirty = true;\s*throw error;/);
-    for (const source of [aggregate, checkpoint, notification])
+    for (const source of [aggregate, checkpoint])
         assert.match(source, /new SerialWriter\(/);
     assert.match(base, /if \(!\(error instanceof CollectorError\)\)\s*throw error/);
-    assert.match(runtime, /catch \(error\) \{\s*if \(cancellable\.is_cancelled\(\)\)\s*return;/);
-    assert.doesNotMatch(aggregate + checkpoint + notification, /\.catch\(\(\) => \{\}\)/);
+    assert.doesNotMatch(aggregate + checkpoint, /\.catch\(\(\) => \{\}\)/);
 });
 
 test('review artifacts exclude compiled schemas and use the pinned Shexli runner', async () => {
@@ -321,13 +332,12 @@ test('nested shell inherits user settings and rejects conflicting Token Grill in
 });
 
 test('the diagnostics report is redacted again, saved privately, and closing the dialog is not an error', async () => {
-    const [page, widgets, store, runtime] = await Promise.all([read('src/prefs/dataPage.ts'), read('src/prefs/widgets.ts'), read('src/storage/diagnosticsStore.ts'), read('src/runtime.ts')]);
+    const [page, widgets, store] = await Promise.all([read('src/prefs/dataPage.ts'), read('src/prefs/widgets.ts'), read('src/storage/diagnosticsStore.ts')]);
     assert.match(page, /redact\(formatReport\(entries, header\), GLib\.get_home_dir\(\)\)/);
     assert.match(page, /Gio\.FileCreateFlags\.PRIVATE/);
     assert.match(page, /if \(isDismissal\(error\)\)/);
     assert.match(widgets, /Gtk\.DialogError\.DISMISSED/);
     assert.match(store, /detail: redact\(entry\.detail, this\._home\)/);
-    assert.match(runtime, /shell: Config\.PACKAGE_VERSION/);
 });
 
 // A plain lookup unlocks a locked match, which would show a password prompt during a background refresh.
@@ -348,9 +358,8 @@ test('Secret is imported at the top of the file, never on demand', async () => {
     }
 });
 
-test('settings changes refresh only the accounts whose reading changed, and rings stop at three', async () => {
-    const [runtime, topBar] = await Promise.all([read('src/runtime.ts'), read('src/shell/topBar.ts')]);
-    assert.match(runtime, /provider\.enabled && needsRefresh\(before\.get\(provider\.id\), provider\)/);
+test('rings stop at three', async () => {
+    const topBar = await read('src/shell/topBar.ts');
     assert.match(topBar, /style === 'ring' && account\.limits\.length <= MAX_RINGS/);
 });
 

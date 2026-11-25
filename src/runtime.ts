@@ -1,185 +1,110 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Soup from 'gi://Soup';
 
 import type {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
-import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {migrateProviderSettings, needsRefresh, readProviders, writeProviders} from './core/config.js';
-import {accountLabel, requestDetail, shapeOf, type DiagnosticEntry} from './core/diagnostics.js';
+import {ServiceCallError, ServiceClient, type ClientStatus} from './client.js';
 import {activeProvider} from './core/display.js';
-import {CollectorError} from './core/errors.js';
 import {isCancellation} from './core/gio.js';
-import {parseTestNotificationRequest} from './core/notificationPolicy.js';
-import {providerPaths} from './core/paths.js';
-import {Scheduler, type SchedulerJob} from './core/scheduler.js';
-import {signInCommand} from './core/signIn.js';
-import {snapshotFingerprint} from './core/snapshotFingerprint.js';
-import {restoredSnapshot} from './core/storedReading.js';
-import {isShown, setAutomatic, toggleLimit} from './core/topBar.js';
-import {
-    emptySnapshot,
-    type PanelDisplayStyle,
-    type PanelPercentageMode,
-    type ProviderInstance,
-    type ProviderKind,
-    type ProviderRuntimeState,
-    type ProviderSnapshot,
-    type RefreshPhase,
-    type RefreshSource,
-} from './core/types.js';
-import {loadCatalog, type PricingCatalog} from './pricing/catalog.js';
-import {requestJson, USER_AGENT, type CollectorContext, type ProviderCollector} from './providers/base.js';
-import {createCollectors} from './providers/registry.js';
+import {migrateOnce} from './core/migration.js';
+import {alertText} from './core/notificationPolicy.js';
+import {withCodeErrorText} from './core/popupModel.js';
+import {isShown} from './core/topBar.js';
+import type {Alert, PanelDisplayStyle, PanelPercentageMode, ProviderInstance, ProviderKind} from './core/types.js';
 import {TokenGrillIndicator, type IndicatorController} from './shell/indicator.js';
-import {NotificationStore} from './shell/notifications.js';
+import {Notifier} from './shell/notifications.js';
 import {openSignIn} from './shell/signIn.js';
 import {TRANSLATOR} from './shell/translator.js';
-import {AggregateStore} from './storage/aggregateStore.js';
-import {BalanceStore} from './storage/balanceStore.js';
-import {CheckpointStore} from './storage/checkpointStore.js';
-import {DiagnosticsStore} from './storage/diagnosticsStore.js';
-import {SnapshotStore} from './storage/snapshotStore.js';
-
-const SOURCE_PHASES: Record<RefreshSource, RefreshPhase> = {
-    limits: 'fetching-limits',
-    'reset-credits': 'fetching-reset-credits',
-    history: 'scanning-history',
-};
-
-function idleState(): ProviderRuntimeState {
-    return {phase: 'idle', outcome: null, completedAt: null, sources: {'limits': null, 'reset-credits': null, 'history': null}};
-}
 
 // Constructed only from TokenGrillExtension.enable(); stop() releases everything it creates.
+// The service reads the accounts and decides the alerts; the runtime shows what it sends.
 export class Runtime implements IndicatorController {
     private readonly _extension: Extension;
     private _settings: Gio.Settings | null;
     private _cancellable: Gio.Cancellable | null = new Gio.Cancellable();
-    private _session: Soup.Session | null = new Soup.Session({timeout: 30, user_agent: USER_AGENT});
-    private _aggregates: AggregateStore | null;
-    private _checkpoints: CheckpointStore | null;
-    private _balances: BalanceStore | null;
-    private _readings: SnapshotStore | null;
-    private _notifications: NotificationStore | null;
-    private _diagnostics: DiagnosticsStore | null;
-    private _collectors: Record<ProviderKind, ProviderCollector> | null = createCollectors();
-    private _scheduler: Scheduler | null;
+    private _client: ServiceClient | null;
+    private _notifier: Notifier | null;
     private _indicator: TokenGrillIndicator | null = null;
     private _settingsChangedId: number | null = null;
-    private _catalog: PricingCatalog = {};
-    private _providers: ProviderInstance[] = [];
-    private readonly _snapshots = new Map<string, ProviderSnapshot>();
-    private readonly _runtimeStates = new Map<string, ProviderRuntimeState>();
-    private _lastTestNonce = '';
+    private _migration: Promise<void> | null = null;
 
     constructor(extension: Extension) {
         this._extension = extension;
         this._settings = extension.getSettings();
-        this._aggregates = new AggregateStore(extension.getLogger());
-        this._checkpoints = new CheckpointStore(extension.getLogger());
-        this._balances = new BalanceStore(extension.getLogger());
-        this._readings = new SnapshotStore(extension.getLogger());
-        this._notifications = new NotificationStore(extension);
-        this._diagnostics = new DiagnosticsStore(extension.getLogger(), GLib.get_home_dir(),
-            {version: String(extension.metadata['version-name']), shell: Config.PACKAGE_VERSION});
-        this._scheduler = new Scheduler(
-            jobs => this._collect(jobs).catch(error => this._extension.getLogger().error(error)),
-            this._settings.get_uint('refresh-interval-seconds'));
+        this._notifier = new Notifier(extension.path);
+        this._client = new ServiceClient('shell', {
+            onStatus: status => this._onStatus(status),
+            onAccountChanged: () => this._render(),
+            onAccountsChanged: accounts => this._onAccountsChanged(accounts),
+            onSettingsChanged: () => this._render(),
+            onAlert: alert => this._onAlert(alert),
+        }, extension.getLogger());
     }
 
     start(): void {
-        this._initialize().catch(error => {
-            if (!isCancellation(error))
-                this._extension.getLogger().error(error);
-        });
+        this._placeIndicator();
+        this._settingsChangedId = this._settings!.connect('changed', (_settings, key) => this._onSettingChanged(key));
+        this._render();
+        this._client!.connect().catch(error => this._extension.getLogger().error(error));
     }
 
     stop(): void {
         this._cancellable!.cancel();
         this._cancellable = null;
 
-        this._scheduler!.destroy();
-        this._scheduler = null;
+        // Sends Goodbye: the Shell's bus connection stays open, so the service learns of the departure here.
+        this._client!.destroy();
+        this._client = null;
 
-        if (this._settingsChangedId !== null)
-            this._settings!.disconnect(this._settingsChangedId);
+        this._settings!.disconnect(this._settingsChangedId!);
         this._settingsChangedId = null;
 
-        this._indicator?.destroy();
+        this._indicator!.destroy();
         this._indicator = null;
 
-        this._session!.abort();
-        this._session = null;
+        this._notifier!.destroy();
+        this._notifier = null;
 
-        this._collectors = null;
-
-        // Final writes touch only our own state files, never Shell objects, so they may finish after disable().
-        const logger = this._extension.getLogger();
-        Promise.all([this._aggregates!.flush(), this._checkpoints!.flush(), this._balances!.flush(), this._readings!.flush(),
-            this._notifications!.flush(), this._diagnostics!.flush()])
-            .catch(error => logger.warn(error));
-        this._notifications!.destroy();
-        this._notifications = null;
-        this._aggregates = null;
-        this._checkpoints = null;
-        this._balances = null;
-        this._readings = null;
-        this._diagnostics = null;
         this._settings = null;
-
-        this._snapshots.clear();
-        this._runtimeStates.clear();
-        this._providers = [];
-        this._catalog = {};
+        this._migration = null;
     }
 
     refreshAll(): void {
-        this._requestRefresh(this._providers.filter(provider => provider.enabled).map(provider => provider.id));
+        this._request(client => client.refreshAll());
     }
 
     refreshProvider(providerId: string): void {
-        if (this._providers.some(provider => provider.id === providerId && provider.enabled))
-            this._requestRefresh([providerId]);
+        this._request(client => client.refresh(providerId));
     }
 
     selectProvider(providerId: string): void {
-        if (!this._providers.some(provider => provider.id === providerId && provider.enabled))
+        if (!this._accounts().some(provider => provider.id === providerId && provider.enabled))
             return;
         this._settings!.set_string('active-provider-id', providerId);
     }
 
     // Opening the menu from a service's top-bar entry selects its first shown account.
     selectService(kind: ProviderKind): void {
-        const accounts = this._providers.filter(provider => provider.enabled && provider.kind === kind);
+        const accounts = this._accounts().filter(provider => provider.enabled && provider.kind === kind);
         const target = accounts.find(isShown) ?? accounts[0];
         if (target)
             this.selectProvider(target.id);
     }
 
     toggleLimit(providerId: string, key: string): void {
-        this._updateTopBar(providerId, provider => toggleLimit(provider, key, this._snapshots.get(provider.id)));
+        this._request(client => client.toggleLimit(providerId, key));
     }
 
     setAutomatic(providerId: string, on: boolean): void {
-        this._updateTopBar(providerId, provider => setAutomatic(provider.topBar, on));
-    }
-
-    private _updateTopBar(providerId: string, change: (provider: ProviderInstance) => ProviderInstance['topBar']): void {
-        if (!this._providers.some(provider => provider.id === providerId))
-            return;
-        this._providers = this._providers.map(provider =>
-            provider.id === providerId ? {...provider, topBar: change(provider)} : provider);
-        // The settings handler sees the providers already up to date and only re-renders.
-        writeProviders(this._settings!, this._providers);
-        this._render();
+        this._request(client => client.setAutomatic(providerId, on));
     }
 
     signIn(providerId: string): void {
-        const provider = this._providers.find(item => item.id === providerId);
-        const command = provider ? signInCommand(provider) : null;
-        if (command)
-            openSignIn(command.argv);
+        const cancellable = this._cancellable!;
+        this._request(client => client.signInCommand(providerId).then(({argv, env}) => {
+            if (!cancellable.is_cancelled())
+                openSignIn(argv, env);
+        }));
     }
 
     openPreferences(): void {
@@ -187,99 +112,85 @@ export class Runtime implements IndicatorController {
     }
 
     setPaused(paused: boolean): void {
-        const scheduler = this._scheduler!;
-        if (paused === scheduler.paused)
-            return;
-        scheduler.setPaused(paused);
+        this._request(client => client.setPaused(paused));
+    }
+
+    private _onStatus(status: ClientStatus): void {
+        if (status === 'connected') {
+            this._ensureActiveProvider();
+            this._migrate();
+        }
         this._render();
     }
 
-    private async _initialize(): Promise<void> {
-        const cancellable = this._cancellable!;
-        const [catalog] = await Promise.all([
-            loadCatalog(`${this._extension.path}/pricing-v1.json`, cancellable),
-            this._aggregates!.initialize(cancellable),
-            this._checkpoints!.initialize(cancellable),
-            this._balances!.initialize(cancellable),
-            this._readings!.initialize(cancellable),
-            this._notifications!.initialize(cancellable),
-            this._diagnostics!.initialize(cancellable),
-        ]);
-        if (cancellable.is_cancelled())
-            return;
-
-        const settings = this._settings!;
-        this._catalog = catalog;
-        migrateProviderSettings(settings);
-        this._providers = readProviders(settings);
+    private _onAccountsChanged(accounts: ProviderInstance[]): void {
+        this._notifier!.keepOnly(accounts.map(account => account.id));
         this._ensureActiveProvider();
-        this._restoreReadings();
-
-        this._placeIndicator();
-        this._settingsChangedId = settings.connect('changed', (_settings, key) => this._onSettingChanged(key));
-
-        const scheduler = this._scheduler!;
-        scheduler.setProviders(this._providers);
-        scheduler.start();
         this._render();
-        this._refreshEnabled();
+    }
+
+    private _onAlert(alert: Alert): void {
+        const state = this._client!.state;
+        const instance = state?.accounts.find(account => account.id === alert.accountId);
+        if (!state || !instance)
+            return;
+        const text = alertText(TRANSLATOR, alert, instance, state.snapshots[instance.id] ?? null, this._percentageMode(), Date.now());
+        if (text)
+            this._notifier!.notify(instance, text);
+    }
+
+    // One import at a time: a reconnection while the first call is in flight must not send a second one.
+    private _migrate(): void {
+        if (this._migration !== null)
+            return;
+        const cancellable = this._cancellable!;
+        this._migration = migrateOnce(this._settings!, this._client!)
+            .catch(error => {
+                if (!cancellable.is_cancelled() && !isCancellation(error))
+                    this._logFailure(error);
+            })
+            .finally(() => {
+                this._migration = null;
+            });
+    }
+
+    // A popup action goes to the service; the reply arrives as signals. After disable() nothing
+    // runs: the client's calls are cancelled with it.
+    private _request(action: (client: ServiceClient) => Promise<unknown>): void {
+        const client = this._client!;
+        const cancellable = this._cancellable!;
+        if (client.status !== 'connected')
+            return;
+        action(client).then(() => {
+            if (cancellable.is_cancelled())
+                return;
+            this._render();
+        }, error => {
+            if (cancellable.is_cancelled() || isCancellation(error))
+                return;
+            this._logFailure(error);
+            // A switch the user moved goes back to what the service has.
+            this._render();
+        });
+    }
+
+    // A refused call or a lost connection is expected now and then; anything else is a bug.
+    private _logFailure(error: unknown): void {
+        const logger = this._extension.getLogger();
+        if (error instanceof ServiceCallError || error instanceof GLib.Error)
+            logger.warn(error);
+        else
+            logger.error(error);
     }
 
     private _onSettingChanged(key: string): void {
-        switch (key) {
-        case 'provider-instances-json':
-        case 'configuration-version':
-            this._reload();
-            break;
-        case 'notification-test-request':
-            this._sendTestNotification(this._settings!.get_string(key));
-            break;
-        case 'refresh-interval-seconds':
-            this._scheduler!.setIntervalSeconds(this._settings!.get_uint(key));
-            break;
-        case 'panel-position':
+        if (key === 'panel-position')
             this._placeIndicator();
-            this._render();
-            break;
-        default:
-            this._render();
-        }
-    }
-
-    private _reload(): void {
-        const next = readProviders(this._settings!);
-        if (JSON.stringify(next) === JSON.stringify(this._providers)) {
-            this._render();
-            return;
-        }
-        const before = new Map(this._providers.map(provider => [provider.id, provider]));
-        const retained = new Set(next.map(provider => provider.id));
-        const removed = this._providers.filter(provider => !retained.has(provider.id)).map(provider => provider.id);
-        for (const id of removed) {
-            this._snapshots.delete(id);
-            this._runtimeStates.delete(id);
-            this._notifications!.removeProvider(id);
-        }
-        if (removed.length)
-            this._removeStoredHistory(removed);
-        this._providers = next;
-        this._ensureActiveProvider();
-        this._scheduler!.setProviders(next);
         this._render();
-        // A rename or a colour from the account page needs no new reading.
-        this._scheduler!.refresh(next.filter(provider => provider.enabled && needsRefresh(before.get(provider.id), provider)).map(provider => provider.id));
-    }
-
-    private _restoreReadings(): void {
-        for (const provider of this._providers) {
-            const reading = provider.liveUsageEnabled ? this._readings!.get(provider.id) : null;
-            if (reading)
-                this._snapshots.set(provider.id, restoredSnapshot(provider.id, reading));
-        }
     }
 
     // The panel has no public way to move a button between its boxes, so the
-    // indicator is rebuilt in the chosen box; its state lives in this runtime.
+    // indicator is rebuilt in the chosen box; its state comes from the service.
     private _placeIndicator(): void {
         this._indicator?.destroy();
         const side = this._settings!.get_string('panel-position') === 'left' ? 'left' : 'right';
@@ -287,170 +198,14 @@ export class Runtime implements IndicatorController {
         Main.panel.addToStatusArea(this._extension.uuid, this._indicator, 1, side);
     }
 
-    // Startup and configuration changes refresh silently, so a paused session is not reported as failed.
-    private _refreshEnabled(): void {
-        this._scheduler!.refresh(this._providers.filter(provider => provider.enabled).map(provider => provider.id));
-    }
-
-    private _removeStoredHistory(providerIds: string[]): void {
-        const aggregates = this._aggregates!;
-        const checkpoints = this._checkpoints!;
-        const balances = this._balances!;
-        const readings = this._readings!;
-        Promise.all(providerIds.flatMap(id => [aggregates.removeProvider(id), checkpoints.removeProvider(id), balances.removeProvider(id),
-            readings.removeProvider(id)]))
-            .catch(error => this._extension.getLogger().warn(error));
-    }
-
-    private _sendTestNotification(value: string): void {
-        const request = parseTestNotificationRequest(value);
-        if (!request || request.nonce === this._lastTestNonce)
-            return;
-        const provider = this._providers.find(item => item.id === request.providerId);
-        if (!provider)
-            return;
-        this._lastTestNonce = request.nonce;
-        this._notifications!.notifyTest(provider, this._snapshots.get(provider.id) ?? null, this._percentageMode());
-    }
-
-    private _requestRefresh(providerIds: string[]): void {
-        if (!providerIds.length)
-            return;
-        for (const id of providerIds)
-            this._runtimeStates.set(id, {...idleState(), phase: 'queued'});
-        this._render();
-        if (this._scheduler!.refresh(providerIds))
-            return;
-        for (const id of providerIds)
-            this._finish(id, 'failed');
-        this._render();
-    }
-
-    private async _collect(jobs: SchedulerJob[]): Promise<void> {
-        const cancellable = this._cancellable!;
-        for (const job of jobs) {
-            // One account at a time, so progress shows per account and requests are not bursty.
-            // eslint-disable-next-line no-await-in-loop
-            await this._refreshProvider(job.provider, job.manual, cancellable);
-            if (cancellable.is_cancelled())
-                return;
-            this._render();
-        }
-        this._scheduler!.complete();
-        const logger = this._extension.getLogger();
-        Promise.all([this._readings!.flush(), this._diagnostics!.flush()]).catch(error => logger.warn(error));
-    }
-
-    private async _refreshProvider(provider: ProviderInstance, manual: boolean, cancellable: Gio.Cancellable): Promise<void> {
-        const state: ProviderRuntimeState = {...idleState(), phase: 'fetching-limits'};
-        this._runtimeStates.set(provider.id, state);
-        this._render();
-
-        const session = this._session!;
-        const context: CollectorContext = {
-            aggregates: this._aggregates!,
-            checkpoints: this._checkpoints!,
-            balances: this._balances!,
-            catalog: this._catalog,
-            cancellable,
-            tr: TRANSLATOR,
-            manual,
-            requestJson: (method, url, headers, body) => this._recordedRequest(provider, method, url, cancellable,
-                () => requestJson(session, method, url, headers, body, cancellable)),
-            onSourcePhase: source => {
-                if (cancellable.is_cancelled())
-                    return;
-                state.phase = SOURCE_PHASES[source];
-                this._render();
-            },
-            onSourceResult: (source, result) => {
-                if (cancellable.is_cancelled())
-                    return;
-                state.sources[source] = result;
-            },
-        };
-
-        this._record(provider, 'sign-in', this._signInSource(provider));
-        const previous = this._snapshots.get(provider.id) ?? null;
-        let snapshot: ProviderSnapshot;
-        try {
-            snapshot = await this._collectors![provider.kind].collect(provider, context, previous ?? emptySnapshot(provider.id));
-        } catch (error) {
-            if (cancellable.is_cancelled())
-                return;
-            // Expected failures come back as snapshot.error; anything thrown is a bug.
-            this._extension.getLogger().error(error);
-            this._finish(provider.id, 'failed');
-            return;
-        }
-        if (cancellable.is_cancelled())
-            return;
-
-        this._snapshots.set(provider.id, snapshot);
-        this._readings!.set(snapshot);
-        // Sign-in problems end a refresh before any request, so they are recorded here.
-        if (snapshot.errorInfo)
-            this._record(provider, 'error', `refresh: ${snapshot.errorInfo.code}`);
-        const settings = this._settings!;
-        if (settings.get_boolean('notifications-enabled'))
-            this._notifications!.notifyMilestones(provider, snapshot, settings.get_uint('notification-step-percent'), this._percentageMode());
-
-        if (snapshot.error)
-            this._finish(provider.id, 'failed');
-        else if (Object.values(state.sources).includes('failed'))
-            this._finish(provider.id, 'partial');
-        else if (previous && snapshotFingerprint(previous) === snapshotFingerprint(snapshot))
-            this._finish(provider.id, 'unchanged');
-        else
-            this._finish(provider.id, 'changed');
-    }
-
-    // Each step goes to the diagnostics file. Testers who turn on the journal mirror see it
-    // live; it logs at message level because the journal drops debug messages by default.
-    private _record(provider: ProviderInstance, step: DiagnosticEntry['step'], detail: string): void {
-        const index = this._providers.filter(item => item.kind === provider.kind).findIndex(item => item.id === provider.id);
-        const entry = this._diagnostics!.record({at: Date.now(), account: accountLabel(provider.kind, index + 1), kind: provider.kind, app: provider.app, step, detail});
-        if (this._settings!.get_boolean('diagnostics-journal'))
-            this._extension.getLogger().log(`${entry.account} (${entry.app}) ${entry.step}: ${entry.detail}`);
-    }
-
-    // Testers' reports must show which file or keyring item an app's sign-in came from.
-    private _signInSource(provider: ProviderInstance): string {
-        const path = provider.app === 'keyring' || provider.app === 'copilot-cli' ? '' : providerPaths(provider).authFile;
-        return path ? `${provider.app} ${path}` : `${provider.app} keyring`;
-    }
-
-    // Nothing is recorded once disable() has cancelled the refresh.
-    private async _recordedRequest(
-        provider: ProviderInstance,
-        method: string,
-        url: string,
-        cancellable: Gio.Cancellable,
-        request: () => Promise<unknown>
-    ): Promise<unknown> {
-        if (!cancellable.is_cancelled())
-            this._record(provider, 'request', requestDetail(method, url));
-        try {
-            const body = await request();
-            if (!cancellable.is_cancelled())
-                this._record(provider, 'response', shapeOf(body));
-            return body;
-        } catch (error) {
-            if (error instanceof CollectorError && !cancellable.is_cancelled())
-                this._record(provider, 'error', error.status === null ? error.code : `${error.code} (HTTP ${error.status})`);
-            throw error;
-        }
-    }
-
-    private _finish(providerId: string, outcome: ProviderRuntimeState['outcome']): void {
-        const state = this._runtimeStates.get(providerId) ?? idleState();
-        this._runtimeStates.set(providerId, {...state, phase: 'idle', outcome, completedAt: Date.now()});
+    private _accounts(): ProviderInstance[] {
+        return this._client!.state?.accounts ?? [];
     }
 
     private _ensureActiveProvider(): void {
         const settings = this._settings!;
         const activeId = settings.get_string('active-provider-id');
-        const current = activeProvider(this._providers, activeId);
+        const current = activeProvider(this._accounts(), activeId);
         if (current && current.id !== activeId)
             settings.set_string('active-provider-id', current.id);
     }
@@ -465,15 +220,17 @@ export class Runtime implements IndicatorController {
     }
 
     private _render(): void {
-        this._indicator?.update({
-            providers: this._providers,
-            snapshots: this._snapshots,
-            runtimeStates: this._runtimeStates,
+        const state = this._client!.state;
+        const snapshots = Object.entries(state?.snapshots ?? {});
+        this._indicator!.update({
+            providers: state?.accounts ?? [],
+            snapshots: new Map(snapshots.map(([id, snapshot]) => [id, withCodeErrorText(TRANSLATOR, snapshot)])),
+            runtimeStates: new Map(Object.entries(state?.runtime ?? {})),
             activeProviderId: this._settings!.get_string('active-provider-id'),
             mode: this._percentageMode(),
             style: this._displayStyle(),
             accountPicker: this._settings!.get_string('popup-account-picker') === 'dropdown' ? 'dropdown' : 'buttons',
-            paused: this._scheduler!.paused,
+            paused: state?.paused ?? false,
         });
     }
 }

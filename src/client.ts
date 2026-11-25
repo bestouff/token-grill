@@ -158,8 +158,11 @@ export class ServiceClient {
         await this._invoke('RefreshAll');
     }
 
+    // The service sends no signal for a pause, so the state follows the reply.
     async setPaused(paused: boolean): Promise<void> {
         await this._invoke('SetPaused', new GLib.Variant('(b)', [paused]));
+        if (this.state !== null && !this._cancellable.is_cancelled())
+            this.state.paused = paused;
     }
 
     async importAccounts(legacy: unknown): Promise<number> {
