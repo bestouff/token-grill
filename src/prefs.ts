@@ -23,7 +23,8 @@ export default class TokenGrillPreferences extends ExtensionPreferences {
 
         // One client per window; the service owns the accounts and the settings it uses itself.
         const context = new PrefsContext(window, this.path, logger, handlers => new ServiceClient('prefs', handlers, logger));
-        const pages = [new GeneralPage(settings, context), new AccountsPage(context), new NotificationsPage(settings, context), new DataPage(context)];
+        const general = new GeneralPage(settings, context);
+        const pages = [general, new AccountsPage(context), new NotificationsPage(settings, context), new DataPage(context)];
         const service = new ServicePage(() => context.client.retry());
         window.add(service);
         context.watch('status', () => {
@@ -39,6 +40,8 @@ export default class TokenGrillPreferences extends ExtensionPreferences {
                 context.request(client => migrateOnce(settings, client));
                 pages.forEach(page => window.add(page));
                 window.remove(service);
+                // The window does not pick another page when its visible page goes.
+                window.set_visible_page(general);
                 return;
             }
             // What was opened from the pages goes with them.
@@ -46,6 +49,7 @@ export default class TokenGrillPreferences extends ExtensionPreferences {
             window.pop_subpage();
             window.add(service);
             pages.forEach(page => window.remove(page));
+            window.set_visible_page(service);
         });
 
         window.connect('close-request', () => {

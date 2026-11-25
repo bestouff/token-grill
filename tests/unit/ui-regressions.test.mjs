@@ -230,6 +230,16 @@ test('each Preferences window has its own service client, released on close', as
     assert.match(context, /this\.cancellable\.cancel\(\);/);
 });
 
+// Adw.PreferencesWindow does not pick another page when its visible page is removed, so the
+// window kept its view switcher over an empty body after the service connected.
+test('Preferences show a page again after the pages and the service page change places', async () => {
+    const entry = await read('src/prefs.ts');
+    const swaps = [...entry.matchAll(/window\.remove\([^;]*;([^]*?)(?=return;|\n {8}\}\);)/g)];
+    assert.equal(swaps.length, 2, 'one swap when the service connects, one when it goes away');
+    for (const [, after] of swaps)
+        assert.match(after, /window\.set_visible_page\(/);
+});
+
 test('Preferences read and write the moved settings through the service', async () => {
     const [general, notifications, widgets, accounts] = await Promise.all([
         read('src/prefs/generalPage.ts'), read('src/prefs/notificationsPage.ts'), read('src/prefs/widgets.ts'), read('src/prefs/accountsPage.ts'),
