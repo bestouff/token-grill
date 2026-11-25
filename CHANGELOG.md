@@ -16,8 +16,10 @@
   the 0.4 settings. It keeps a backup in
   `~/.config/token-grill/imported-0.4.json`. The accounts now live in
   `~/.config/token-grill/config.json`.
-- After you update, log out and log in once. A 0.4 Shell that still runs can
-  lose the accounts in the top bar until then. Nothing is lost.
+- After you update, log out and log in once. Until then, the Shell runs 0.4
+  and keeps its accounts and totals. Preferences already show the accounts in
+  the service, but they do not change the 0.4 settings. After the login, the
+  Shell empties the 0.4 account list.
 - If you go back to 0.4.1, it shows no accounts, because the accounts are in
   the new file. Restore them from the backup, or add them again.
 - The journal diagnostics switch is no longer in the extension. The setting

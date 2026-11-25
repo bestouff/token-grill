@@ -35,18 +35,28 @@ function legacySettings(settings: LegacySettingsSource): LegacySettings {
     };
 }
 
-// 0.4 kept the accounts in GSettings. The service takes them only while it has none, and the key is
-// emptied only after the service holds them, so a failed import is tried again at the next connection.
-// A refused import keeps the key: the service has other accounts, or it imported other 0.4 values
-// before, and the key may then be the only copy of accounts added in 0.4 after a downgrade.
-// After disable() or a closed window the key stays: the service has the accounts then, so the next connection skips this.
+function hasLegacyAccounts(settings: LegacySettingsSource): boolean {
+    return settings.get_string(ACCOUNTS_KEY).trim() !== NO_ACCOUNTS;
+}
+
+// Preferences hand the 0.4 accounts over but never empty the key. After an update, the 0.4 Shell
+// runs until the next login, and it deletes the stored totals, read offsets, balances and readings
+// of every account that leaves the key.
+export async function importOnce(settings: LegacySettingsSource, client: ImportingClient): Promise<void> {
+    const state = client.state;
+    if (state === null || state.accounts.length > 0 || !hasLegacyAccounts(settings))
+        return;
+    await client.importAccounts(legacySettings(settings));
+}
+
+// The Shell that runs this is the new version, so no 0.4 Shell reads the key any more. The key is
+// emptied only after the service holds its values, so a failed import is tried again at the next
+// connection. A refused import keeps the key: the service has other accounts, or it imported other
+// 0.4 values before, and the key may then be the only copy of accounts added in 0.4 after a downgrade.
 export async function migrateOnce(
     settings: LegacySettingsSource, client: ImportingClient, cancellable: Pick<Gio.Cancellable, 'is_cancelled'>
 ): Promise<void> {
-    const state = client.state;
-    if (state === null || state.accounts.length > 0)
-        return;
-    if (settings.get_string(ACCOUNTS_KEY).trim() === NO_ACCOUNTS)
+    if (client.state === null || !hasLegacyAccounts(settings))
         return;
     const result = await client.importAccounts(legacySettings(settings));
     if (result.refused || cancellable.is_cancelled())

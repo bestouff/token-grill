@@ -3,7 +3,7 @@ import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {ServiceClient} from './client.js';
-import {migrateOnce} from './core/migration.js';
+import {importOnce} from './core/migration.js';
 import {AccountsPage} from './prefs/accountsPage.js';
 import {PrefsContext} from './prefs/context.js';
 import {DataPage} from './prefs/dataPage.js';
@@ -35,9 +35,9 @@ export default class TokenGrillPreferences extends ExtensionPreferences {
             if (connected === (service.get_parent() === null))
                 return;
             if (connected) {
-                // Preferences opened before the Shell imported the 0.4 accounts import them too. The
-                // service takes them once, so a second import is refused.
-                context.request(client => migrateOnce(settings, client, context.cancellable));
+                // Preferences opened before the Shell imported the 0.4 accounts import them too; only
+                // the Shell empties the 0.4 key.
+                context.request(client => importOnce(settings, client));
                 pages.forEach(page => window.add(page));
                 window.remove(service);
                 // The window does not pick another page when its visible page goes.

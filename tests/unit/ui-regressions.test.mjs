@@ -430,7 +430,9 @@ test('calls that store a key wait for the keyring without a time limit', async (
 test('Preferences import the 0.4 accounts when the service connects', async () => {
     const entry = await read('src/prefs.ts');
     const connected = entry.slice(entry.indexOf('if (connected) {'));
-    assert.match(connected, /^if \(connected\) \{[^}]*context\.request\(client => migrateOnce\(settings, client, context\.cancellable\)\);/);
+    assert.match(connected, /^if \(connected\) \{[^}]*context\.request\(client => importOnce\(settings, client\)\);/);
+    // A 0.4 Shell that still runs deletes the stored data of every account that leaves the key.
+    assert.doesNotMatch(entry, /migrateOnce|set_string/);
 });
 
 test('adding waits for the service with its button off and shows a refusal', async () => {

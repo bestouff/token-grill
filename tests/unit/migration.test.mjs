@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {migrateOnce} from '../../build/tests/migration.mjs';
+import {importOnce, migrateOnce} from '../../build/tests/migration.mjs';
 
 const LIVE = {is_cancelled: () => false};
 const LEGACY_JSON = '[{"schemaVersion":1,"id":"a","kind":"codex","app":"codex-cli"}]';
@@ -93,21 +93,34 @@ test('a failed import leaves the key for the next connection', async () => {
     assert.equal(settings.store['provider-instances-json'], LEGACY_JSON);
 });
 
-test('a second connection with accounts present does not import again', async () => {
+test('the Shell empties the key that Preferences imported before', async () => {
     const settings = fakeSettings();
-    const client = fakeClient([]);
-    await migrateOnce(settings, client, LIVE);
-    client.state = {accounts: [{id: 'a'}]};
-    settings.store['provider-instances-json'] = LEGACY_JSON;
-    await migrateOnce(settings, client, LIVE);
-    assert.equal(client.calls.length, 1);
+    const prefs = fakeClient([]);
+    await importOnce(settings, prefs);
+    assert.equal(prefs.calls.length, 1);
+    assert.deepEqual(settings.writes, [], 'Preferences never empty the key');
+    // The service now has the accounts and the backup of the same values, so it does not refuse.
+    const shell = fakeClient([{id: 'a'}], () => Promise.resolve({imported: 0, refused: false}));
+    await migrateOnce(settings, shell, LIVE);
+    assert.equal(shell.calls.length, 1);
+    assert.deepEqual(settings.writes, [['provider-instances-json', '[]']]);
 });
 
-test('nothing is imported when the service has accounts, the key is empty, or there is no state', async () => {
+test('Preferences import only while the service has no accounts and the key has some', async () => {
     const withAccounts = fakeClient([{id: 'a'}]);
-    await migrateOnce(fakeSettings(), withAccounts, LIVE);
+    await importOnce(fakeSettings(), withAccounts);
     assert.equal(withAccounts.calls.length, 0);
+    const emptyKey = fakeSettings({'provider-instances-json': '[]'});
+    const fresh = fakeClient([]);
+    await importOnce(emptyKey, fresh);
+    assert.equal(fresh.calls.length, 0);
+    const refused = fakeSettings();
+    await importOnce(refused, fakeClient([], () => Promise.resolve({imported: 0, refused: true})));
+    assert.deepEqual(refused.writes, []);
+    await importOnce(fakeSettings(), {state: null, importAccounts: () => assert.fail('no import without a state')});
+});
 
+test('nothing is imported when the key is empty or there is no state', async () => {
     const emptyKey = fakeSettings({'provider-instances-json': '[]'});
     const fresh = fakeClient([]);
     await migrateOnce(emptyKey, fresh, LIVE);
