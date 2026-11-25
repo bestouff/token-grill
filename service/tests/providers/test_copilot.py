@@ -17,6 +17,7 @@ from tokengrill.providers.copilot.normalize import normalize_copilot_usage
 from tokengrill.providers.opencode import auth_file as open_code_auth_file
 from tokengrill.providers.registry import create_collectors
 from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 
 # --- copilot.test.mjs
@@ -192,6 +193,7 @@ def make_ctx(tmp_path: Path, transport: httpx.MockTransport) -> CollectorContext
         pricing={},
         aggregates=AggregateStore(tmp_path / "agg.json"),
         checkpoints=CheckpointStore(tmp_path / "cp.json"),
+        balances=BalanceStore(tmp_path / "balances.json"),
     )
 
 

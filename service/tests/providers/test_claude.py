@@ -16,6 +16,7 @@ from tokengrill.providers.claude.history import claude_usage_event
 from tokengrill.providers.claude.normalize import normalize_claude_usage
 from tokengrill.providers.registry import create_collectors
 from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 
 
@@ -318,6 +319,7 @@ def make_ctx(tmp_path: Path, recorder: Recorder, handler: httpx.MockTransport) -
         pricing={},
         aggregates=AggregateStore(tmp_path / "agg.json"),
         checkpoints=CheckpointStore(tmp_path / "cp.json"),
+        balances=BalanceStore(tmp_path / "balances.json"),
         on_phase=recorder.phases.append,
         on_source=lambda source, result: recorder.sources.append((source, result)),
     )

@@ -28,7 +28,7 @@ from tokengrill.core.diagnostics import DiagnosticEntry, format_report, redact
 from tokengrill.core.errors import InvalidRequest, NoSignInCommand, ServiceError
 from tokengrill.core.order import reorder_providers
 from tokengrill.core.pace import with_pace
-from tokengrill.core.paths import provider_paths
+from tokengrill.core.paths import provider_paths, runtime_dir
 from tokengrill.core.readings import restored_snapshot, snapshot_fingerprint
 from tokengrill.core.scheduler import Scheduler, SchedulerJob
 from tokengrill.core.signin import sign_in_command
@@ -54,12 +54,13 @@ from tokengrill.core.types import (
 )
 from tokengrill.core.validation import ProviderValidationErrors
 from tokengrill.net.http import HttpClient
-from tokengrill.providers.base import Collector, CollectorContext
+from tokengrill.providers.base import Collector, CollectorContext, failed
 from tokengrill.providers.candidates import Candidate
 from tokengrill.providers.credential_state import CredentialState, credential_state
 from tokengrill.providers.discovery import ALL_APPS, find_all_candidates, find_candidates
 from tokengrill.providers.keyring import clear_api_key, store_api_key
 from tokengrill.providers.pricing import PricingCatalog, load_catalog
+from tokengrill.providers.sqlite import sweep_private_copies
 from tokengrill.storage.aggregate import AggregateStore
 from tokengrill.storage.alerts import AlertStateStore
 from tokengrill.storage.balances import BalanceStore
@@ -143,6 +144,10 @@ class Runtime:
         """Loads the stores and shows the saved readings as stale until the first refresh."""
         self._config = self._config_store.load()
         self._catalog = await asyncio.to_thread(load_catalog)
+        try:
+            await sweep_private_copies()
+        except OSError:
+            _LOG.warning("could not clear the private database copies in %s", runtime_dir(), exc_info=True)
         for store in self._stores():
             await store.load()
         self._scheduler.set_interval(self._config["refreshIntervalSeconds"])
@@ -521,9 +526,8 @@ class Runtime:
             )
         except Exception:  # noqa: BLE001 - an expected failure comes back in the snapshot; anything raised is a bug
             _LOG.exception("collector for %s failed", instance["kind"])
-            if not await self._drop_if_removed(account_id):
-                self._finish(account_id, "failed")
-            return
+            # The last values stay, marked stale; one broken collector must not stop the other accounts.
+            snapshot = failed(previous or empty_snapshot(account_id), ServiceError("internal", "service.internal"))
 
         if await self._drop_if_removed(account_id):
             return
@@ -532,7 +536,7 @@ class Runtime:
         if snapshot["errorInfo"]:
             # Sign-in problems end a refresh before any request, so they are recorded here.
             self._record(instance, "error", f"refresh: {snapshot['errorInfo']['code']}")
-        self._decide_alerts(instance, snapshot)
+        await self._decide_alerts(instance, snapshot)
         if snapshot["errorInfo"]:
             self._finish(account_id, "failed")
         elif "failed" in state["sources"].values():
@@ -551,7 +555,7 @@ class Runtime:
         await self._forget_stored([account_id])
         return True
 
-    def _decide_alerts(self, instance: ProviderInstance, snapshot: ProviderSnapshot) -> None:
+    async def _decide_alerts(self, instance: ProviderInstance, snapshot: ProviderSnapshot) -> None:
         """Only while a shell client can show the alert: without one no checkpoint advances, so the
         alert is decided when the shell is back. Only the limits shown in the top bar alert."""
         settings = self._settings()
@@ -572,10 +576,11 @@ class Runtime:
             self._alerts.set_window(key, {"providerId": instance["id"], **check.checkpoint})
             if check.notify:
                 self._emitter.alert(self._alert("milestone", instance["id"], window=window, fraction=check.consumed))
+                await self._persist_alerts()
         if any(limit_key(window) == BALANCE_KEY for window in limits):
-            self._decide_low_balance(instance, snapshot)
+            await self._decide_low_balance(instance, snapshot)
 
-    def _decide_low_balance(self, instance: ProviderInstance, snapshot: ProviderSnapshot) -> None:
+    async def _decide_low_balance(self, instance: ProviderInstance, snapshot: ProviderSnapshot) -> None:
         balance = snapshot["balance"]
         threshold = instance["lowBalance"]
         if balance is None or threshold is None:
@@ -585,6 +590,15 @@ class Runtime:
         self._alerts.set_low_balance(instance["id"], low)
         if should_notify_low_balance(previous, low):
             self._emitter.alert(self._alert("low-balance", instance["id"], balance=balance, low_balance=threshold))
+            await self._persist_alerts()
+
+    async def _persist_alerts(self) -> None:
+        """As 0.4.1, which saved each checkpoint at once: a kill before the end of the batch must not
+        repeat an alert that was already shown."""
+        try:
+            await self._alerts.flush()
+        except OSError:
+            _LOG.warning("could not write the alert state", exc_info=True)
 
     def _alert(
         self,

@@ -7,6 +7,7 @@ from tokengrill.net.http import HttpClient
 from tokengrill.providers.base import CollectorContext
 from tokengrill.providers.pricing import PricingCatalog
 from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 
 
@@ -20,6 +21,7 @@ def context(tmp_path: Path, records: list[tuple[str, str]], status: int = 200) -
         pricing=pricing,
         aggregates=AggregateStore(tmp_path / "agg.json"),
         checkpoints=CheckpointStore(tmp_path / "cp.json"),
+        balances=BalanceStore(tmp_path / "balances.json"),
         on_record=lambda step, detail: records.append((step, detail)),
     )
 

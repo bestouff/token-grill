@@ -38,6 +38,7 @@ ErrorCode = Literal[
     "http",
     "response-shape",
     "local-history",
+    "internal",
 ]
 Recovery = Literal["retry", "reauthenticate", "edit-provider", "none"]
 RefreshPhase = Literal["idle", "queued", "fetching-limits", "fetching-reset-credits", "scanning-history"]

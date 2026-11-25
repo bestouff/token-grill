@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -225,3 +226,36 @@ async def test_send_test_alert_without_readings_has_no_window(rig: Rig) -> None:
 async def test_send_test_alert_for_an_unknown_account_is_refused(rig: Rig) -> None:
     with pytest.raises(InvalidRequest):
         rig.runtime.send_test_alert("nope")
+
+
+async def test_an_alert_is_persisted_as_soon_as_it_is_emitted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A hard kill after the alert must not repeat it after a restart, so the batch's own flush is not relied on."""
+    made = await build(tmp_path, [account(topBar={"automatic": False, "limits": ["balance"]}, lowBalance=10.0)])
+    made.runtime._shell_connected = True
+
+    async def no_batch_flush() -> None:
+        return None
+
+    monkeypatch.setattr(made.runtime, "_flush_quietly", no_batch_flush)
+    written = tmp_path / "state" / "token-grill" / "notifications-v1.json"
+    await made.read(limit("balance", "other", 0.1), balance={"amount": 20.0, "currency": "USD"})
+    await made.read(limit("balance", "other", 0.1), balance={"amount": 8.0, "currency": "USD"})
+    assert [alert["kind"] for alert in made.events.alerts] == ["low-balance"]
+    assert json.loads(written.read_text())["lowBalance"] == {ACCOUNT_ID: True}
+    await made.runtime.stop()
+
+
+async def test_a_milestone_is_persisted_as_soon_as_it_is_emitted(
+    rig: Rig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig.runtime._shell_connected = True
+
+    async def no_batch_flush() -> None:
+        return None
+
+    monkeypatch.setattr(rig.runtime, "_flush_quietly", no_batch_flush)
+    await rig.read(limit("five", "five-hour", 0.4))
+    await rig.read(limit("five", "five-hour", 0.8))
+    assert len(rig.events.alerts) == 1
+    saved = json.loads((tmp_path / "state" / "token-grill" / "notifications-v1.json").read_text())
+    assert saved["windows"][f"{ACCOUNT_ID}:five-hour"] == rig.checkpoint("five-hour")

@@ -24,3 +24,11 @@ async def test_calls_after_detach_fail_and_in_flight_is_balanced(tmp_path: Path)
                 pytest.fail("a call after detach must not reach the runtime")
         assert raised.value.type == SHUTTING_DOWN
     assert len(started) == len(finished) == 1
+
+
+def test_deeply_nested_json_is_invalid_args() -> None:
+    from tokengrill.dbus.payloads import INVALID_ARGS, parse_json_arg
+
+    with pytest.raises(DBusError) as raised:
+        parse_json_arg("[" * 200_000)
+    assert raised.value.type == INVALID_ARGS

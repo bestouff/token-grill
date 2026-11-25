@@ -1,6 +1,7 @@
 """Secret Service access: read-only lookups of other tools' items and Token Grill's own API-key item."""
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 import secretstorage
 from jeepney.wrappers import DBusErrorResponse
@@ -15,6 +16,11 @@ LOOKUP_TIMEOUT_SECONDS = 3
 TOKEN_GRILL_KEY_SCHEMA = "org.gnome.shell.extensions.tokengrill.ApiKey"
 API_KEY_LABEL = "Token Grill: DeepSeek API key"
 KEY_UNAVAILABLE = "deepseek.keyring-unavailable"
+
+# A thread stuck in a hung Secret Service cannot be stopped, so lookups get two threads of their own: the
+# default executor, which history scans use, is never taken over, and a hang cannot pile up threads.
+_LOOKUP_WORKERS = 2
+_lookup_executor = ThreadPoolExecutor(max_workers=_LOOKUP_WORKERS, thread_name_prefix="tokengrill-keyring")
 
 # What a missing, locked or misbehaving Secret Service raises.
 _SERVICE_ERRORS = (secretstorage.SecretStorageException, DBusErrorResponse, OSError)
@@ -48,12 +54,17 @@ def _lookup_sync(schema: str, attributes: dict[str, str], unavailable_id: str) -
 
 async def lookup_secret(schema: str, attributes: dict[str, str], unavailable_id: str) -> str | None:
     """Reads another app's keyring item without ever asking the keyring to unlock."""
+    loop = asyncio.get_running_loop()
+    work = loop.run_in_executor(_lookup_executor, _lookup_sync, schema, attributes, unavailable_id)
     try:
-        return await asyncio.wait_for(
-            asyncio.to_thread(_lookup_sync, schema, attributes, unavailable_id), LOOKUP_TIMEOUT_SECONDS
-        )
-    except (TimeoutError, UnicodeDecodeError, *_SERVICE_ERRORS) as error:
+        return await asyncio.wait_for(work, LOOKUP_TIMEOUT_SECONDS)
+    except UnicodeDecodeError:
+        pass
+    except (TimeoutError, *_SERVICE_ERRORS) as error:
         raise ServiceError("dependency", unavailable_id) from error
+    # Only a secret that is not UTF-8 gets here. It is raised outside the handler: the decode error holds the
+    # secret's bytes, so it must be neither the cause nor the context of this error.
+    raise ServiceError("dependency", unavailable_id)
 
 
 def _own_attributes(account_id: str) -> dict[str, str]:

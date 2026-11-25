@@ -29,6 +29,7 @@ from tokengrill.providers.kiro.normalize import normalize_kiro_usage
 from tokengrill.providers.kiro.usage_policy import KiroRejectedTokens, kiro_usage_error
 from tokengrill.providers.registry import create_collectors
 from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 
 # --- kiro.test.mjs
@@ -286,6 +287,7 @@ def make_ctx(tmp_path: Path, transport: httpx.MockTransport, manual: bool = Fals
         pricing={},
         aggregates=AggregateStore(tmp_path / "agg.json"),
         checkpoints=CheckpointStore(tmp_path / "cp.json"),
+        balances=BalanceStore(tmp_path / "balances.json"),
         on_phase=recorder.phases.append,
         on_source=lambda source, result: recorder.sources.append((source, result)),
         manual=manual,

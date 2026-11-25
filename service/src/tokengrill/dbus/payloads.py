@@ -30,5 +30,6 @@ def account_json(snapshot: ProviderSnapshot, runtime: ProviderRuntimeState) -> s
 def parse_json_arg(text: str) -> object:
     try:
         return json.loads(text)
-    except ValueError as error:
+    # Python before 3.14 raises RecursionError, not a decode error, for deeply nested arrays.
+    except (ValueError, RecursionError) as error:
         raise DBusError(INVALID_ARGS, "the argument is not valid JSON") from error

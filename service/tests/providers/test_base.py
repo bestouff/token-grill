@@ -18,6 +18,7 @@ from tokengrill.net.http import HttpClient
 from tokengrill.providers.base import CollectorContext, LimitsUpdate, collect_history, collect_limits
 from tokengrill.providers.registry import create_collectors
 from tokengrill.storage.aggregate import AggregateStore, UsageEvent
+from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 
 
@@ -55,6 +56,7 @@ def make_context(tmp_path: Path, recorder: Recorder) -> CollectorContext:
         pricing={"m": {"input": 1.0, "output": 1.0}},
         aggregates=AggregateStore(tmp_path / "agg.json"),
         checkpoints=CheckpointStore(tmp_path / "cp.json"),
+        balances=BalanceStore(tmp_path / "balances.json"),
         on_phase=recorder.phases.append,
         on_source=lambda source, result: recorder.sources.append((source, result)),
         on_record=lambda step, detail: recorder.records.append((step, detail)),
@@ -197,3 +199,13 @@ async def test_history_is_skipped_without_a_shell_client(tmp_path: Path) -> None
     assert recorder.sources == []
     assert not (tmp_path / "agg.json").exists()
     assert not (tmp_path / "cp.json").exists()
+
+
+def test_the_balance_store_has_no_default(tmp_path: Path) -> None:
+    with pytest.raises(TypeError, match="balances"):
+        CollectorContext(  # type: ignore[call-arg]
+            http=HttpClient(),
+            pricing={},
+            aggregates=AggregateStore(tmp_path / "agg.json"),
+            checkpoints=CheckpointStore(tmp_path / "cp.json"),
+        )

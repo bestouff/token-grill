@@ -3,7 +3,9 @@
 import asyncio
 import contextlib
 import os
+import re
 import sqlite3
+import stat
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -58,15 +60,46 @@ def _needs_private_copy(path: str) -> bool:
     return _uses_write_ahead_log(path)
 
 
+_COPY_NAME = re.compile(r"[0-9a-f]{32}\.sqlite(-wal|-shm)?")
+
+
+def _checked_private_directory(directory: Path) -> None:
+    """The folder must be the user's own plain folder, closed to everyone else; a symlink or a folder of
+    another user could redirect or expose a copy of a credential database."""
+    info = os.lstat(directory)
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        raise PermissionError(f"{directory} is not a private folder of this user")
+    if stat.S_IMODE(info.st_mode) != 0o700:
+        os.chmod(directory, 0o700)
+
+
 def _make_private_copy(path: str) -> str:
     directory = runtime_dir()
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    _checked_private_directory(directory)
     target = str(directory / f"{uuid.uuid4().hex}.sqlite")
     contents = Path(path).read_bytes()
     descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "wb") as handle:
         handle.write(contents)
     return target
+
+
+def _sweep(directory: Path) -> None:
+    try:
+        _checked_private_directory(directory)
+    except FileNotFoundError:
+        return
+    for entry in os.scandir(directory):
+        if _COPY_NAME.fullmatch(entry.name) and entry.is_file(follow_symlinks=False):
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(entry.path)
+
+
+async def sweep_private_copies() -> None:
+    """Private copies left behind by a crash hold credentials; they are removed once, when the service starts,
+    before any read can make a new one."""
+    await asyncio.to_thread(_sweep, runtime_dir())
 
 
 def _remove_private_copy(path: str) -> None:

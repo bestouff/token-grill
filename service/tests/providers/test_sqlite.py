@@ -166,3 +166,47 @@ async def test_stamp_changes_with_the_database_and_its_wal(tmp_path: Path) -> No
         assert await database_stamp(str(path)) == await database_stamp(str(path))
     finally:
         writer.close()
+
+
+async def test_a_looser_existing_private_folder_is_tightened(tmp_path: Path, runtime: Path) -> None:
+    path, _ = make_closed_wal_database(tmp_path)
+    runtime.mkdir(mode=0o755, parents=True)
+    runtime.chmod(0o755)
+    await query_rows(str(path), "SELECT 1", ())
+    assert stat.S_IMODE(runtime.stat().st_mode) == 0o700
+
+
+async def test_a_symlinked_private_folder_is_refused(tmp_path: Path, runtime: Path) -> None:
+    path, _ = make_closed_wal_database(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    runtime.parent.mkdir(parents=True, exist_ok=True)
+    runtime.symlink_to(elsewhere)
+    with pytest.raises(PermissionError):
+        await query_rows(str(path), "SELECT 1", ())
+    assert listing(elsewhere) == []
+
+
+async def test_a_private_folder_of_another_user_is_refused(
+    tmp_path: Path, runtime: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path, _ = make_closed_wal_database(tmp_path)
+    runtime.mkdir(mode=0o700, parents=True)
+    monkeypatch.setattr(os, "getuid", lambda: os.stat(runtime).st_uid + 1)
+    with pytest.raises(PermissionError):
+        await query_rows(str(path), "SELECT 1", ())
+    assert listing(runtime) == []
+
+
+async def test_stale_private_copies_are_swept_and_other_files_are_kept(runtime: Path) -> None:
+    runtime.mkdir(mode=0o700, parents=True)
+    stale = [f"{'a' * 32}.sqlite", f"{'b' * 32}.sqlite-wal", f"{'c' * 32}.sqlite-shm"]
+    for name in [*stale, "keep.txt"]:
+        (runtime / name).write_bytes(b"x")
+    await sqlite_module.sweep_private_copies()
+    assert listing(runtime) == ["keep.txt"]
+
+
+async def test_sweeping_without_a_folder_does_nothing(runtime: Path) -> None:
+    await sqlite_module.sweep_private_copies()
+    assert not runtime.exists()

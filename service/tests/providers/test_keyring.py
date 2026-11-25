@@ -196,3 +196,39 @@ async def test_store_failure_is_a_dependency_error(monkeypatch: pytest.MonkeyPat
         await keyring.store_api_key("d1", "k")
     assert raised.value.code == "dependency"
     assert connection.closed
+
+
+async def test_hung_lookups_never_hold_more_than_two_threads(monkeypatch: pytest.MonkeyPatch) -> None:
+    release = threading.Event()
+
+    def hang() -> None:
+        release.wait(10)
+
+    monkeypatch.setattr(secretstorage, "dbus_init", hang)
+    monkeypatch.setattr(keyring, "LOOKUP_TIMEOUT_SECONDS", 0.2)
+    try:
+        for _ in range(6):
+            with pytest.raises(ServiceError):
+                await keyring.lookup_secret(SCHEMA, ATTRS, UNAVAILABLE)
+        workers = [thread for thread in threading.enumerate() if thread.name.startswith("tokengrill-keyring")]
+        assert 1 <= len(workers) <= 2
+        # The default executor, which history scans use, was never taken over.
+        assert not [
+            t for t in threading.enumerate() if t.name.startswith("asyncio_") and t is not threading.current_thread()
+        ]
+    finally:
+        release.set()
+
+
+async def test_a_non_utf8_secret_leaves_no_secret_bytes_on_the_error(
+    monkeypatch: pytest.MonkeyPatch, connection: FakeConnection
+) -> None:
+    serve(monkeypatch, [FakeItem(b"\xffSECRET-BYTES\xfe")])
+    with pytest.raises(ServiceError) as raised:
+        await keyring.lookup_secret(SCHEMA, ATTRS, UNAVAILABLE)
+    error: BaseException | None = raised.value
+    while error is not None:
+        assert not isinstance(error, UnicodeDecodeError)
+        error = error.__cause__ or error.__context__
+    assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None

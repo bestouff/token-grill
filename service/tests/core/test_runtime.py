@@ -248,11 +248,35 @@ async def test_a_bug_in_a_collector_fails_the_account_and_is_logged(rig: Rig, ca
     with caplog.at_level(logging.ERROR):
         await rig.runtime.refresh(ACCOUNT_ID)
     assert rig.events.last(ACCOUNT_ID)[1]["outcome"] == "failed"
-    assert any(record.levelno == logging.ERROR for record in caplog.records)
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert errors[0].exc_info is not None
+    snapshot = rig.events.last(ACCOUNT_ID)[0]
+    assert snapshot["state"] == "error"
+    assert snapshot["errorInfo"] == {
+        "code": "internal",
+        "messageId": "service.internal",
+        "params": {},
+        "recovery": "retry",
+    }
     rig.clock.now += 100_000
     rig.fake.crash = False
     await rig.runtime.refresh(ACCOUNT_ID)
     assert rig.events.last(ACCOUNT_ID)[1]["outcome"] == "changed"
+    assert rig.events.last(ACCOUNT_ID)[0]["errorInfo"] is None
+
+
+async def test_a_bug_after_a_good_reading_keeps_the_values_as_stale(rig: Rig) -> None:
+    await rig.runtime.start()
+    await rig.runtime.refresh(ACCOUNT_ID)
+    rig.clock.now += 100_000
+    rig.fake.crash = True
+    await rig.runtime.refresh(ACCOUNT_ID)
+    snapshot, runtime = rig.events.last(ACCOUNT_ID)
+    assert snapshot["state"] == "stale"
+    assert snapshot["plan"] == "Pro"
+    assert snapshot["errorInfo"] is not None and snapshot["errorInfo"]["messageId"] == "service.internal"
+    assert runtime["outcome"] == "failed"
 
 
 async def test_saved_readings_restore_on_start(xdg: Path) -> None:
@@ -494,4 +518,33 @@ async def test_an_account_without_a_login_command_raises_no_sign_in_command(xdg:
     await made.runtime.start()
     with pytest.raises(NoSignInCommand):
         made.runtime.sign_in_command("k")
+    await made.runtime.stop()
+
+
+async def test_start_sweeps_stale_private_database_copies(
+    xdg: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    folder = tmp_path / "run" / "token-grill"
+    folder.mkdir(mode=0o700, parents=True)
+    stale = folder / f"{'d' * 32}.sqlite"
+    stale.write_bytes(b"left by a crash")
+    made = await build(xdg)
+    await made.runtime.start()
+    assert not stale.exists()
+    await made.runtime.stop()
+
+
+async def test_a_refused_private_folder_is_one_warning_that_names_the_folder(
+    xdg: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    folder = tmp_path / "runtime-dir" / "token-grill"
+    folder.parent.mkdir(parents=True, exist_ok=True)
+    folder.symlink_to(tmp_path)
+    made = await build(xdg)
+    with caplog.at_level(logging.WARNING):
+        await made.runtime.start()
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert str(folder) in warnings[0].getMessage()
     await made.runtime.stop()

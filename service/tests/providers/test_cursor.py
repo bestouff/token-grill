@@ -19,6 +19,7 @@ from tokengrill.providers.cursor.collector import CursorCollector
 from tokengrill.providers.cursor.normalize import is_jwt_like, normalize_cursor_plan, normalize_cursor_usage
 from tokengrill.providers.registry import create_collectors
 from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 
 # --- cursor.test.mjs
@@ -138,6 +139,7 @@ def make_ctx(tmp_path: Path, transport: httpx.MockTransport, manual: bool = Fals
         pricing={},
         aggregates=AggregateStore(tmp_path / "agg.json"),
         checkpoints=CheckpointStore(tmp_path / "cp.json"),
+        balances=BalanceStore(tmp_path / "balances.json"),
         manual=manual,
     )
 

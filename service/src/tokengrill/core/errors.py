@@ -15,6 +15,7 @@ RECOVERY: dict[ErrorCode, Recovery] = {
     "http": "retry",
     "response-shape": "edit-provider",
     "local-history": "retry",
+    "internal": "retry",
 }
 
 TRANSIENT_CODES: frozenset[ErrorCode] = frozenset({"offline", "timeout", "rate-limited"})

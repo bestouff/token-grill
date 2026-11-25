@@ -34,6 +34,7 @@ from tokengrill.providers.antigravity.normalize import (
 from tokengrill.providers.base import CollectorContext
 from tokengrill.providers.registry import create_collectors
 from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 
 # --- antigravity.test.mjs
@@ -273,6 +274,7 @@ def make_ctx(tmp_path: Path, transport: httpx.MockTransport, recorder: Recorder 
         pricing={},
         aggregates=AggregateStore(tmp_path / "agg.json"),
         checkpoints=CheckpointStore(tmp_path / "cp.json"),
+        balances=BalanceStore(tmp_path / "balances.json"),
         on_source=lambda source, result: rec.sources.append((source, result)),
     )
 

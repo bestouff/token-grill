@@ -75,19 +75,19 @@ class CollectorContext:
         pricing: PricingCatalog,
         aggregates: AggregateStore,
         checkpoints: CheckpointStore,
+        balances: BalanceStore,
         on_phase: Callable[[RefreshPhase], None] = _ignore_phase,
         on_source: Callable[[RefreshSource, SourceResult], None] = _ignore_source,
         on_record: Callable[[str, str], None] = _ignore_record,
         manual: bool = False,
         history_enabled: bool = True,
-        balances: BalanceStore | None = None,
     ) -> None:
         self.http = RecordedHttp(http, self.record)
         self.pricing = pricing
         self.aggregates = aggregates
         self.checkpoints = checkpoints
         # The full amount of each prepaid account; only balance collectors use it.
-        self.balances = balances if balances is not None else BalanceStore()
+        self.balances = balances
         # True when the user explicitly asked for this refresh.
         self.manual = manual
         # History scans run only while a shell client is connected.
