@@ -28,11 +28,6 @@
             <summary>Notification step</summary>
             <description>Percentage of the limit between two usage notifications for the same account.</description>
         </key>
-        <key name="notification-test-request" type="s">
-            <default>''</default>
-            <summary>Test notification request</summary>
-            <description>Transient request written by Preferences: a JSON object with the account identifier and a nonce. The running extension sends one test notification per nonce.</description>
-        </key>
         <key name="active-provider-id" type="s">
             <default>''</default>
             <summary>Active account</summary>

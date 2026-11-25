@@ -14,6 +14,10 @@ const targets = [
 const staleShellVersion = finding => finding.rule_id === 'EGO-M-004' &&
     metadata['shell-version'].every(version => /^\d+$/.test(version) && Number(version) <= 51);
 
+// PRACTICES LE-6: the clipboard use of the setup Copy button is declared in the metadata description.
+const clipboardCopy = finding => finding.rule_id === 'EGO-A-005' &&
+    JSON.stringify(finding).includes('shell/serviceCard.js');
+
 let failed = false;
 for (const target of targets) {
     const result = spawnSync('uvx', [
@@ -43,8 +47,9 @@ for (const target of targets) {
         failed = true;
         continue;
     }
-    const accepted = report.findings.filter(staleShellVersion);
-    const findings = report.findings.filter(finding => !staleShellVersion(finding));
+    const isAccepted = finding => staleShellVersion(finding) || clipboardCopy(finding);
+    const accepted = report.findings.filter(isAccepted);
+    const findings = report.findings.filter(finding => !isAccepted(finding));
     if (findings.length > 0) {
         console.error(`${label}: ${findings.length} Shexli finding${findings.length === 1 ? '' : 's'}.`);
         for (const finding of findings)

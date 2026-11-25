@@ -112,30 +112,6 @@ test('local history is offered only for the service app of an account', async ()
     assert.match(account, /if \(metadata\.localHistorySupported && provider\.app === metadata\.apps\[0\]\) \{/);
 });
 
-test('provider HTTP requests are bounded and cannot follow redirects', async () => {
-    const source = await read('src/providers/base.ts');
-    assert.match(source, /Soup\.MessageFlags\.NO_REDIRECT/);
-    assert.match(source, /MAX_RESPONSE_BYTES = 1024 \* 1024/);
-    assert.match(source, /uri\.get_scheme\(\) !== 'https'/);
-    assert.match(source, /ALLOWED_HOSTS\.has\(host\)/);
-    assert.match(source, /\.\.\.KIRO_SERVICE_HOSTS/);
-    assert.doesNotMatch(source, /'User-Agent'/);
-    assert.match(source, /const status = message\.status_code;/, 'GJS throws for status codes missing from Soup.Status, such as 429');
-    assert.doesNotMatch(source, /get_status\(\)\s*;/);
-    assert.match(source, /export const USER_AGENT = 'TokenGrill \(\+https:\/\/github\.com\/sh02sahil\/token-grill; [^']*Antigravity[^']*\)'/);
-});
-
-test('persisted state uses private permissions and bounded regular files', async () => {
-    const source = await read('src/storage/atomicJson.ts');
-    assert.match(source, /Gio\.FileType\.REGULAR/);
-    assert.match(source, /MAX_STATE_BYTES = 4 \* 1024 \* 1024/);
-    assert.match(source, /info\.get_size\(\) > MAX_STATE_BYTES/);
-    assert.match(source, /Gio\.FileCreateFlags\.PRIVATE/);
-    assert.match(source, /set_attribute_uint32\('unix::mode', 0o600\)/);
-    assert.match(source, /set_attributes_async/);
-    assert.doesNotMatch(source, /GLib\.chmod|replace_contents\(/);
-});
-
 // The service decides when an alert is due, so the Shell keeps no milestone state.
 test('notifications keep no alert state of their own', async () => {
     const [source, policy] = await Promise.all([read('src/shell/notifications.ts'), read('src/core/notificationPolicy.ts')]);
@@ -367,21 +343,6 @@ test('runtime releases all lifecycle-owned references during stop', async () => 
     assert.match(stop, /this\._settings!\.disconnect\(this\._settingsChangedId!?\)/);
 });
 
-test('store writes are serialized and cancellation bypasses provider failures', async () => {
-    const [atomic, aggregate, checkpoint, base] = await Promise.all([
-        read('src/storage/atomicJson.ts'),
-        read('src/storage/aggregateStore.ts'),
-        read('src/storage/checkpointStore.ts'),
-        read('src/providers/base.ts'),
-    ]);
-    assert.match(atomic, /this\._pending = this\._pending\.then\(write, write\)/);
-    assert.match(atomic, /this\._dirty = true;\s*throw error;/);
-    for (const source of [aggregate, checkpoint])
-        assert.match(source, /new SerialWriter\(/);
-    assert.match(base, /if \(!\(error instanceof CollectorError\)\)\s*throw error/);
-    assert.doesNotMatch(aggregate + checkpoint, /\.catch\(\(\) => \{\}\)/);
-});
-
 test('review artifacts exclude compiled schemas and use the pinned Shexli runner', async () => {
     const [build, install, release, checker] = await Promise.all([
         read('tools/build.mjs'),
@@ -423,21 +384,7 @@ test('the diagnostics report comes from the service, is saved privately, and clo
     assert.match(widgets, /Gtk\.DialogError\.DISMISSED/);
 });
 
-// A plain lookup unlocks a locked match, which would show a password prompt during a background refresh.
-test('keyring reads search without unlocking, and locked items count as unavailable', async () => {
-    const source = await read('src/providers/keyring.ts');
-    assert.match(source, /service\.search\(schema, attributes, Secret\.SearchFlags\.LOAD_SECRETS, lookup\)/);
-    const code = source.replace(/\/\/.*$/gm, '');
-    assert.doesNotMatch(code, /SearchFlags\.UNLOCK|password_lookup\(|\.unlock\(/);
-    assert.match(source, /items\.find\(item => !item\.get_locked\(\)\)/);
-});
 
-// EGO review of 0.3.2: Secret is always present, so it is a static import with its version (I-7).
-test('Secret is imported at the top of the file, never on demand', async () => {
-    const keyring = await read('src/providers/keyring.ts');
-    assert.match(keyring, /^import Secret from 'gi:\/\/Secret\?version=1';$/m);
-    assert.doesNotMatch(keyring, /import\('gi:\/\/Secret/);
-});
 
 test('rings stop at three', async () => {
     const topBar = await read('src/shell/topBar.ts');

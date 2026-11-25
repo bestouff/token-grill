@@ -8,8 +8,6 @@
         "build": "node tools/build.mjs",
         "check": "tsc --noEmit && eslint src tools tests eslint.config.js",
         "test": "node tools/test-build.mjs && node --test tests/unit/*.test.mjs",
-        "test:gda": "npm run build && gjs -m tools/gda-test.js",
-        "test:live": "npm run build && gjs -m tools/live-smoke.js",
         "install:local": "node tools/install.mjs",
         "dev:shell": "bash tools/nested-shell.sh",
         "try": "bash tools/try.sh",
@@ -18,11 +16,8 @@
         "review:check": "npm run pack && node tools/shexli-check.mjs"
     },
     "devDependencies": {
-        "@girs/gda-5.0": "^4.1.0",
         "@girs/gjs": "^4.9.0",
         "@girs/gnome-shell": "^50.0.4",
-        "@girs/secret-1": "^4.1.0",
-        "@girs/soup-3.0": "^4.1.0",
         "esbuild": "^0.28.2",
         "eslint": "^9.0.0",
         "eslint-config-gnome": "git+https://gitlab.gnome.org/World/javascript/eslint-config-gnome.git#c479d059e8d9ea99c3b53c2ea43abf7fdb05eb51",

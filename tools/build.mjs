@@ -31,7 +31,6 @@ const copies = [
     ['LICENSE', 'LICENSE'],
     ['resources/stylesheet.css', 'stylesheet.css'],
     ['resources/prefs.css', 'prefs.css'],
-    ['resources/pricing/pricing-v1.json', 'pricing-v1.json'],
     ['resources/icons/token-grill-symbolic.svg', 'token-grill-symbolic.svg'],
     ['schemas/org.gnome.shell.extensions.tokengrill.gschema.xml', 'schemas/org.gnome.shell.extensions.tokengrill.gschema.xml'],
 ];

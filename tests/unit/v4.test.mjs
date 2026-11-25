@@ -1,30 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeResetCredits} from '../../build/tests/reset-credits-normalize.mjs';
 import {durationUntil, formatDuration} from '../../build/tests/time-math.mjs';
 import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
-
-test('reset credits preserve authoritative count and earliest expiry', () => {
-    const result = normalizeResetCredits({
-        available_count: 4,
-        credits: [
-            {status: 'available', title: 'Full reset', expires_at: 1784246400},
-            {status: 'redeemed', title: 'Used', expires_at: 1781000000},
-            {status: 'available', title: 'Referral', expires_at: 1783000000},
-        ],
-    }, 1000);
-    assert.equal(result.availableCount, 4);
-    assert.deepEqual(result.credits, [
-        {title: 'Full reset', expiresAt: 1784246400000},
-        {title: 'Referral', expiresAt: 1783000000000},
-    ]);
-});
-
-test('reset credits preserve a zero authoritative count without inventing rows', () => {
-    const result = normalizeResetCredits({available_count: 0, total_earned_count: 3, credits: []}, 1000);
-    assert.equal(result.availableCount, 0);
-    assert.deepEqual(result.credits, []);
-});
 
 test('reset countdown uses days only when needed', () => {
     const format = (ms, compact = false) => formatDuration(UNTRANSLATED, durationUntil(ms, 0), compact);
