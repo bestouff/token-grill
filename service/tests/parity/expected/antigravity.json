@@ -1,0 +1,132 @@
+{
+  "plan-current-tier": {
+    "value": "Antigravity Pro"
+  },
+  "plan-no-current-tier": {
+    "value": null
+  },
+  "plan-null": {
+    "value": null
+  },
+  "buckets-flatten": {
+    "value": [
+      {
+        "canonicalWindow": "weekly",
+        "remainingFraction": 0.64553386,
+        "resetAt": 1789402649000
+      },
+      {
+        "canonicalWindow": "five-hour",
+        "remainingFraction": 0.9877525,
+        "resetAt": 1789418558000
+      },
+      {
+        "canonicalWindow": "weekly",
+        "remainingFraction": 1,
+        "resetAt": 1790006739000
+      },
+      {
+        "canonicalWindow": "five-hour",
+        "remainingFraction": 1,
+        "resetAt": 1789419939000
+      }
+    ]
+  },
+  "buckets-null": {
+    "value": []
+  },
+  "buckets-groups-not-list": {
+    "value": []
+  },
+  "buckets-unknown-window": {
+    "value": []
+  },
+  "buckets-bad-fraction": {
+    "value": []
+  },
+  "summary-one-window-per-canonical": {
+    "value": [
+      {
+        "id": "weekly",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.35446614,
+        "resetAt": 1789402649000,
+        "durationSeconds": 604800,
+        "unit": null
+      },
+      {
+        "id": "five-hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.012247499999999967,
+        "resetAt": 1789418558000,
+        "durationSeconds": 18000,
+        "unit": null
+      }
+    ]
+  },
+  "summary-tie-earliest-reset": {
+    "value": [
+      {
+        "id": "weekly",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0,
+        "resetAt": 1789689600000,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "summary-null": {
+    "value": []
+  },
+  "summary-missing-reset": {
+    "value": [
+      {
+        "id": "five-hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.5,
+        "resetAt": null,
+        "durationSeconds": 18000,
+        "unit": null
+      }
+    ]
+  },
+  "summary-fraction-out-of-range": {
+    "value": [
+      {
+        "id": "weekly",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0,
+        "resetAt": 1789402649000,
+        "durationSeconds": 604800,
+        "unit": null
+      },
+      {
+        "id": "five-hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 1,
+        "resetAt": null,
+        "durationSeconds": 18000,
+        "unit": null
+      }
+    ]
+  }
+}

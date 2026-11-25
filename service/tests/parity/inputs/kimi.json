@@ -1,0 +1,153 @@
+[
+  {
+    "name": "described-layout",
+    "kind": "usage",
+    "payload": {
+      "usage": {
+        "limit": "1000",
+        "used": "250",
+        "remaining": "750",
+        "resetTime": "2026-11-16T00:00:00Z"
+      },
+      "limits": [
+        {
+          "window": {
+            "duration": 300,
+            "timeUnit": "MINUTE"
+          },
+          "detail": {
+            "limit": "100",
+            "remaining": "60",
+            "resetTime": "2026-11-10T05:00:00Z"
+          }
+        },
+        {
+          "name": "Daily",
+          "window": {
+            "duration": 1,
+            "timeUnit": "DAY"
+          },
+          "detail": {
+            "limit": "50",
+            "used": "5"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "ratio-layout",
+    "kind": "usage",
+    "payload": {
+      "usages": {
+        "limit_5h": {
+          "used_ratio": 0.3,
+          "reset_time": "2026-11-10T05:00:00Z"
+        },
+        "limit_7d": {
+          "used_ratio": 0.5
+        },
+        "limit_month_total": {
+          "used_ratio": "0.7"
+        }
+      }
+    }
+  },
+  {
+    "name": "ratio-layout-durations",
+    "kind": "usage",
+    "payload": {
+      "usages": {
+        "limit_5h": {
+          "used_ratio": 0.3
+        },
+        "limit_7d": {
+          "used_ratio": 0.3
+        },
+        "limit_month_total": {
+          "used_ratio": 0.3,
+          "reset_time": "2026-12-01T00:00:00Z"
+        }
+      }
+    }
+  },
+  {
+    "name": "empty",
+    "kind": "usage",
+    "payload": {}
+  },
+  {
+    "name": "zero-limit",
+    "kind": "usage",
+    "payload": {
+      "usage": {
+        "limit": "0",
+        "used": "0"
+      }
+    }
+  },
+  {
+    "name": "second-window-same-type",
+    "kind": "usage",
+    "payload": {
+      "limits": [
+        {
+          "name": "Chat",
+          "window": {
+            "duration": 300,
+            "timeUnit": "MINUTE"
+          },
+          "detail": {
+            "limit": 100,
+            "used": 10
+          }
+        },
+        {
+          "name": "Agent",
+          "window": {
+            "duration": 5,
+            "timeUnit": "HOUR"
+          },
+          "detail": {
+            "limit": 100,
+            "used": 10
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "ratio-clamped",
+    "kind": "usage",
+    "payload": {
+      "usages": {
+        "limit_5h": {
+          "used_ratio": 1.4
+        },
+        "limit_7d": {
+          "used_ratio": -1
+        }
+      }
+    }
+  },
+  {
+    "name": "not-a-record",
+    "kind": "usage",
+    "payload": null
+  },
+  {
+    "name": "host-default",
+    "kind": "api_host",
+    "payload": ""
+  },
+  {
+    "name": "host-kimi-ai",
+    "kind": "api_host",
+    "payload": "[providers.\"managed:kimi-code\"]\nbase_url = \"https://api.kimi.ai/coding/v1\"\n"
+  },
+  {
+    "name": "host-kimi-com-configured",
+    "kind": "api_host",
+    "payload": "[providers.\"managed:kimi-code\"]\nbase_url = \"https://api.kimi.com/coding/v1\"\n"
+  }
+]

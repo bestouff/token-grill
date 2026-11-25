@@ -1,0 +1,276 @@
+{
+  "canonical-windows-and-iso-reset": {
+    "value": [
+      {
+        "id": "five_hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.68,
+        "resetAt": 1786104000000,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "seven_day",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.12,
+        "resetAt": 1786622400000,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "percentage-points-low": {
+    "value": [
+      {
+        "id": "five_hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.01,
+        "resetAt": null,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "seven_day",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.004,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "limits-fill-missing-legacy": {
+    "value": [
+      {
+        "id": "five_hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.01,
+        "resetAt": 1791896400032,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "limits:weekly_scoped:Fable",
+        "canonicalWindow": "weekly",
+        "label": "Weekly - Fable",
+        "used": null,
+        "limit": null,
+        "percent": 0,
+        "resetAt": 1792465200000,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "limits-unscoped-weekly-and-scoped": {
+    "value": [
+      {
+        "id": "limits:weekly",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.3,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      },
+      {
+        "id": "limits:weekly_scoped:Fable",
+        "canonicalWindow": "other",
+        "label": "Weekly - Fable",
+        "used": null,
+        "limit": null,
+        "percent": 0.8,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "scoped-kept-with-legacy-weekly": {
+    "value": [
+      {
+        "id": "five_hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.29,
+        "resetAt": 1794506400000,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "seven_day",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.35,
+        "resetAt": 1794970800000,
+        "durationSeconds": 604800,
+        "unit": null
+      },
+      {
+        "id": "limits:weekly_scoped:Fable",
+        "canonicalWindow": "other",
+        "label": "Weekly - Fable",
+        "used": null,
+        "limit": null,
+        "percent": 0.29,
+        "resetAt": 1794970800000,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "scoped-not-repeated-by-legacy-model-key": {
+    "value": [
+      {
+        "id": "seven_day_opus",
+        "canonicalWindow": "other",
+        "label": "seven day opus",
+        "used": null,
+        "limit": null,
+        "percent": 0.1,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "window-lengths": {
+    "value": [
+      {
+        "id": "five_hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.1,
+        "resetAt": 1795532400000,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "seven_day",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.2,
+        "resetAt": 1795834800000,
+        "durationSeconds": 604800,
+        "unit": null
+      },
+      {
+        "id": "limits:weekly_scoped:Fable",
+        "canonicalWindow": "other",
+        "label": "Weekly - Fable",
+        "used": null,
+        "limit": null,
+        "percent": 0.05,
+        "resetAt": 1795834800000,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "legacy-model-keys": {
+    "value": [
+      {
+        "id": "seven_day_opus",
+        "canonicalWindow": "other",
+        "label": "seven day opus",
+        "used": null,
+        "limit": null,
+        "percent": 0.07,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      },
+      {
+        "id": "seven_day_sonnet",
+        "canonicalWindow": "other",
+        "label": "seven day sonnet",
+        "used": null,
+        "limit": null,
+        "percent": 0.44,
+        "resetAt": 1794970800000,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "clamped-utilization": {
+    "value": [
+      {
+        "id": "five_hour",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 1,
+        "resetAt": null,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "seven_day",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "empty": {
+    "value": []
+  },
+  "not-a-record": {
+    "value": []
+  },
+  "event-assistant": {
+    "value": {
+      "capturedAt": 1786064400000,
+      "model": "claude-sonnet",
+      "totals": {
+        "input": 3,
+        "output": 7,
+        "cachedInput": 100,
+        "cacheWrite": 20,
+        "reasoning": 0,
+        "total": 10
+      }
+    }
+  },
+  "event-user-no-usage": {
+    "value": null
+  },
+  "event-bad-timestamp": {
+    "value": null
+  },
+  "event-truncated": {
+    "value": null
+  }
+}

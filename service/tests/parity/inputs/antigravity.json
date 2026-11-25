@@ -1,0 +1,235 @@
+[
+  {
+    "name": "plan-current-tier",
+    "kind": "plan",
+    "payload": {
+      "currentTier": {
+        "id": "standard-tier",
+        "name": "Antigravity Pro"
+      }
+    }
+  },
+  {
+    "name": "plan-no-current-tier",
+    "kind": "plan",
+    "payload": {
+      "allowedTiers": [],
+      "ineligibleTiers": []
+    }
+  },
+  {
+    "name": "plan-null",
+    "kind": "plan",
+    "payload": null
+  },
+  {
+    "name": "buckets-flatten",
+    "kind": "buckets",
+    "payload": {
+      "groups": [
+        {
+          "displayName": "Gemini Models",
+          "description": "Models within this group: Gemini Flash, Gemini Pro",
+          "buckets": [
+            {
+              "bucketId": "gemini-weekly",
+              "displayName": "Weekly Limit Remaining",
+              "window": "weekly",
+              "resetTime": "2026-09-14T16:17:29Z",
+              "remainingFraction": 0.64553386
+            },
+            {
+              "bucketId": "gemini-5h",
+              "displayName": "Five Hour Limit Remaining",
+              "window": "5h",
+              "resetTime": "2026-09-14T20:42:38Z",
+              "remainingFraction": 0.9877525
+            }
+          ]
+        },
+        {
+          "displayName": "Claude and GPT models",
+          "buckets": [
+            {
+              "bucketId": "3p-weekly",
+              "displayName": "Weekly Limit Remaining",
+              "window": "weekly",
+              "resetTime": "2026-09-21T16:05:39Z",
+              "remainingFraction": 1
+            },
+            {
+              "bucketId": "3p-5h",
+              "displayName": "Five Hour Limit Remaining",
+              "window": "5h",
+              "resetTime": "2026-09-14T21:05:39Z",
+              "remainingFraction": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "buckets-null",
+    "kind": "buckets",
+    "payload": null
+  },
+  {
+    "name": "buckets-groups-not-list",
+    "kind": "buckets",
+    "payload": {
+      "groups": "nope"
+    }
+  },
+  {
+    "name": "buckets-unknown-window",
+    "kind": "buckets",
+    "payload": {
+      "groups": [
+        {
+          "buckets": [
+            {
+              "window": "hourly",
+              "remainingFraction": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "buckets-bad-fraction",
+    "kind": "buckets",
+    "payload": {
+      "groups": [
+        {
+          "buckets": [
+            {
+              "window": "weekly",
+              "remainingFraction": "high"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "summary-one-window-per-canonical",
+    "kind": "usage",
+    "payload": {
+      "groups": [
+        {
+          "displayName": "Gemini Models",
+          "description": "Models within this group: Gemini Flash, Gemini Pro",
+          "buckets": [
+            {
+              "bucketId": "gemini-weekly",
+              "displayName": "Weekly Limit Remaining",
+              "window": "weekly",
+              "resetTime": "2026-09-14T16:17:29Z",
+              "remainingFraction": 0.64553386
+            },
+            {
+              "bucketId": "gemini-5h",
+              "displayName": "Five Hour Limit Remaining",
+              "window": "5h",
+              "resetTime": "2026-09-14T20:42:38Z",
+              "remainingFraction": 0.9877525
+            }
+          ]
+        },
+        {
+          "displayName": "Claude and GPT models",
+          "buckets": [
+            {
+              "bucketId": "3p-weekly",
+              "displayName": "Weekly Limit Remaining",
+              "window": "weekly",
+              "resetTime": "2026-09-21T16:05:39Z",
+              "remainingFraction": 1
+            },
+            {
+              "bucketId": "3p-5h",
+              "displayName": "Five Hour Limit Remaining",
+              "window": "5h",
+              "resetTime": "2026-09-14T21:05:39Z",
+              "remainingFraction": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "summary-tie-earliest-reset",
+    "kind": "usage",
+    "payload": {
+      "groups": [
+        {
+          "displayName": "Group A",
+          "buckets": [
+            {
+              "bucketId": "a-weekly",
+              "window": "weekly",
+              "resetTime": "2026-09-20T00:00:00Z",
+              "remainingFraction": 1
+            }
+          ]
+        },
+        {
+          "displayName": "Group B",
+          "buckets": [
+            {
+              "bucketId": "b-weekly",
+              "window": "weekly",
+              "resetTime": "2026-09-18T00:00:00Z",
+              "remainingFraction": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "summary-null",
+    "kind": "usage",
+    "payload": null
+  },
+  {
+    "name": "summary-missing-reset",
+    "kind": "usage",
+    "payload": {
+      "groups": [
+        {
+          "buckets": [
+            {
+              "window": "5h",
+              "remainingFraction": 0.5
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "summary-fraction-out-of-range",
+    "kind": "usage",
+    "payload": {
+      "groups": [
+        {
+          "buckets": [
+            {
+              "window": "weekly",
+              "remainingFraction": 1.5,
+              "resetTime": "2026-09-14T16:17:29Z"
+            },
+            {
+              "window": "5h",
+              "remainingFraction": -0.2
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

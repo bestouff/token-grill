@@ -1,0 +1,301 @@
+[
+  {
+    "name": "weekly-only",
+    "kind": "usage",
+    "payload": {
+      "plan_type": "plus",
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 26,
+          "limit_window_seconds": 604800,
+          "reset_after_seconds": 535574,
+          "reset_at": 1786598031
+        }
+      }
+    }
+  },
+  {
+    "name": "duration-identifies-windows",
+    "kind": "usage",
+    "payload": {
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 40,
+          "limit_window_seconds": 18000
+        },
+        "secondary_window": {
+          "used_percent": 100,
+          "limit_window_seconds": 604800
+        }
+      }
+    }
+  },
+  {
+    "name": "one-percent",
+    "kind": "usage",
+    "payload": {
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 1,
+          "limit_window_seconds": 604800
+        }
+      }
+    }
+  },
+  {
+    "name": "fractional-percent",
+    "kind": "usage",
+    "payload": {
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 0.4,
+          "limit_window_seconds": 604800
+        }
+      }
+    }
+  },
+  {
+    "name": "clamping",
+    "kind": "usage",
+    "payload": {
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": -5,
+          "limit_window_seconds": 18000
+        },
+        "secondary_window": {
+          "used_percent": 150,
+          "limit_window_seconds": 604800
+        }
+      }
+    }
+  },
+  {
+    "name": "model-limits-after-account",
+    "kind": "usage",
+    "payload": {
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 10,
+          "limit_window_seconds": 18000
+        }
+      },
+      "additional_rate_limits": [
+        {
+          "limit_name": "GPT-5.6 Sol",
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": 50,
+              "limit_window_seconds": 86400
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "model-limits-stable-ids",
+    "kind": "usage",
+    "payload": {
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 10,
+          "limit_window_seconds": 18000,
+          "reset_at": 1794200000
+        },
+        "secondary_window": {
+          "used_percent": 20,
+          "limit_window_seconds": 604800,
+          "reset_at": 1794200000
+        }
+      },
+      "additional_rate_limits": [
+        {
+          "limit_name": "Spark",
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": 30,
+              "limit_window_seconds": 18000,
+              "reset_at": 1794200000
+            },
+            "secondary_window": {
+              "used_percent": 40,
+              "limit_window_seconds": 604800,
+              "reset_at": 1794200000
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "model-limits-reordered",
+    "kind": "usage",
+    "payload": {
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 10,
+          "limit_window_seconds": 18000,
+          "reset_at": 1794200000
+        },
+        "secondary_window": {
+          "used_percent": 20,
+          "limit_window_seconds": 604800,
+          "reset_at": 1794200000
+        }
+      },
+      "additional_rate_limits": [
+        {
+          "limit_name": "Other",
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": 5,
+              "limit_window_seconds": 86400,
+              "reset_at": 1794200000
+            }
+          }
+        },
+        {
+          "limit_name": "Spark",
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": 30,
+              "limit_window_seconds": 18000,
+              "reset_at": 1794200000
+            },
+            "secondary_window": {
+              "used_percent": 40,
+              "limit_window_seconds": 604800,
+              "reset_at": 1794200000
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "reset-after-seconds-only",
+    "kind": "usage",
+    "payload": {
+      "plan_type": "pro",
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 12.5,
+          "limit_window_seconds": 18000,
+          "reset_after_seconds": 3600
+        }
+      }
+    }
+  },
+  {
+    "name": "no-windows",
+    "kind": "usage",
+    "payload": {
+      "plan_type": "free"
+    }
+  },
+  {
+    "name": "not-a-record",
+    "kind": "usage",
+    "payload": null
+  },
+  {
+    "name": "unknown-duration",
+    "kind": "usage",
+    "payload": {
+      "rate_limit": {
+        "primary_window": {
+          "used_percent": 33
+        }
+      }
+    }
+  },
+  {
+    "name": "reset-credits-count-and-expiry",
+    "kind": "reset_credits",
+    "payload": {
+      "available_count": 4,
+      "credits": [
+        {
+          "status": "available",
+          "title": "Full reset",
+          "expires_at": 1784246400
+        },
+        {
+          "status": "redeemed",
+          "title": "Used",
+          "expires_at": 1781000000
+        },
+        {
+          "status": "available",
+          "title": "Referral",
+          "expires_at": 1783000000
+        }
+      ]
+    },
+    "now": 1000
+  },
+  {
+    "name": "reset-credits-zero-count",
+    "kind": "reset_credits",
+    "payload": {
+      "available_count": 0,
+      "total_earned_count": 3,
+      "credits": []
+    },
+    "now": 1000
+  },
+  {
+    "name": "reset-credits-no-count",
+    "kind": "reset_credits",
+    "payload": {
+      "credits": [
+        {
+          "title": "Old",
+          "expires_at": 1783000000
+        },
+        {
+          "title": "Gone",
+          "redeemed_at": 1782000000
+        }
+      ]
+    },
+    "now": 2000
+  },
+  {
+    "name": "reset-credits-not-a-record",
+    "kind": "reset_credits",
+    "payload": null,
+    "now": 1000
+  },
+  {
+    "name": "event-last-turn",
+    "kind": "usage_event",
+    "payload": "{\"timestamp\": \"2026-08-07T00:00:00Z\", \"type\": \"event_msg\", \"payload\": {\"type\": \"token_count\", \"info\": {\"last_token_usage\": {\"input_tokens\": 10, \"cached_input_tokens\": 4, \"output_tokens\": 5, \"reasoning_output_tokens\": 2, \"total_tokens\": 15}, \"total_token_usage\": {\"input_tokens\": 999}}}}"
+  },
+  {
+    "name": "event-total-derived",
+    "kind": "usage_event",
+    "payload": "{\"timestamp\": \"2026-08-07T00:00:00Z\", \"type\": \"event_msg\", \"payload\": {\"type\": \"token_count\", \"info\": {\"last_token_usage\": {\"input_tokens\": 10, \"output_tokens\": 5}, \"total_token_usage\": {\"input_tokens\": 999}}}}"
+  },
+  {
+    "name": "event-not-token-count",
+    "kind": "usage_event",
+    "payload": "{\"type\": \"response_item\", \"payload\": {\"type\": \"message\", \"text\": \"\\\"token_count\\\"\"}}"
+  },
+  {
+    "name": "event-null-info",
+    "kind": "usage_event",
+    "payload": "{\"type\": \"event_msg\", \"payload\": {\"type\": \"token_count\", \"info\": null}}"
+  },
+  {
+    "name": "event-zero-usage",
+    "kind": "usage_event",
+    "payload": "{\"timestamp\": \"2026-08-07T00:00:00Z\", \"type\": \"event_msg\", \"payload\": {\"type\": \"token_count\", \"info\": {\"last_token_usage\": {\"input_tokens\": 0, \"output_tokens\": 0}, \"total_token_usage\": {\"input_tokens\": 999}}}}"
+  },
+  {
+    "name": "event-truncated",
+    "kind": "usage_event",
+    "payload": "{\"token_count\": truncated"
+  }
+]

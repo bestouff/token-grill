@@ -1,0 +1,35 @@
+{
+  "first-finite-balance": {
+    "value": {
+      "amount": 12.4,
+      "currency": "USD"
+    }
+  },
+  "numeric-amount": {
+    "value": {
+      "amount": 42.1,
+      "currency": "CNY"
+    }
+  },
+  "empty-infos-error": {
+    "error": "response-shape"
+  },
+  "empty-payload-error": {
+    "error": "response-shape"
+  },
+  "settings-deepseek": {
+    "value": "sk-deepseek"
+  },
+  "settings-anthropic": {
+    "value": null
+  },
+  "settings-lookalike-host": {
+    "value": null
+  },
+  "settings-empty": {
+    "value": null
+  },
+  "settings-no-token": {
+    "value": null
+  }
+}

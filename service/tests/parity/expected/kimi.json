@@ -1,0 +1,183 @@
+{
+  "described-layout": {
+    "value": [
+      {
+        "id": "usage",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.25,
+        "resetAt": 1794787200000,
+        "durationSeconds": null,
+        "unit": null
+      },
+      {
+        "id": "limit-0",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.4,
+        "resetAt": 1794286800000,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "limit-1",
+        "canonicalWindow": "other",
+        "label": "Daily",
+        "used": null,
+        "limit": null,
+        "percent": 0.1,
+        "resetAt": null,
+        "durationSeconds": 86400,
+        "unit": null
+      }
+    ]
+  },
+  "ratio-layout": {
+    "value": [
+      {
+        "id": "limit_5h",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.3,
+        "resetAt": 1794286800000,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "limit_7d",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.5,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      },
+      {
+        "id": "limit_month_total",
+        "canonicalWindow": "monthly",
+        "label": "Monthly",
+        "used": null,
+        "limit": null,
+        "percent": 0.7,
+        "resetAt": null,
+        "durationSeconds": null,
+        "unit": null
+      }
+    ]
+  },
+  "ratio-layout-durations": {
+    "value": [
+      {
+        "id": "limit_5h",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.3,
+        "resetAt": null,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "limit_7d",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0.3,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      },
+      {
+        "id": "limit_month_total",
+        "canonicalWindow": "monthly",
+        "label": "Monthly",
+        "used": null,
+        "limit": null,
+        "percent": 0.3,
+        "resetAt": 1796083200000,
+        "durationSeconds": 2592000,
+        "unit": null
+      }
+    ]
+  },
+  "empty": {
+    "value": []
+  },
+  "zero-limit": {
+    "value": []
+  },
+  "second-window-same-type": {
+    "value": [
+      {
+        "id": "limit-0",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.1,
+        "resetAt": null,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "limit-1",
+        "canonicalWindow": "other",
+        "label": "Agent - Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 0.1,
+        "resetAt": null,
+        "durationSeconds": 18000,
+        "unit": null
+      }
+    ]
+  },
+  "ratio-clamped": {
+    "value": [
+      {
+        "id": "limit_5h",
+        "canonicalWindow": "five-hour",
+        "label": "Five-hour",
+        "used": null,
+        "limit": null,
+        "percent": 1,
+        "resetAt": null,
+        "durationSeconds": 18000,
+        "unit": null
+      },
+      {
+        "id": "limit_7d",
+        "canonicalWindow": "weekly",
+        "label": "Weekly",
+        "used": null,
+        "limit": null,
+        "percent": 0,
+        "resetAt": null,
+        "durationSeconds": 604800,
+        "unit": null
+      }
+    ]
+  },
+  "not-a-record": {
+    "value": []
+  },
+  "host-default": {
+    "value": "api.kimi.com"
+  },
+  "host-kimi-ai": {
+    "value": "api.kimi.ai"
+  },
+  "host-kimi-com-configured": {
+    "value": "api.kimi.com"
+  }
+}

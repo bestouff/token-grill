@@ -1,0 +1,149 @@
+{
+  "precision-credit-usage": {
+    "value": {
+      "plan": "KIRO PRO+",
+      "account": null,
+      "windows": [
+        {
+          "id": "monthly-credits",
+          "canonicalWindow": "monthly",
+          "label": "Monthly credits",
+          "used": 0.04,
+          "limit": 2000,
+          "percent": 0.00002,
+          "resetAt": 1788192000000,
+          "durationSeconds": 2678400,
+          "unit": "credits"
+        }
+      ]
+    }
+  },
+  "integer-fields-response-reset": {
+    "value": {
+      "plan": null,
+      "account": null,
+      "windows": [
+        {
+          "id": "monthly-credits",
+          "canonicalWindow": "monthly",
+          "label": "Monthly credits",
+          "used": 10,
+          "limit": 100,
+          "percent": 0.1,
+          "resetAt": 1788192000000,
+          "durationSeconds": 2678400,
+          "unit": "credits"
+        }
+      ]
+    }
+  },
+  "pooled-zero-limit": {
+    "value": {
+      "plan": null,
+      "account": null,
+      "windows": [
+        {
+          "id": "monthly-credits",
+          "canonicalWindow": "monthly",
+          "label": "Monthly credits",
+          "used": 12.5,
+          "limit": 0,
+          "percent": null,
+          "resetAt": null,
+          "durationSeconds": null,
+          "unit": "credits"
+        }
+      ]
+    }
+  },
+  "over-limit-clamped": {
+    "value": {
+      "plan": null,
+      "account": null,
+      "windows": [
+        {
+          "id": "monthly-credits",
+          "canonicalWindow": "monthly",
+          "label": "Monthly credits",
+          "used": 120,
+          "limit": 100,
+          "percent": 1,
+          "resetAt": null,
+          "durationSeconds": null,
+          "unit": "credits"
+        }
+      ]
+    }
+  },
+  "non-credit-resource": {
+    "value": {
+      "windows": [],
+      "plan": null,
+      "account": null
+    }
+  },
+  "null-payload": {
+    "value": {
+      "windows": [],
+      "plan": null,
+      "account": null
+    }
+  },
+  "account-null-without-email": {
+    "value": {
+      "plan": null,
+      "account": null,
+      "windows": [
+        {
+          "id": "monthly-credits",
+          "canonicalWindow": "monthly",
+          "label": "Monthly credits",
+          "used": 1,
+          "limit": 2,
+          "percent": 0.5,
+          "resetAt": null,
+          "durationSeconds": null,
+          "unit": "credits"
+        }
+      ]
+    }
+  },
+  "account-and-plan-type-fallback": {
+    "value": {
+      "plan": "FREE",
+      "account": "user@example.com",
+      "windows": [
+        {
+          "id": "monthly-credits",
+          "canonicalWindow": "monthly",
+          "label": "Monthly credits",
+          "used": 5,
+          "limit": 50,
+          "percent": 0.1,
+          "resetAt": 1796083200000,
+          "durationSeconds": 2592000,
+          "unit": "credits"
+        }
+      ]
+    }
+  },
+  "only-limit": {
+    "value": {
+      "plan": null,
+      "account": null,
+      "windows": [
+        {
+          "id": "monthly-credits",
+          "canonicalWindow": "monthly",
+          "label": "Monthly credits",
+          "used": null,
+          "limit": 50,
+          "percent": null,
+          "resetAt": null,
+          "durationSeconds": null,
+          "unit": "credits"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,93 @@
+[
+  {
+    "name": "first-finite-balance",
+    "kind": "balance",
+    "payload": {
+      "is_available": true,
+      "balance_infos": [
+        {
+          "currency": "CNY",
+          "total_balance": "not a number",
+          "granted_balance": "0",
+          "topped_up_balance": "0"
+        },
+        {
+          "currency": "USD",
+          "total_balance": "12.40",
+          "granted_balance": "0.00",
+          "topped_up_balance": "12.40"
+        }
+      ]
+    }
+  },
+  {
+    "name": "numeric-amount",
+    "kind": "balance",
+    "payload": {
+      "is_available": true,
+      "balance_infos": [
+        {
+          "currency": "CNY",
+          "total_balance": 42.1
+        }
+      ]
+    }
+  },
+  {
+    "name": "empty-infos-error",
+    "kind": "balance",
+    "payload": {
+      "is_available": true,
+      "balance_infos": []
+    }
+  },
+  {
+    "name": "empty-payload-error",
+    "kind": "balance",
+    "payload": {}
+  },
+  {
+    "name": "settings-deepseek",
+    "kind": "claude_settings_key",
+    "payload": {
+      "env": {
+        "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "sk-deepseek"
+      }
+    }
+  },
+  {
+    "name": "settings-anthropic",
+    "kind": "claude_settings_key",
+    "payload": {
+      "env": {
+        "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+        "ANTHROPIC_AUTH_TOKEN": "sk-deepseek"
+      }
+    }
+  },
+  {
+    "name": "settings-lookalike-host",
+    "kind": "claude_settings_key",
+    "payload": {
+      "env": {
+        "ANTHROPIC_BASE_URL": "https://deepseek.com.evil.example/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "sk-deepseek"
+      }
+    }
+  },
+  {
+    "name": "settings-empty",
+    "kind": "claude_settings_key",
+    "payload": {}
+  },
+  {
+    "name": "settings-no-token",
+    "kind": "claude_settings_key",
+    "payload": {
+      "env": {
+        "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic"
+      }
+    }
+  }
+]
