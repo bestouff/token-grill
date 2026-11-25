@@ -1,0 +1,103 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<!--
+  io.github.sh02sahil.TokenGrill1: the whole interface of the service. This file is the source of
+  truth; the exported object must introspect to exactly this.
+
+  Structured data crosses as JSON strings that carry "schema": 1.
+  AccountChanged carries (account_id, snapshot_json); the JSON is
+  {"schema": 1, "snapshot": <ProviderSnapshot>, "runtime": <ProviderRuntimeState>}.
+  No method or signal returns a token, a key or a file's contents.
+-->
+<node>
+  <interface name="io.github.sh02sahil.TokenGrill1">
+    <property name="ApiVersion" type="u" access="read"/>
+    <property name="ServiceVersion" type="s" access="read"/>
+
+    <method name="Hello">
+      <arg name="client" type="s" direction="in"/>
+      <arg name="state" type="s" direction="out"/>
+    </method>
+    <method name="GetState">
+      <arg name="state" type="s" direction="out"/>
+    </method>
+    <method name="Refresh">
+      <arg name="account_id" type="s" direction="in"/>
+    </method>
+    <method name="RefreshAll"/>
+    <method name="SetPaused">
+      <arg name="paused" type="b" direction="in"/>
+    </method>
+    <method name="ImportAccounts">
+      <arg name="legacy" type="s" direction="in"/>
+      <arg name="result" type="s" direction="out"/>
+    </method>
+    <method name="AddAccounts">
+      <arg name="accounts" type="s" direction="in"/>
+      <arg name="ids" type="s" direction="out"/>
+    </method>
+    <method name="UpdateAccount">
+      <arg name="account" type="s" direction="in"/>
+      <arg name="errors" type="s" direction="out"/>
+    </method>
+    <method name="RemoveAccount">
+      <arg name="id" type="s" direction="in"/>
+      <arg name="remove_key" type="b" direction="in"/>
+    </method>
+    <method name="ReorderAccounts">
+      <arg name="ids" type="as" direction="in"/>
+    </method>
+    <method name="ValidateAccount">
+      <arg name="draft" type="s" direction="in"/>
+      <arg name="errors" type="s" direction="out"/>
+    </method>
+    <method name="Discover">
+      <arg name="app" type="s" direction="in"/>
+      <arg name="candidates" type="s" direction="out"/>
+    </method>
+    <method name="CredentialState">
+      <arg name="account_id" type="s" direction="in"/>
+      <arg name="state" type="s" direction="out"/>
+    </method>
+    <method name="SaveApiKey">
+      <arg name="account_id" type="s" direction="in"/>
+      <arg name="key" type="s" direction="in"/>
+    </method>
+    <method name="ToggleLimit">
+      <arg name="account_id" type="s" direction="in"/>
+      <arg name="limit_key" type="s" direction="in"/>
+    </method>
+    <method name="SetAutomatic">
+      <arg name="account_id" type="s" direction="in"/>
+      <arg name="automatic" type="b" direction="in"/>
+    </method>
+    <method name="SetSettings">
+      <arg name="settings" type="s" direction="in"/>
+    </method>
+    <method name="SignInCommand">
+      <arg name="account_id" type="s" direction="in"/>
+      <arg name="argv" type="as" direction="out"/>
+      <arg name="env" type="a{ss}" direction="out"/>
+    </method>
+    <method name="SendTestAlert">
+      <arg name="account_id" type="s" direction="in"/>
+    </method>
+    <method name="DiagnosticsReport">
+      <arg name="text" type="s" direction="out"/>
+    </method>
+
+    <signal name="AccountChanged">
+      <arg name="account_id" type="s"/>
+      <arg name="snapshot" type="s"/>
+    </signal>
+    <signal name="AccountsChanged">
+      <arg name="accounts" type="s"/>
+    </signal>
+    <signal name="SettingsChanged">
+      <arg name="settings" type="s"/>
+    </signal>
+    <signal name="Alert">
+      <arg name="alert" type="s"/>
+    </signal>
+  </interface>
+</node>
