@@ -8,10 +8,10 @@ from importlib import resources
 from pathlib import Path
 
 import pytest
-from conftest import IFACE, NAME, PATH, WAIT, connect, owner_exists, start_service, wait_for_name
 from dbus_fast import DBusError, Message, MessageType
 from dbus_fast.aio import MessageBus, ProxyInterface
 
+from conftest import IFACE, NAME, PATH, WAIT, connect, owner_exists, start_service, wait_for_name
 from tokengrill.core.config import ConfigStore, default_settings, new_provider
 from tokengrill.core.types import ProviderInstance, ProviderKind, ProviderSnapshot
 from tokengrill.providers.base import Collector, CollectorContext
@@ -187,7 +187,7 @@ async def test_introspection_matches_interface_xml(env: dict[str, str], service:
     shipped = next(i for i in ET.fromstring(shipped_text).findall("interface") if i.get("name") == IFACE)
     expected = _signature(shipped)
     assert _signature(live) == expected
-    assert len(expected["methods"]) == 20  # type: ignore[arg-type]
+    assert len(expected["methods"]) == 21  # type: ignore[arg-type]
     bus.disconnect()
 
 

@@ -18,6 +18,7 @@
       <arg name="client" type="s" direction="in"/>
       <arg name="state" type="s" direction="out"/>
     </method>
+    <method name="Goodbye"/>
     <method name="GetState">
       <arg name="state" type="s" direction="out"/>
     </method>

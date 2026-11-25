@@ -285,3 +285,18 @@ async def test_no_secret_in_any_signal(
     for written in state.glob("*.json"):
         for secret in (TOKEN_OK, TOKEN_BAD, API_KEY, SAVED_KEY):
             assert secret not in written.read_text()
+
+
+async def test_goodbye_ends_the_shell_client_on_a_live_connection(in_process: dict[str, str]) -> None:
+    server = asyncio.create_task(run_service(0.5, collectors={}))
+    client = await connect(in_process)
+    try:
+        await wait_for_name(client)
+        iface = await proxy(client)
+        await iface.call_hello("shell")  # type: ignore[attr-defined]
+        await asyncio.sleep(0.8)
+        assert not server.done()
+        await iface.call_goodbye()  # type: ignore[attr-defined]
+        assert await asyncio.wait_for(server, WAIT) == 0
+    finally:
+        client.disconnect()

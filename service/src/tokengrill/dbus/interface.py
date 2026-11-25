@@ -141,6 +141,12 @@ class TokenGrillInterface(ServiceInterface):
             return state_json(runtime.state())
 
     @method()
+    def Goodbye(self) -> None:
+        # The service registers the departure in a bus-level handler: a client that shares its bus
+        # connection with a larger process (the Shell) never has its name vanish.
+        return None
+
+    @method()
     async def GetState(self) -> "s":
         async with self._call() as runtime:
             return state_json(runtime.state())

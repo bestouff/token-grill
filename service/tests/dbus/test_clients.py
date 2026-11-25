@@ -88,3 +88,13 @@ async def test_call_in_flight_keeps_service_alive() -> None:
     assert not probe.idle.is_set()
     tracker.call_finished()
     await asyncio.wait_for(probe.idle.wait(), WAIT)
+
+
+async def test_goodbye_removes_the_sender_like_a_vanished_name() -> None:
+    probe = Probe()
+    tracker = probe.tracker()
+    tracker.add(":1.1", "shell")
+    tracker.remove(":1.1")
+    tracker.remove(":1.1")
+    assert probe.shell == [True, False]
+    await asyncio.wait_for(probe.idle.wait(), WAIT)

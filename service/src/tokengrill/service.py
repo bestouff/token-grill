@@ -34,15 +34,17 @@ def _client_kind(value: object) -> ClientKind | None:
 
 
 async def _watch_client_names(bus: MessageBus, tracker: ClientTracker) -> None:
-    """Hello callers are tracked by unique name; the daemon says when a name loses its owner."""
+    """Hello callers are tracked by unique name; Goodbye or the daemon (a name loses its owner) ends it."""
 
     def handle(message: Message) -> None:
         if message.message_type == MessageType.METHOD_CALL:
-            is_hello = message.path == OBJECT_PATH and message.interface == INTERFACE_NAME and message.member == "Hello"
-            if is_hello and message.sender:
+            ours = message.path == OBJECT_PATH and message.interface == INTERFACE_NAME and bool(message.sender)
+            if ours and message.member == "Hello":
                 kind = _client_kind(message.body[0] if message.body else None)
-                if kind:
+                if kind and message.sender:
                     tracker.add(message.sender, kind)
+            elif ours and message.member == "Goodbye" and message.sender:
+                tracker.remove(message.sender)
         elif (
             message.message_type == MessageType.SIGNAL
             and message.sender == _BUS_DAEMON

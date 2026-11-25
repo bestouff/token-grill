@@ -15,6 +15,7 @@ Gio._promisify(Gio.FileEnumerator.prototype, 'close_async', 'close_finish');
 Gio._promisify(Gio.FileEnumerator.prototype, 'next_files_async', 'next_files_finish');
 Gio._promisify(Gio.InputStream.prototype, 'close_async', 'close_finish');
 Gio._promisify(Gio.InputStream.prototype, 'read_bytes_async', 'read_bytes_finish');
+Gio._promisify(Gio.DBusProxy.prototype, 'call', 'call_finish');
 
 export function isIoError(error: unknown, code: number): boolean {
     return error instanceof GLib.Error && error.matches(Gio.IOErrorEnum, code);

@@ -48,6 +48,7 @@ const RECOVERY: Record<ProviderErrorCode, ProviderErrorInfo['recovery']> = {
     http: 'retry',
     'response-shape': 'edit-provider',
     'local-history': 'retry',
+    internal: 'retry',
 };
 
 const TRANSIENT_CODES = new Set<ProviderErrorCode>(['offline', 'timeout', 'rate-limited']);

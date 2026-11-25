@@ -21,11 +21,28 @@ export type ProviderErrorCode =
     | 'rate-limited'
     | 'http'
     | 'response-shape'
-    | 'local-history';
+    | 'local-history'
+    | 'internal';
 export type RefreshPhase = 'idle' | 'queued' | 'fetching-limits' | 'fetching-reset-credits' | 'scanning-history';
 export type RefreshOutcome = 'changed' | 'unchanged' | 'partial' | 'failed';
 export type RefreshSource = 'limits' | 'reset-credits' | 'history';
 export type SourceResult = 'success' | 'failed';
+export type Recovery = 'retry' | 'reauthenticate' | 'edit-provider' | 'none';
+export type PaceLevel = 'high' | 'on-track' | 'low';
+export type AlertKind = 'milestone' | 'low-balance' | 'test';
+
+// What the service reports for a failure; messageId names the text in the service's catalog.
+export interface ErrorInfo {
+    code: ProviderErrorCode;
+    messageId: string;
+    params: Record<string, string>;
+    recovery: Recovery;
+}
+
+export interface PaceState {
+    state: PaceLevel;
+    runsOutAt: number | null;
+}
 
 export interface ProviderErrorInfo {
     code: ProviderErrorCode;
@@ -75,6 +92,8 @@ export interface UsageWindow {
     // The length of the window when the service reports it; usage pace needs it.
     durationSeconds: number | null;
     unit: 'credits' | null;
+    // Set by the service; the extension's own normalizers leave it out.
+    pace?: PaceState | null;
 }
 
 export interface LimitResetCredit {
@@ -117,6 +136,8 @@ export interface ProviderSnapshot {
     quotaFetchedAt: number | null;
     localHistoryUpdatedAt: number | null;
     resetCredits: LimitResetCreditSummary | null;
+    // The account pace of the shown limits.
+    pace: PaceState | null;
 }
 
 export interface ProviderRuntimeState {
@@ -153,6 +174,35 @@ export interface ProviderPaths {
     historyDirectories: string[];
 }
 
+export interface Settings {
+    refreshIntervalSeconds: number;
+    alertsEnabled: boolean;
+    alertStepPercent: number;
+    journalDiagnostics: boolean;
+}
+
+export interface ServiceState {
+    schema: 1;
+    apiVersion: number;
+    serviceVersion: string;
+    paused: boolean;
+    settings: Settings;
+    accounts: ProviderInstance[];
+    snapshots: Record<string, ProviderSnapshot>;
+    runtime: Record<string, ProviderRuntimeState>;
+}
+
+export interface Alert {
+    schema: 1;
+    kind: AlertKind;
+    accountId: string;
+    window: UsageWindow | null;
+    fraction: number | null;
+    balance: Balance | null;
+    lowBalance: number | null;
+    at: number;
+}
+
 export const EMPTY_TOTALS: TokenTotals = {
     input: 0,
     output: 0,
@@ -185,5 +235,6 @@ export function emptySnapshot(providerId: string): ProviderSnapshot {
         quotaFetchedAt: null,
         localHistoryUpdatedAt: null,
         resetCredits: null,
+        pace: null,
     };
 }
