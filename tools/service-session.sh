@@ -22,12 +22,16 @@
 #   --keep                keep the scratch folder
 #
 # OUT_DIR receives checks.txt, the screenshots and the logs. The exit status is
-# 0 only when every check passes.
+# 0 only when the session part ran to its end and all EXPECTED_CHECKS checks
+# passed. TG_SESSION_STOP_AFTER=<check name> ends the session part after that
+# check, to show that a cut-short run fails.
 set -euo pipefail
 
 UUID=tokengrill@sh02sahil.github.io
 SCHEMA=org.gnome.shell.extensions.tokengrill
 BUS_NAME=io.github.sh02sahil.TokenGrill
+EXPECTED_CHECKS=21
+SHOTS=(popup-dark popup-light prefs popup-not-responding popup-recovered)
 LEGACY_KEYS=(configuration-version active-provider-id refresh-interval-seconds notifications-enabled
     notification-step-percent diagnostics-journal panel-percentage-mode popup-account-picker
     panel-display-style panel-position)
@@ -37,13 +41,67 @@ usage() {
     exit 2
 }
 
+# The number of distinct colours in the body of a window in a PNG screenshot:
+# the frame "x y width height" without its header bar and edges. A page whose
+# body did not render is one flat colour.
+body_colors() {
+    python3 -I - "$1" "$2" <<'EOF'
+import struct, sys, zlib
+path, frame = sys.argv[1], sys.argv[2].split()
+if len(frame) != 4:
+    print("0 colours (no window)")
+    sys.exit(0)
+x, y, w, h = map(int, frame)
+data = open(path, "rb").read()
+pos, idat = 8, b""
+while pos < len(data):
+    size, kind = struct.unpack(">I4s", data[pos:pos + 8])
+    chunk = data[pos + 8:pos + 8 + size]
+    if kind == b"IHDR":
+        width, height, depth, ctype = struct.unpack(">IIBB", chunk[:10])
+    elif kind == b"IDAT":
+        idat += chunk
+    pos += 12 + size
+if depth != 8 or ctype not in (2, 6):
+    print(f"0 colours (PNG colour type {ctype}, depth {depth})")
+    sys.exit(0)
+bpp = 4 if ctype == 6 else 3
+raw, stride = zlib.decompress(idat), width * bpp
+rows, prev, i = [], bytearray(stride), 0
+for _ in range(height):
+    f, line = raw[i], bytearray(raw[i + 1:i + 1 + stride])
+    i += 1 + stride
+    for k in range(stride):
+        a = line[k - bpp] if k >= bpp else 0
+        b, c = prev[k], prev[k - bpp] if k >= bpp else 0
+        if f == 1:
+            line[k] = (line[k] + a) & 255
+        elif f == 2:
+            line[k] = (line[k] + b) & 255
+        elif f == 3:
+            line[k] = (line[k] + (a + b) // 2) & 255
+        elif f == 4:
+            p = a + b - c
+            pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+            line[k] = (line[k] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+    rows.append(bytes(line))
+    prev = line
+top, bottom = max(y + 60, 0), min(y + h - 16, height)
+left, right = max(x + 16, 0), min(x + w - 16, width)
+colours = {rows[r][k * bpp:k * bpp + 3] for r in range(top, bottom) for k in range(left, right)}
+print(f"{len(colours)} colours in the body {right - left}x{max(bottom - top, 0)}")
+EOF
+}
+
 # ---------------------------------------------------------------------------
 # Inside the private D-Bus session.
 # ---------------------------------------------------------------------------
 in_session() {
     local S=$1 OUT=$2 R=$3 HELPER_UUID=$4
     local ext=$XDG_DATA_HOME/gnome-shell/extensions
-    local pids=() shell_pid=""
+    # Globals: the EXIT trap runs after this function has returned.
+    pids=()
+    shell_pid=""
     teardown() {
         if [[ -n "$shell_pid" ]]; then
             kill "$shell_pid" 2>/dev/null || true
@@ -56,6 +114,9 @@ in_session() {
 
     result() {
         printf '%s %s: %s\n' "$1" "$2" "$3" | tee -a "$OUT/checks.txt" >&3
+        if [[ "${TG_SESSION_STOP_AFTER:-}" == "$2" ]]; then
+            exit 3
+        fi
     }
     check() {
         local name=$1 detail=$2
@@ -142,7 +203,8 @@ in_session() {
     done
     dbus-monitor --session "type='method_call',interface='org.freedesktop.Secret.Service'" \
         "type='method_call',interface='org.freedesktop.Secret.Prompt'" > "$OUT/secret-calls.log" 2>&1 &
-    pids+=($!)
+    local monitor_pid=$!
+    pids+=("$monitor_pid")
 
     tokengrill setup > "$OUT/setup.log" 2>&1
     local service_file=$XDG_DATA_HOME/dbus-1/services/$BUS_NAME.service
@@ -236,8 +298,15 @@ in_session() {
     sleep 8
     shot prefs || true
     prefs_errors=$(($(grep -c 'JS ERROR' "$OUT/bus.log" || true) - prefs_errors_before))
-    check "preferences" "$prefs_errors JS errors in the Preferences process; $OUT/prefs.png" \
-        [ "$prefs_errors" -eq 0 -a -s "$OUT/prefs.png" ]
+    # The frame of the Preferences window, so the body below its header bar can be looked at.
+    local frame body
+    frame=$(evv '(() => { const ws = global.get_window_actors().map(a => a.meta_window);
+        const w = ws.find(m => (m.get_wm_class() || "").includes("Extensions")) || (ws.length === 1 ? ws[0] : null);
+        if (!w) return `none (windows: ${ws.map(m => m.get_wm_class()).join(",")})`;
+        const r = w.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(" "); })()' || true)
+    body=$(body_colors "$OUT/prefs.png" "$frame" || true)
+    check "preferences" "$prefs_errors JS errors in the Preferences process; window ${frame:-none}; $body; $OUT/prefs.png" \
+        [ "$prefs_errors" -eq 0 -a "${body%% *}" -ge 16 ]
     local prefs_pid
     prefs_pid=$(bus_call GetConnectionUnixProcessID org.gnome.Shell.Extensions 2>/dev/null | grep -o '[0-9]\+' | tail -1 || true)
     if [[ -n "$prefs_pid" ]]; then
@@ -268,8 +337,11 @@ EOF
 
     # A killed service: the popup keeps the last readings under the not-responding card,
     # and the 15 s retry starts a new service.
-    local old_pid=$(service_pid)
-    kill -9 "$old_pid"
+    local old_pid
+    old_pid=$(service_pid)
+    if [[ -n "$old_pid" ]]; then
+        kill -9 "$old_pid"
+    fi
     wait_owned no 10 || true
     sleep 2
     local silent='const c = i._ui.serviceCard; const s = i._controller._client.state;
@@ -300,16 +372,24 @@ EOF
     t0=$(date +%s)
     local gone=no
     wait_owned no 75 && gone=yes
-    local waited=$(($(date +%s) - t0))
+    local waited
+    waited=$(($(date +%s) - t0))
     check "idle exit after final disable" "state $(state), service gone=$gone after $waited s" \
         [ "$gone" == yes -a "$waited" -le 70 ]
 
+    # A probe call on the private keyring shows that the monitor still sees Secret Service calls,
+    # so zero Unlock and Prompt calls is a measurement, not a dead monitor.
+    gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets \
+        --method org.freedesktop.Secret.Service.SearchItems '{"tokengrill-harness-probe": "1"}' >/dev/null 2>&1 || true
     sleep 1
-    local unlock prompt search
+    local unlock prompt search probe monitor=dead
+    kill -0 "$monitor_pid" 2>/dev/null && monitor=alive
+    probe=$(grep -c 'tokengrill-harness-probe' "$OUT/secret-calls.log" || true)
     unlock=$(grep -c 'member=Unlock' "$OUT/secret-calls.log" || true)
     prompt=$(grep -c 'interface=org.freedesktop.Secret.Prompt' "$OUT/secret-calls.log" || true)
-    search=$(grep -c 'member=SearchItems' "$OUT/secret-calls.log" || true)
-    check "keyring" "Unlock $unlock, Prompt $prompt (SearchItems $search)" [ "$unlock" -eq 0 -a "$prompt" -eq 0 ]
+    search=$(($(grep -c 'member=SearchItems' "$OUT/secret-calls.log" || true) - 1))
+    check "keyring" "monitor $monitor, probe seen $probe; Unlock $unlock, Prompt $prompt (SearchItems $search)" \
+        [ "$monitor" == alive -a "$probe" -ge 1 -a "$unlock" -eq 0 -a "$prompt" -eq 0 ]
 
     kill "$shell_pid" 2>/dev/null || true
     wait "$shell_pid" 2>/dev/null || true
@@ -327,6 +407,7 @@ EOF
     bdisposed=$(grep -c 'already disposed' "$OUT/bus.log" || true)
     check "bus log (Preferences, service)" "JS errors $jserr, criticals $bcrit, already disposed $bdisposed" \
         [ "$jserr" -eq 0 -a "$bcrit" -eq 0 -a "$bdisposed" -eq 0 ]
+    echo complete > "$OUT/session.done"
 }
 
 if [[ "${1:-}" == --in-session ]]; then
@@ -358,7 +439,10 @@ done
 [[ -n "$helper" && -f "$helper/metadata.json" ]] || { echo "Give the unsafe-mode helper extension with --unsafe-helper." >&2; exit 2; }
 OUT=$(realpath -m "$1")
 mkdir -p "$OUT"
-rm -f "$OUT"/*.png "$OUT/checks.txt"
+for shot_name in "${SHOTS[@]}"; do
+    rm -f "$OUT/$shot_name.png"
+done
+rm -f "$OUT/checks.txt" "$OUT/session.done"
 helper=$(realpath "$helper")
 helper_uuid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["uuid"])' "$helper/metadata.json")
 
@@ -371,7 +455,7 @@ sweep() {
     # Whatever still runs with the private runtime folder was started by this script.
     local p
     for p in $(grep -lsz "^XDG_RUNTIME_DIR=$R" /proc/[0-9]*/environ 2>/dev/null | cut -d/ -f3); do
-        echo "INFO left over: $p $(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | cut -c1-80)"
+        echo "INFO left over: $p $(tr '\0' ' ' 2>/dev/null < "/proc/$p/cmdline" | cut -c1-80)"
         kill "$p" 2>/dev/null || true
     done
     if mountpoint -q "$R/gvfs" 2>/dev/null; then
@@ -456,6 +540,7 @@ sed "s|<standard_session_servicedirs */>|<servicedir>$S/services</servicedir>&|"
 grep -q "<servicedir>$S/services</servicedir>" "$S/session.conf"
 
 echo "real keyring before: $keyring_before"
+session_status=0
 env -u GDK_BACKEND -u GSETTINGS_BACKEND -u WAYLAND_DISPLAY -u DISPLAY -u XAUTHORITY \
     -u GNOME_KEYRING_CONTROL -u SSH_AUTH_SOCK -u SESSION_MANAGER -u XDG_SESSION_ID -u XDG_SEAT -u XDG_VTNR \
     -u DESKTOP_STARTUP_ID -u XDG_ACTIVATION_TOKEN \
@@ -463,7 +548,7 @@ env -u GDK_BACKEND -u GSETTINGS_BACKEND -u WAYLAND_DISPLAY -u DISPLAY -u XAUTHOR
     XDG_DATA_HOME="$S/data" XDG_CONFIG_HOME="$S/config" XDG_STATE_HOME="$S/state" XDG_CACHE_HOME="$S/cache" \
     XDG_RUNTIME_DIR="$R" DCONF_PROFILE="$S/dconf-profile" \
     dbus-run-session --config-file="$S/session.conf" -- \
-    bash "${BASH_SOURCE[0]}" --in-session "$S" "$OUT" "$R" "$helper_uuid" 3>&1 > "$OUT/bus.log" 2>&1 || true
+    bash "${BASH_SOURCE[0]}" --in-session "$S" "$OUT" "$R" "$helper_uuid" 3>&1 > "$OUT/bus.log" 2>&1 || session_status=$?
 sweep | tee -a "$OUT/checks.txt"
 
 keyring_after=$(real_keyring)
@@ -479,7 +564,15 @@ else
     echo "FAIL real token-grill config or service file changed" | tee -a "$OUT/checks.txt"
 fi
 
+# A session part that stopped early leaves fewer checks and no sentinel; that is a failure too.
 passed=$(grep -c '^PASS' "$OUT/checks.txt" || true)
 failed=$(grep -c '^FAIL' "$OUT/checks.txt" || true)
+if [[ $session_status -ne 0 || ! -f "$OUT/session.done" || $((passed + failed)) -ne $EXPECTED_CHECKS ]]; then
+    echo "FAIL complete run: session exit $session_status, sentinel $([[ -f "$OUT/session.done" ]] && echo present || echo missing), $((passed + failed)) of $EXPECTED_CHECKS checks ran" \
+        | tee -a "$OUT/checks.txt"
+    failed=$((failed + 1))
+else
+    echo "INFO complete run: session exit 0, sentinel present, $EXPECTED_CHECKS of $EXPECTED_CHECKS checks ran" | tee -a "$OUT/checks.txt"
+fi
 echo "== $passed passed, $failed failed; output in $OUT"
 [[ "$failed" -eq 0 ]]
