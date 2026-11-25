@@ -5,6 +5,7 @@ from tokengrill.providers.antigravity.collector import AntigravityCollector
 from tokengrill.providers.base import Collector
 from tokengrill.providers.claude.collector import ClaudeCollector
 from tokengrill.providers.codex.collector import CodexCollector
+from tokengrill.providers.copilot.collector import CopilotCollector
 from tokengrill.providers.kiro.collector import KiroCollector
 from tokengrill.providers.opencode_go.collector import OpenCodeGoCollector
 
@@ -15,6 +16,7 @@ def create_collectors() -> dict[ProviderKind, Collector]:
         "antigravity": AntigravityCollector(),
         "claude": ClaudeCollector(),
         "codex": CodexCollector(),
+        "copilot": CopilotCollector(),
         "kiro": KiroCollector(),
         "opencode-go": OpenCodeGoCollector(),
     }
