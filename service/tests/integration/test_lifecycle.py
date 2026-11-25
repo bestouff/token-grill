@@ -19,6 +19,7 @@ import tokengrill.providers.deepseek.auth as deepseek_auth
 import tokengrill.service as service_module
 from conftest import IFACE, NAME, PATH, WAIT, connect, wait_for_name
 from tokengrill.core.config import ConfigStore, default_settings, new_provider
+from tokengrill.core.errors import ServiceError
 from tokengrill.core.types import ProviderInstance, ProviderKind, ProviderSnapshot
 from tokengrill.net.http import HttpClient
 from tokengrill.providers.base import Collector, CollectorContext
@@ -300,3 +301,42 @@ async def test_goodbye_ends_the_shell_client_on_a_live_connection(in_process: di
         assert await asyncio.wait_for(server, WAIT) == 0
     finally:
         client.disconnect()
+
+
+async def test_add_accounts_stores_a_pasted_key_first_and_maps_a_refusal(
+    in_process: dict[str, str], monkeypatch: pytest.MonkeyPatch, service_log: list[logging.LogRecord]
+) -> None:
+    stored: list[str] = []
+    refuse = True
+
+    async def store(account_id: str, key: str) -> None:
+        if refuse:
+            raise ServiceError("dependency", "deepseek.keyring-unavailable")
+        stored.append(account_id)
+
+    monkeypatch.setattr(runtime_module, "store_api_key", store)
+    draft = json.dumps([{"kind": "deepseek", "app": "keyring", "accountHome": "", "apiKey": SAVED_KEY}])
+    captured: list[str] = []
+    server = asyncio.create_task(run_service(0.5, collectors={}))
+    client = await connect(in_process)
+    try:
+        await wait_for_name(client)
+        iface = await proxy(client)
+        iface.on_accounts_changed(captured.append)  # type: ignore[attr-defined]
+        await iface.call_hello("prefs")  # type: ignore[attr-defined]
+        with pytest.raises(DBusError) as refused:
+            await iface.call_add_accounts(draft)  # type: ignore[attr-defined]
+        assert refused.value.type == f"{NAME}.Error.KeyringUnavailable"
+        assert json.loads(await iface.call_get_state())["accounts"] == []  # type: ignore[attr-defined]
+        refuse = False
+        reply = json.loads(await iface.call_add_accounts(draft))  # type: ignore[attr-defined]
+        assert stored == reply["ids"]
+        state = await iface.call_get_state()  # type: ignore[attr-defined]
+        assert [account["app"] for account in json.loads(state)["accounts"]] == ["keyring"]
+        captured.append(state)
+        await iface.call_goodbye()  # type: ignore[attr-defined]
+    finally:
+        client.disconnect()
+    assert await asyncio.wait_for(server, WAIT) == 0
+    logged = "\n".join(record.getMessage() for record in service_log)
+    assert SAVED_KEY not in "\n".join([*captured, logged, str(refused.value)])

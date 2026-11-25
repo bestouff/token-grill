@@ -1,22 +1,11 @@
 // Accounts that could be added from an app, and whether each is new, already
 // there, the same plan as another account, or nothing Token Grill can track.
 import {providerMetadata} from '../core/providerMetadata.js';
-import type {AccountApp, ProviderInstance, ProviderKind} from '../core/types.js';
+import type {Candidate, CandidateStatus, ProviderInstance} from '../core/types.js';
 import {duplicateOf, identityFromOpenCode, type AccountIdentity} from './accountIdentity.js';
 import {matchOpenCodeEntry, type OpenCodeEntry} from './opencode/entries.js';
 
-export type CandidateStatus = 'ready' | 'already-added' | 'nothing-to-track' | 'uses-other-app';
-
-export interface Candidate {
-    // Null for an OpenCode key that reaches no service Token Grill tracks.
-    kind: ProviderKind | null;
-    app: AccountApp;
-    accountHome: string;
-    label: string;
-    status: CandidateStatus;
-    // The id of an account already added on the same plan.
-    duplicateOf: string | null;
-}
+export type {Candidate, CandidateStatus};
 
 type Configured = Pick<ProviderInstance, 'id' | 'kind' | 'app'>;
 

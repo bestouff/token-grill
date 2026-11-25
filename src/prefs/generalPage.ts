@@ -4,11 +4,12 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import {PROVIDERS_KEY, readProviders} from '../core/config.js';
 import {formatText} from '../core/i18n.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import {isShown, topBarSummary} from '../core/topBar.js';
+import type {PrefsContext} from './context.js';
 import {TRANSLATOR} from './translator.js';
+import {bindServiceNumber} from './widgets.js';
 
 interface ToggleRowOptions {
     key: string;
@@ -32,13 +33,14 @@ export class GeneralPage extends Adw.PreferencesPage {
         GObject.registerClass({GTypeName: 'TokenGrillGeneralPage'}, this);
     }
 
-    private readonly _settings: Gio.Settings;
+    private readonly _context: PrefsContext;
     private readonly _shown: Adw.PreferencesGroup;
     private _rows: Adw.ActionRow[] = [];
 
-    constructor(settings: Gio.Settings, window: Adw.PreferencesWindow) {
+    // The look stays in GSettings; the accounts and the refresh interval are the service's.
+    constructor(settings: Gio.Settings, context: PrefsContext) {
         super({title: _('General'), icon_name: 'preferences-system-symbolic'});
-        this._settings = settings;
+        this._context = context;
 
         const appearance = new Adw.PreferencesGroup({title: _('Top Bar')});
         appearance.add(toggleRow(settings, {
@@ -69,11 +71,8 @@ export class GeneralPage extends Adw.PreferencesPage {
         });
         this.add(this._shown);
         this._updateShown();
-        const changedId = settings.connect(`changed::${PROVIDERS_KEY}`, () => this._updateShown());
-        window.connect('close-request', () => {
-            settings.disconnect(changedId);
-            return false;
-        });
+        // The popup changes what each account shows in the top bar while this window is open.
+        context.watch('accounts', () => this._updateShown());
 
         const updates = new Adw.PreferencesGroup({title: _('Updates')});
         const interval = new Adw.SpinRow({
@@ -81,7 +80,7 @@ export class GeneralPage extends Adw.PreferencesPage {
             subtitle: _('Seconds between quota updates'),
             adjustment: new Gtk.Adjustment({lower: 60, upper: 3600, step_increment: 60, page_increment: 300}),
         });
-        settings.bind('refresh-interval-seconds', interval, 'value', Gio.SettingsBindFlags.DEFAULT);
+        bindServiceNumber(context, 'refreshIntervalSeconds', interval);
         updates.add(interval);
         const more = new Adw.ExpanderRow({title: _('More Options')});
         more.add_row(toggleRow(settings, {
@@ -98,7 +97,7 @@ export class GeneralPage extends Adw.PreferencesPage {
     private _updateShown(): void {
         for (const row of this._rows)
             this._shown.remove(row);
-        const shown = readProviders(this._settings).filter(provider => provider.enabled && isShown(provider));
+        const shown = this._context.accounts.filter(provider => provider.enabled && isShown(provider));
         this._rows = shown.map(provider => new Adw.ActionRow({
             // Translators: a service name, then the account name.
             title: formatText(_('%s - %s'), providerMetadata(provider.kind).label, provider.displayName),

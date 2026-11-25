@@ -5,19 +5,15 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import {newProvider} from '../core/config.js';
-import {isCancellation} from '../core/gio.js';
+import type {ServiceClient} from '../client.js';
+import {homeName} from '../core/accountText.js';
 import {formatText} from '../core/i18n.js';
 import {displayPath, expandPath} from '../core/paths.js';
 import {providerMetadata} from '../core/providerMetadata.js';
-import type {AccountApp, ProviderInstance, ProviderKind} from '../core/types.js';
-import type {Candidate} from '../providers/candidates.js';
+import type {AccountApp, AccountDraft, Candidate, ProviderKind} from '../core/types.js';
 import {CandidateList} from './candidateList.js';
-import {homeName} from './discovery.js';
-import {presentKeyError, storeApiKey} from './keyStore.js';
-import {validateProviderDraft} from './providerValidation.js';
-import {findCandidates} from './sources.js';
-import {isDismissal, markField, providerIcon, setAccessibleLabel} from './widgets.js';
+import type {PrefsContext} from './context.js';
+import {isDismissal, markField, presentAddError, presentKeyError, providerIcon, setAccessibleLabel} from './widgets.js';
 
 Gio._promisify(Gtk.FileDialog.prototype, 'select_folder', 'select_folder_finish');
 
@@ -44,6 +40,9 @@ const HOME_APPS: Partial<Record<AccountApp, ProviderKind>> = {
     'cursor-agent': 'cursor',
 };
 
+// The service stores the pasted key first and adds the account only when the keyring took it, as in 0.4.1.
+const KEY_DRAFT: AccountDraft = {kind: 'deepseek', app: 'keyring', accountHome: '', displayName: providerMetadata('deepseek').label};
+
 function emptyHint(app: AccountApp): string {
     const command = SIGN_IN_COMMANDS[app];
     if (command)
@@ -57,17 +56,14 @@ export class AddAccountDialog extends Adw.Dialog {
         GObject.registerClass({GTypeName: 'TokenGrillAddAccountDialog'}, this);
     }
 
-    private readonly _configured: ProviderInstance[];
-    private readonly _extensionPath: string;
-    private readonly _onAdd: (providers: ProviderInstance[]) => void;
+    private readonly _context: PrefsContext;
     private readonly _view = new Adw.NavigationView();
+    // Replies that arrive after the dialog is closed are dropped.
     private readonly _cancellable = new Gio.Cancellable();
 
-    constructor(configured: ProviderInstance[], extensionPath: string, onAdd: (providers: ProviderInstance[]) => void) {
+    constructor(context: PrefsContext) {
         super({title: _('Add Account'), content_width: 520, content_height: 600});
-        this._configured = configured;
-        this._extensionPath = extensionPath;
-        this._onAdd = onAdd;
+        this._context = context;
         this.connect('closed', () => this._cancellable.cancel());
         this._view.add(this._appsPage());
         this.set_child(this._view);
@@ -84,7 +80,7 @@ export class AddAccountDialog extends Adw.Dialog {
 
     private _linkRow(title: string, subtitle: string, kind: ProviderKind, open: () => void): Adw.ActionRow {
         const row = new Adw.ActionRow({title, subtitle, activatable: true});
-        row.add_prefix(providerIcon(this._extensionPath, kind));
+        row.add_prefix(providerIcon(this._context.extensionPath, kind));
         row.add_suffix(new Gtk.Image({icon_name: 'go-next-symbolic'}));
         row.connect('activated', open);
         return row;
@@ -127,7 +123,7 @@ export class AddAccountDialog extends Adw.Dialog {
         const stack = new Gtk.Stack();
         stack.add_named(new Adw.Spinner(), 'searching');
         const navigation = this._page(title, stack, add);
-        findCandidates(app, this._configured, this._cancellable).then(candidates => {
+        this._request(client => client.discover(app), candidates => {
             const kind = HOME_APPS[app];
             if (!candidates.length && !kind) {
                 stack.add_named(new Adw.StatusPage({title: _('No Signed-In Account Found'), description: emptyHint(app), icon_name: 'system-search-symbolic'}), 'empty');
@@ -143,9 +139,6 @@ export class AddAccountDialog extends Adw.Dialog {
                 page.add(this._homeGroup(kind, app));
             stack.add_named(page, 'found');
             stack.visible_child_name = 'found';
-        }).catch(error => {
-            if (!isCancellation(error))
-                logError(error, 'Token Grill');
         });
         return navigation;
     }
@@ -168,36 +161,33 @@ export class AddAccountDialog extends Adw.Dialog {
                     row.text = displayPath(path);
             }).catch(error => {
                 if (!isDismissal(error))
-                    logError(error, 'Token Grill');
+                    this._context.logger.error(error);
             });
         });
         row.add_suffix(browse);
         row.connect('apply', () => {
             const text = row.text.trim();
-            const others = this._configured.filter(item => item.accountHome && item.kind === kind && item.app === app);
-            const {errors} = validateProviderDraft({displayName: providerMetadata(kind).label, accountHome: text}, others, expandPath);
-            markField(row, errors.accountHome);
-            if (errors.accountHome)
-                return;
-            const provider = newProvider(kind, app, text);
-            provider.displayName = homeName(kind, GLib.path_get_basename(expandPath(text)));
-            this._onAdd([provider]);
-            this.close();
+            // Two apps can share a home, such as Claude Code and DeepSeek in ~/.claude.
+            const draft: AccountDraft = {kind, app, accountHome: text, displayName: providerMetadata(kind).label};
+            this._request(client => client.validateAccount(draft), errors => {
+                markField(row, errors.accountHome);
+                if (errors.accountHome)
+                    return;
+                const name = homeName(kind, GLib.path_get_basename(expandPath(text)));
+                this._add([{...draft, displayName: name}], row, row);
+            });
         });
         group.add(row);
         return group;
     }
 
     private _candidateGroup(candidates: Candidate[], add: Gtk.Button, description: string): Adw.PreferencesGroup {
-        const list = new CandidateList(candidates, this._configured, this._extensionPath, description);
+        const list = new CandidateList(candidates, this._context.accounts, this._context.extensionPath, description);
         add.visible = list.addable > 0;
         list.connectChanged(anySelected => {
             add.sensitive = anySelected;
         });
-        add.connect('clicked', () => {
-            this._onAdd(list.selected());
-            this.close();
-        });
+        add.connect('clicked', () => this._add(list.selected(), add));
         return list.group;
     }
 
@@ -205,20 +195,12 @@ export class AddAccountDialog extends Adw.Dialog {
         const add = new Gtk.Button({label: _('Add'), css_classes: ['suggested-action'], sensitive: false, visible: false});
         const page = new Adw.PreferencesPage();
         const navigation = this._page('DeepSeek', page, add);
-        const search = async () => {
-            const [openCode, settings] = await Promise.all([
-                findCandidates('opencode', this._configured, this._cancellable),
-                findCandidates('claude-settings', this._configured, this._cancellable),
-            ]);
-            return [...openCode.filter(candidate => candidate.kind === 'deepseek'), ...settings];
-        };
-        search().then(candidates => {
+        const search = (client: ServiceClient) => Promise.all([client.discover('opencode'), client.discover('claude-settings')]);
+        this._request(search, ([openCode, settings]) => {
+            const candidates = [...openCode.filter(candidate => candidate.kind === 'deepseek'), ...settings];
             if (candidates.length)
                 page.add(this._candidateGroup(candidates, add, _('Keys found on this computer')));
             page.add(this._pasteGroup());
-        }).catch(error => {
-            if (!isCancellation(error))
-                logError(error, 'Token Grill');
         });
         return navigation;
     }
@@ -240,19 +222,54 @@ export class AddAccountDialog extends Adw.Dialog {
     }
 
     private _saveKey(entry: Adw.PasswordEntryRow, save: Gtk.Button): void {
-        const provider = newProvider('deepseek', 'keyring', '');
+        const key = entry.text.trim();
         // With no keyring running, D-Bus can take about 25 seconds to give up.
         save.sensitive = false;
         save.label = _('Saving...');
-        storeApiKey(provider.id, entry.text.trim(), this._cancellable).then(() => {
-            this._onAdd([provider]);
-            this.close();
-        }).catch(error => {
-            if (isCancellation(error))
-                return;
-            save.sensitive = true;
-            save.label = _('Save to Keyring');
-            presentKeyError(error, this);
+        this._context.request(client => client.addAccounts([{...KEY_DRAFT, apiKey: key}]), {
+            done: ({errors}) => {
+                if (!Object.keys(errors).length) {
+                    this.close();
+                    return;
+                }
+                save.sensitive = true;
+                save.label = _('Save to Keyring');
+                presentAddError(this, errors);
+            },
+            failed: () => {
+                save.sensitive = true;
+                save.label = _('Save to Keyring');
+                presentKeyError(this);
+            },
+            cancellable: this._cancellable,
         });
+    }
+
+    // The page shows the new accounts when the service announces them. The control that asked stays
+    // insensitive until the service answers. A folder that the service refuses is marked on its row.
+    private _add(drafts: AccountDraft[], busy: Gtk.Widget, row: Adw.EntryRow | null = null): void {
+        busy.sensitive = false;
+        this._context.request(client => client.addAccounts(drafts), {
+            done: ({errors}) => {
+                if (!Object.keys(errors).length) {
+                    this.close();
+                    return;
+                }
+                busy.sensitive = true;
+                if (row !== null)
+                    markField(row, errors['0']?.accountHome);
+                else
+                    presentAddError(this, errors);
+            },
+            failed: () => {
+                busy.sensitive = true;
+                presentAddError(this, null);
+            },
+            cancellable: this._cancellable,
+        });
+    }
+
+    private _request<T>(work: (client: ServiceClient) => Promise<T>, done: (value: T) => void): void {
+        this._context.request(work, {done, cancellable: this._cancellable});
     }
 }

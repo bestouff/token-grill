@@ -5,32 +5,26 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import {formatReport, redact} from '../core/diagnostics.js';
 import {displayPath} from '../core/paths.js';
-import {dataPath, statePath} from '../storage/atomicJson.js';
-import {readDiagnostics} from '../storage/diagnosticsStore.js';
+import type {PrefsContext} from './context.js';
 import {isDismissal} from './widgets.js';
 
 Gio._promisify(Gtk.FileDialog.prototype, 'save', 'save_finish');
 Gio._promisify(Gio.File.prototype, 'replace_contents_async', 'replace_contents_finish');
+
+// The service keeps its files where 0.4.1 kept them.
+const APP_DIRECTORY = 'token-grill';
 
 export class DataPage extends Adw.PreferencesPage {
     static {
         GObject.registerClass({GTypeName: 'TokenGrillDataPage'}, this);
     }
 
-    private readonly _window: Adw.PreferencesWindow;
-    private readonly _version: string;
-    private readonly _cancellable = new Gio.Cancellable();
+    private readonly _context: PrefsContext;
 
-    constructor(window: Adw.PreferencesWindow, version: string) {
+    constructor(context: PrefsContext) {
         super({title: _('Data'), icon_name: 'folder-symbolic'});
-        this._window = window;
-        this._version = version;
-        window.connect('close-request', () => {
-            this._cancellable.cancel();
-            return false;
-        });
+        this._context = context;
 
         const group = new Adw.PreferencesGroup({
             title: _('Local Data'),
@@ -38,12 +32,12 @@ export class DataPage extends Adw.PreferencesPage {
         });
         group.add(new Adw.ActionRow({
             title: _('Usage History'),
-            subtitle: displayPath(dataPath('history-v1.json')),
+            subtitle: displayPath(GLib.build_filenamev([GLib.get_user_data_dir(), APP_DIRECTORY, 'history-v1.json'])),
             subtitle_selectable: true,
         }));
         group.add(new Adw.ActionRow({
             title: _('Parser Checkpoints'),
-            subtitle: displayPath(statePath('checkpoints-v1.json')),
+            subtitle: displayPath(GLib.build_filenamev([GLib.get_user_state_dir(), APP_DIRECTORY, 'checkpoints-v1.json'])),
             subtitle_selectable: true,
         }));
         this.add(group);
@@ -54,38 +48,34 @@ export class DataPage extends Adw.PreferencesPage {
                 'responses keep only their field names and types'),
         });
         const save = new Adw.ButtonRow({title: _('Save Diagnostics Report...'), start_icon_name: 'document-save-symbolic'});
-        save.connect('activated', () => {
-            this._saveReport().catch(error => {
-                if (isDismissal(error))
-                    return;
-                if (!(error instanceof GLib.Error))
-                    logError(error, 'Token Grill');
-                this._toast(_('The report could not be saved'));
-            });
-        });
+        // The service redacts the report before it sends it.
+        save.connect('activated', () => context.request(client => client.diagnosticsReport(), {
+            done: report => this._saveReport(report),
+            failed: () => this._toast(_('The report could not be saved')),
+        }));
         diagnostics.add(save);
         this.add(diagnostics);
     }
 
-    private async _saveReport(): Promise<void> {
-        const {about, entries} = await readDiagnostics(this._cancellable, console);
-        const header = {
-            version: about?.version ?? this._version,
-            shell: about?.shell ?? _('unknown'),
-            date: new Date().toISOString(),
-        };
-        // Entries were redacted when recorded; this pass covers anything added since.
-        const report = redact(formatReport(entries, header), GLib.get_home_dir());
+    private _saveReport(report: string): void {
+        const cancellable = this._context.cancellable;
         const dialog = new Gtk.FileDialog({title: _('Save Diagnostics Report'), initial_name: 'token-grill-diagnostics.txt'});
-        const file = await dialog.save(this._window, this._cancellable);
-        if (!file)
-            return;
-        await file.replace_contents_async(new TextEncoder().encode(report), null, false,
-            Gio.FileCreateFlags.PRIVATE | Gio.FileCreateFlags.REPLACE_DESTINATION, this._cancellable);
-        this._toast(_('Report saved'));
+        dialog.save(this._context.window, cancellable).then(async file => {
+            if (!file)
+                return;
+            await file.replace_contents_async(new TextEncoder().encode(report), null, false,
+                Gio.FileCreateFlags.PRIVATE | Gio.FileCreateFlags.REPLACE_DESTINATION, cancellable);
+            this._toast(_('Report saved'));
+        }).catch(error => {
+            if (isDismissal(error))
+                return;
+            if (!(error instanceof GLib.Error))
+                this._context.logger.error(error);
+            this._toast(_('The report could not be saved'));
+        });
     }
 
     private _toast(title: string): void {
-        this._window.add_toast(new Adw.Toast({title}));
+        this._context.window.add_toast(new Adw.Toast({title}));
     }
 }

@@ -387,3 +387,83 @@ async def test_failed_backup_write_still_adopts_the_saved_config(
     assert len(rig.runtime.state()["accounts"]) == 1
     assert len(rig.store.load()["accounts"]) == 1
     await rig.runtime.stop()
+
+
+KEY_DRAFT: dict[str, object] = {"kind": "deepseek", "app": "keyring", "accountHome": "", "apiKey": " sk-pasted "}
+
+
+async def test_a_pasted_key_is_stored_before_its_account_is_added(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    stored: list[tuple[str, str, int]] = []
+
+    async def store(account_id: str, key: str) -> None:
+        stored.append((account_id, key, len(rig.store.load()["accounts"])))
+
+    monkeypatch.setattr("tokengrill.core.runtime.store_api_key", store)
+    with caplog.at_level("DEBUG"):
+        ids, errors = await rig.runtime.add_accounts([KEY_DRAFT])
+    assert errors == {} and len(ids) == 1
+    # Stored while the account list still had only the two accounts.
+    assert stored == [(ids[0], "sk-pasted", 2)]
+    saved = rig.store.load()["accounts"]
+    assert saved[-1]["id"] == ids[0] and saved[-1]["app"] == "keyring"
+    everything = json.dumps(saved) + json.dumps(rig.events.account_lists) + caplog.text
+    assert "sk-pasted" not in everything
+    assert "apiKey" not in json.dumps(saved)
+
+
+async def test_a_key_the_keyring_refuses_adds_no_account(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def refuse(account_id: str, key: str) -> None:
+        raise ServiceError("dependency", "deepseek.keyring-unavailable")
+
+    monkeypatch.setattr("tokengrill.core.runtime.store_api_key", refuse)
+    with pytest.raises(ServiceError):
+        await rig.runtime.add_accounts([KEY_DRAFT])
+    assert len(rig.store.load()["accounts"]) == 2
+    assert rig.events.account_lists == []
+
+
+async def test_keys_stored_before_a_refused_one_are_removed_again(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+    stored: list[str] = []
+    cleared: list[str] = []
+
+    async def store(account_id: str, key: str) -> None:
+        if key == "second":
+            raise ServiceError("dependency", "deepseek.keyring-unavailable")
+        stored.append(account_id)
+
+    async def clear(account_id: str) -> None:
+        cleared.append(account_id)
+
+    monkeypatch.setattr("tokengrill.core.runtime.store_api_key", store)
+    monkeypatch.setattr("tokengrill.core.runtime.clear_api_key", clear)
+    with pytest.raises(ServiceError):
+        await rig.runtime.add_accounts([{**KEY_DRAFT, "apiKey": "first"}, {**KEY_DRAFT, "apiKey": "second"}])
+    assert len(stored) == 1 and cleared == stored
+    assert len(rig.store.load()["accounts"]) == 2
+
+
+async def test_a_key_is_accepted_only_on_a_keyring_draft_and_never_blank(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stored: list[str] = []
+
+    async def store(account_id: str, key: str) -> None:
+        stored.append(key)
+
+    monkeypatch.setattr("tokengrill.core.runtime.store_api_key", store)
+    for draft in (
+        {"kind": "codex", "accountHome": "~/.codex-c", "apiKey": "sk-x"},
+        {"kind": "deepseek", "app": "claude-settings", "accountHome": "~/.claude", "apiKey": "sk-x"},
+        {**KEY_DRAFT, "apiKey": "   "},
+        {**KEY_DRAFT, "apiKey": 5},
+    ):
+        with pytest.raises(InvalidRequest) as refused:
+            await rig.runtime.add_accounts([draft])
+        assert "sk-x" not in str(refused.value)
+    assert stored == []
+    assert len(rig.store.load()["accounts"]) == 2
+    # A keyring draft without a key is still added, as before.
+    ids, _errors = await rig.runtime.add_accounts([{k: v for k, v in KEY_DRAFT.items() if k != "apiKey"}])
+    assert len(ids) == 1 and stored == []

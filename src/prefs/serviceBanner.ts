@@ -108,3 +108,29 @@ export class ServiceBanner extends Adw.StatusPage {
         return row;
     }
 }
+
+// The only page of the window while the service is not connected: a spinner during the first
+// check, then the banner.
+export class ServicePage extends Adw.PreferencesPage {
+    static {
+        GObject.registerClass({GTypeName: 'TokenGrillServicePage'}, this);
+    }
+
+    private readonly _banner: ServiceBanner;
+    private readonly _spinner = new Adw.Spinner({width_request: 32, height_request: 32, margin_top: 48});
+
+    constructor(onCheckAgain: () => void) {
+        // Alone in the window, the page has no view switcher, so it needs no title.
+        super();
+        this._banner = new ServiceBanner(onCheckAgain);
+        const group = new Adw.PreferencesGroup();
+        group.add(this._spinner);
+        group.add(this._banner);
+        this.add(group);
+    }
+
+    update(status: ClientStatus): void {
+        this._banner.update(status);
+        this._spinner.visible = this._banner.failure === null;
+    }
+}

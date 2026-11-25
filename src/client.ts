@@ -8,7 +8,7 @@ import {
     type ClientStatus,
 } from './core/serviceState.js';
 import type {
-    Alert, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, ServiceState, Settings,
+    AccountDraft, Alert, Candidate, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, ServiceState, Settings,
 } from './core/types.js';
 import {INTERFACE_NAME, INTERFACE_XML, MIN_API_VERSION, OBJECT_PATH, SERVICE_NAME} from './dbus/interface.js';
 
@@ -17,6 +17,8 @@ export type {ClientStatus};
 const RETRY_SECONDS = 15;
 // The service starts on the first call and answers Hello after it has read its files.
 const CALL_TIMEOUT_MS = 30000;
+// Storing a key can wait for the user to answer the keyring's unlock prompt, so it has no time limit.
+const NO_TIMEOUT = GLib.MAXINT32;
 const ERROR_PREFIX = `${SERVICE_NAME}.Error.`;
 
 export type ClientKind = 'shell' | 'prefs';
@@ -170,9 +172,11 @@ export class ServiceClient {
         return result['imported'] as number;
     }
 
-    // Either the new ids, or the validation errors of each entry that was refused.
-    async addAccounts(accounts: unknown): Promise<{ids: string[]; errors: Record<string, Record<string, string>>}> {
-        const result = await this._json('AddAccounts', accounts);
+    // Either the new ids, or the validation errors of each entry that was refused. A draft with a pasted
+    // key fails with KeyringUnavailable when the keyring does not store it, and then nothing is added.
+    async addAccounts(accounts: AccountDraft[]): Promise<{ids: string[]; errors: Record<string, Record<string, string>>}> {
+        const pasted = accounts.some(account => account.apiKey !== undefined);
+        const result = await this._json('AddAccounts', accounts, pasted ? NO_TIMEOUT : CALL_TIMEOUT_MS);
         return {
             ids: (result['ids'] ?? []) as string[],
             errors: (result['errors'] ?? {}) as Record<string, Record<string, string>>,
@@ -195,8 +199,9 @@ export class ServiceClient {
         return (await this._json('ValidateAccount', draft))['errors'] as Record<string, string>;
     }
 
-    async discover(app: string): Promise<unknown[]> {
-        return parseResult(await this._invoke('Discover', new GLib.Variant('(s)', [app])))['candidates'] as unknown[];
+    // An empty app means every app.
+    async discover(app: string): Promise<Candidate[]> {
+        return parseResult(await this._invoke('Discover', new GLib.Variant('(s)', [app])))['candidates'] as Candidate[];
     }
 
     async credentialState(accountId: string): Promise<string> {
@@ -205,7 +210,7 @@ export class ServiceClient {
     }
 
     async saveApiKey(accountId: string, key: string): Promise<void> {
-        await this._invoke('SaveApiKey', new GLib.Variant('(ss)', [accountId, key]));
+        await this._invoke('SaveApiKey', new GLib.Variant('(ss)', [accountId, key]), NO_TIMEOUT);
     }
 
     async toggleLimit(accountId: string, limitKey: string): Promise<void> {
@@ -234,22 +239,22 @@ export class ServiceClient {
         return this._invoke('DiagnosticsReport');
     }
 
-    private _json(method: string, payload: unknown): Promise<Record<string, unknown>> {
-        return this._invoke(method, new GLib.Variant('(s)', [JSON.stringify(payload)])).then(parseResult);
+    private _json(method: string, payload: unknown, timeout = CALL_TIMEOUT_MS): Promise<Record<string, unknown>> {
+        return this._invoke(method, new GLib.Variant('(s)', [JSON.stringify(payload)]), timeout).then(parseResult);
     }
 
     // The methods that return one string.
-    private async _invoke(method: string, parameters: GLib.Variant | null = null): Promise<string> {
-        const reply = await this._call(method, parameters);
+    private async _invoke(method: string, parameters: GLib.Variant | null = null, timeout = CALL_TIMEOUT_MS): Promise<string> {
+        const reply = await this._call(method, parameters, timeout);
         return reply.deepUnpack<[string]>()[0] ?? '';
     }
 
-    private async _call(method: string, parameters: GLib.Variant | null): Promise<GLib.Variant> {
+    private async _call(method: string, parameters: GLib.Variant | null, timeout = CALL_TIMEOUT_MS): Promise<GLib.Variant> {
         const proxy = this._proxy;
         if (proxy === null)
             throw new Error('The service client is not connected');
         try {
-            return await proxy.call(method, parameters, Gio.DBusCallFlags.NONE, CALL_TIMEOUT_MS, this._cancellable);
+            return await proxy.call(method, parameters, Gio.DBusCallFlags.NONE, timeout, this._cancellable);
         } catch (error) {
             throw callError(error);
         }

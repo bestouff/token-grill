@@ -174,8 +174,12 @@ class TokenGrillInterface(ServiceInterface):
 
     @method()
     async def AddAccounts(self, accounts: "s") -> "s":
+        # A DeepSeek draft may carry the pasted apiKey; it is stored before the account is added.
         async with self._call() as runtime:
-            ids, errors = await _checked(runtime.add_accounts(parse_json_arg(accounts)))
+            try:
+                ids, errors = await _checked(runtime.add_accounts(parse_json_arg(accounts)))
+            except ServiceError as error:
+                raise DBusError(KEYRING_UNAVAILABLE, error.message_id) from error
             return _result({"errors": errors} if errors else {"ids": ids})
 
     @method()

@@ -75,6 +75,24 @@ export interface ProviderInstance {
     showPace: boolean;
 }
 
+// A new account as Preferences send it to the service, which fills in the rest as 0.4.1 newProvider() did.
+// A DeepSeek account that keeps its key in the keyring carries the pasted key, which the service stores first.
+export type AccountDraft = Pick<ProviderInstance, 'kind' | 'app' | 'accountHome' | 'displayName'> & {apiKey?: string};
+
+export type CandidateStatus = 'ready' | 'already-added' | 'nothing-to-track' | 'uses-other-app';
+
+// An account that could be added from an app, as the service's Discover finds it.
+export interface Candidate {
+    // Null for an OpenCode key that reaches no service Token Grill tracks.
+    kind: ProviderKind | null;
+    app: AccountApp;
+    accountHome: string;
+    label: string;
+    status: CandidateStatus;
+    // The id of an account already added on the same plan.
+    duplicateOf: string | null;
+}
+
 export interface UsageWindow {
     id: string;
     canonicalWindow: CanonicalQuotaWindow;

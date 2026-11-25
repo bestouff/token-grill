@@ -6,23 +6,17 @@ import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {accentHex, normalizeAccent} from '../core/accent.js';
-import {PROVIDERS_KEY, readProviders} from '../core/config.js';
-import {isCancellation} from '../core/gio.js';
+import {credentialLabel} from '../core/accountText.js';
 import {formatText} from '../core/i18n.js';
 import {displayPath, expandPath} from '../core/paths.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import {topBarSummary} from '../core/topBar.js';
 import {ACCENTS, type AccentColor, type AccountApp, type ProviderInstance} from '../core/types.js';
-import {credentialLabel, credentialState} from './credentialStatus.js';
-import {clearApiKey, presentKeyError, storeApiKey} from './keyStore.js';
-import {validateProviderDraft} from './providerValidation.js';
+import type {PrefsContext} from './context.js';
 import {TRANSLATOR} from './translator.js';
-import {accentName, markField, setAccessibleLabel} from './widgets.js';
+import {accentName, markField, presentKeyError, setAccessibleLabel} from './widgets.js';
 
-export interface AccountActions {
-    update: (provider: ProviderInstance) => void;
-    remove: (providerId: string) => void;
-}
+type PathField = 'accountHome' | 'authFileOverride' | 'sessionsDirectoryOverride';
 
 // App names are product names and stay as they are.
 const APP_NAMES: Record<AccountApp, string> = {
@@ -61,20 +55,19 @@ export class AccountPage extends Adw.NavigationPage {
         GObject.registerClass({GTypeName: 'TokenGrillAccountPage'}, this);
     }
 
-    private readonly _settings: Gio.Settings;
-    private readonly _actions: AccountActions;
+    private readonly _context: PrefsContext;
+    // Replies that arrive after the page is closed are dropped.
     private readonly _cancellable = new Gio.Cancellable();
     private readonly _swatches = new Map<AccentColor, Gtk.ToggleButton>();
     private readonly _custom: Gtk.ColorDialogButton;
     private readonly _topBar: Adw.ActionRow;
     private _provider: ProviderInstance;
-    private _changedId: number | null;
+    private _unwatch: (() => void) | null;
 
-    constructor(settings: Gio.Settings, provider: ProviderInstance, actions: AccountActions) {
+    constructor(context: PrefsContext, provider: ProviderInstance) {
         super({title: provider.displayName, tag: provider.id});
-        this._settings = settings;
+        this._context = context;
         this._provider = provider;
-        this._actions = actions;
         const metadata = providerMetadata(provider.kind);
 
         const page = new Adw.PreferencesPage();
@@ -130,21 +123,21 @@ export class AccountPage extends Adw.NavigationPage {
         page.add(more);
         page.add(this._removal());
 
-        this._changedId = settings.connect(`changed::${PROVIDERS_KEY}`, () => this._onStoredChanged());
+        this._unwatch = context.watch('accounts', () => this._onStoredChanged());
         this.connect('hidden', () => this._release());
         this.connect('destroy', () => this._release());
     }
 
     private _release(): void {
         this._cancellable.cancel();
-        if (this._changedId !== null)
-            this._settings.disconnect(this._changedId);
-        this._changedId = null;
+        if (this._unwatch !== null)
+            this._unwatch();
+        this._unwatch = null;
     }
 
     // The popup can change the top-bar choice while this page is open.
     private _onStoredChanged(): void {
-        const stored = readProviders(this._settings).find(item => item.id === this._provider.id);
+        const stored = this._context.accounts.find(item => item.id === this._provider.id);
         if (!stored)
             return;
         this._provider = stored;
@@ -156,20 +149,32 @@ export class AccountPage extends Adw.NavigationPage {
         return formatText(_('%s - Change this in the popup'), topBarSummary(TRANSLATOR, this._provider.topBar));
     }
 
-    private _apply(change: Partial<ProviderInstance>): void {
+    // Only the changed fields go to the service, so a top-bar choice made in the popup meanwhile stays.
+    // The service checks the change again; a refused field is marked on its row.
+    private _apply(change: Partial<ProviderInstance>, row: Adw.EntryRow | null = null, field: PathField | 'displayName' | null = null): void {
         this._provider = {...this._provider, ...change};
-        this._actions.update(this._provider);
+        this._context.request(client => client.updateAccount({id: this._provider.id, ...change}), {
+            done: errors => {
+                if (row !== null && field !== null)
+                    markField(row, errors[field]);
+            },
+            cancellable: this._cancellable,
+        });
     }
 
     private _rename(row: Adw.EntryRow): void {
         const text = row.text.trim();
-        if (!text) {
-            markField(row, 'required');
-            return;
-        }
-        markField(row, undefined);
-        this.title = text;
-        this._apply({displayName: text});
+        const draft = {...this._provider, displayName: text};
+        this._context.request(client => client.validateAccount(draft), {
+            done: errors => {
+                markField(row, errors.displayName);
+                if (errors.displayName)
+                    return;
+                this.title = text;
+                this._apply({displayName: text}, row, 'displayName');
+            },
+            cancellable: this._cancellable,
+        });
     }
 
     private _buildSwatches(): Gtk.Box {
@@ -212,13 +217,13 @@ export class AccountPage extends Adw.NavigationPage {
         // Translators: an app name, then where its sign-in is read.
         const source = where ? formatText(_('%s - %s'), app, where) : app;
         const row = new Adw.ActionRow({title: _('Signed In With'), subtitle: source});
-        const cancellable = this._cancellable;
-        credentialState(provider, cancellable).then(state => {
-            if (!cancellable.is_cancelled())
-                row.subtitle = formatText(_('%s - %s'), source, credentialLabel(state));
-        }).catch(error => {
-            if (!isCancellation(error))
-                logError(error, 'Token Grill');
+        this._context.request(client => client.credentialState(provider.id), {
+            done: state => {
+                const label = credentialLabel(TRANSLATOR, state);
+                if (label !== null)
+                    row.subtitle = formatText(_('%s - %s'), source, label);
+            },
+            cancellable: this._cancellable,
         });
         return row;
     }
@@ -258,19 +263,22 @@ export class AccountPage extends Adw.NavigationPage {
         return more;
     }
 
-    // Paths apply when confirmed, and only when valid.
-    private _pathRow(title: string, value: string, field: 'accountHome' | 'authFileOverride' | 'sessionsDirectoryOverride'): Adw.EntryRow {
+    // Paths apply when confirmed, and only when valid. The service checks the path as typed, and
+    // a valid one is saved expanded, as in 0.4.1.
+    private _pathRow(title: string, value: string, field: PathField): Adw.EntryRow {
         const row = new Adw.EntryRow({title, text: value, show_apply_button: true});
         row.connect('apply', () => {
             const text = row.text.trim();
             const draft = {...this._provider, [field]: field === 'accountHome' ? text : text || null};
-            // Two apps can share a home, such as Claude Code and DeepSeek in ~/.claude.
-            const others = readProviders(this._settings).filter(item => item.accountHome && item.kind === this._provider.kind && item.app === this._provider.app);
-            const {errors} = validateProviderDraft(draft, others, expandPath);
-            markField(row, errors[field]);
-            if (errors[field])
-                return;
-            this._apply({[field]: text ? expandPath(text) : null});
+            this._context.request(client => client.validateAccount(draft), {
+                done: errors => {
+                    markField(row, errors[field]);
+                    if (errors[field])
+                        return;
+                    this._apply({[field]: text ? expandPath(text) : null}, row, field);
+                },
+                cancellable: this._cancellable,
+            });
         });
         return row;
     }
@@ -281,10 +289,12 @@ export class AccountPage extends Adw.NavigationPage {
             const key = row.text.trim();
             if (!key)
                 return;
-            storeApiKey(this._provider.id, key, this._cancellable).then(() => {
-                row.text = '';
-            }).catch(error => {
-                presentKeyError(error, this);
+            this._context.request(client => client.saveApiKey(this._provider.id, key), {
+                done: () => {
+                    row.text = '';
+                },
+                failed: () => presentKeyError(this),
+                cancellable: this._cancellable,
             });
         });
         return row;
@@ -314,9 +324,11 @@ export class AccountPage extends Adw.NavigationPage {
         alert.connect('response', (_alert, response) => {
             if (response !== 'remove')
                 return;
-            if (this._provider.app === 'keyring')
-                clearApiKey(this._provider.id, null).catch(error => logError(error, 'Token Grill'));
-            this._actions.remove(this._provider.id);
+            // The service also removes a pasted key from the keyring.
+            this._context.request(client => client.removeAccount(this._provider.id, this._provider.app === 'keyring'), {
+                done: () => this._context.window.pop_subpage(),
+                cancellable: this._cancellable,
+            });
         });
         alert.present(this);
     }

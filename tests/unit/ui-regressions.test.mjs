@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {readdir, readFile} from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -107,11 +107,9 @@ test('Kiro details are monthly-only and show precise credits', async () => {
     assert.match(model, /pooled or unlimited/);
 });
 
-test('Kiro discovery checks the user-wide data store once and disables history', async () => {
-    const [discovery, account] = await Promise.all([read('src/prefs/discovery.ts'), read('src/prefs/accountPage.ts')]);
-    assert.match(discovery, /newProvider\('kiro', 'kiro-cli', defaultHome\('kiro'\)\)/);
+test('local history is offered only for the service app of an account', async () => {
+    const account = await read('src/prefs/accountPage.ts');
     assert.match(account, /if \(metadata\.localHistorySupported && provider\.app === metadata\.apps\[0\]\) \{/);
-    assert.doesNotMatch(discovery, /\.t3/);
 });
 
 test('provider HTTP requests are bounded and cannot follow redirects', async () => {
@@ -183,13 +181,13 @@ test('provider preferences use direct editing, confirmed deletion, and normalize
     assert.doesNotMatch(page, /Gtk\.MenuButton|view-more-symbolic|_overflow\(/);
     assert.match(page, /label: _\('Add Account...'\)/);
     assert.match(page, /new AddAccountDialog\(/);
-    assert.match(page, /reorderProviders\(providers, providers\.map/);
+    assert.match(page, /client => client\.reorderAccounts\(ordered\.map\(provider => provider\.id\)\)/);
     // The account page applies each change at once, so there is nothing to discard.
     assert.match(editor, /new Adw\.ButtonRow\(\{title: _\('Remove Account'\)/);
     assert.match(editor, /remove\.add_css_class\('destructive-action'\)/);
     assert.match(editor, /heading: _\('Remove Account\?'\)/);
     assert.match(editor, /if \(response !== 'remove'\)/);
-    assert.match(page, /this\._window\.push_subpage\(new AccountPage\(/);
+    assert.match(page, /this\._context\.window\.push_subpage\(new AccountPage\(this\._context, provider\)\)/);
     assert.match(general, /new Adw\.ToggleGroup/);
     assert.match(reorder, /new Gtk\.DragSource/);
     assert.match(reorder, /Gtk\.DropTarget\.new/);
@@ -207,14 +205,80 @@ test('local history shows real figures or its scan state, and nothing when unsup
     assert.doesNotMatch(metrics, /TOKENS|USD|Waiting.../);
 });
 
-test('notification preferences write scoped test requests', async () => {
-    const [prefs, schema] = await Promise.all([
-        read('src/prefs/notificationsPage.ts'), read('schemas/org.gnome.shell.extensions.tokengrill.gschema.xml'),
-    ]);
+test('the test notification is asked of the service', async () => {
+    const prefs = await read('src/prefs/notificationsPage.ts');
     assert.match(prefs, /title: _\('Send Test Notification'\)/);
-    assert.match(prefs, /notification-test-request/);
+    assert.match(prefs, /client => client\.sendTestAlert\(provider\.id\)/);
     assert.match(prefs, /provider\.enabled \? provider\.displayName/);
-    assert.match(schema, /name="notification-test-request"/);
+});
+
+async function sourceFiles(directory) {
+    const entries = await readdir(new URL(`../../${directory}`, import.meta.url), {withFileTypes: true, recursive: true});
+    return entries.filter(entry => entry.isFile() && entry.name.endsWith('.ts'))
+        .map(entry => `${entry.parentPath ?? entry.path}/${entry.name}`.replace(/^.*?\/src\//, 'src/'));
+}
+
+// Preferences ask the service: they read no sign-in, keyring, database or state file themselves.
+test('Preferences import nothing of the collectors, stores, keyring or databases', async () => {
+    const files = ['src/prefs.ts', ...await sourceFiles('src/prefs')];
+    assert.ok(files.length > 10);
+    for (const file of files) {
+        const source = await read(file);
+        assert.doesNotMatch(source, /from '[./]*\/(providers|storage)\//, file);
+        assert.doesNotMatch(source, /gi:\/\/(Secret|Gda)/, file);
+        assert.doesNotMatch(source, /provider-instances-json|PROVIDERS_KEY|readProviders|writeProviders|migrateProviderSettings/, file);
+        assert.doesNotMatch(source, /refresh-interval-seconds|notifications-enabled|notification-step-percent|diagnostics-journal/, file);
+        assert.doesNotMatch(source, /logError\(/, file);
+    }
+    for (const gone of ['discovery', 'sources', 'credentialStatus', 'providerValidation', 'keyStore'])
+        await assert.rejects(read(`src/prefs/${gone}.ts`), {code: 'ENOENT'}, gone);
+});
+
+test('no source writes the old test notification request', async () => {
+    for (const file of await sourceFiles('src'))
+        assert.doesNotMatch(await read(file), /notification-test-request/, file);
+});
+
+// One client per window: Goodbye tells the service that Preferences closed.
+test('each Preferences window has its own service client, released on close', async () => {
+    const [entry, context] = await Promise.all([read('src/prefs.ts'), read('src/prefs/context.ts')]);
+    assert.match(entry, /new ServiceClient\('prefs', handlers, logger\)/);
+    const close = entry.slice(entry.indexOf("window.connect('close-request'"));
+    assert.match(close, /^window\.connect\('close-request', \(\) => \{\s*context\.client\.destroy\(\);\s*context\.destroy\(\);/);
+    assert.match(entry, /context\.client\.connect\(\)/);
+    // The banner stands in for the pages until the service answers.
+    assert.match(entry, /new ServicePage\(\(\) => context\.client\.retry\(\)\)/);
+    assert.match(entry, /status === 'connected'/);
+    assert.match(context, /if \(this\.client\.status !== 'connected' \|\| cancellable\.is_cancelled\(\)\)\s*return;/);
+    assert.match(context, /if \(this\._stopped\(cancellable\)\)\s*return;/);
+    assert.match(context, /this\.cancellable\.cancel\(\);/);
+});
+
+test('Preferences read and write the moved settings through the service', async () => {
+    const [general, notifications, widgets, accounts] = await Promise.all([
+        read('src/prefs/generalPage.ts'), read('src/prefs/notificationsPage.ts'), read('src/prefs/widgets.ts'), read('src/prefs/accountsPage.ts'),
+    ]);
+    assert.match(general, /bindServiceNumber\(context, 'refreshIntervalSeconds', interval\)/);
+    assert.match(notifications, /bindServiceNumber\(context, 'alertStepPercent', step\)/);
+    assert.match(notifications, /bindServiceSwitch\(context, 'alertsEnabled', enabled\)/);
+    assert.match(widgets, /client => client\.setSettings\(patch\)/);
+    // The look stays in GSettings.
+    for (const key of ['panel-display-style', 'panel-percentage-mode', 'panel-position', 'popup-account-picker'])
+        assert.match(general, new RegExp(`key: '${key}'`));
+    assert.match(accounts, /credentialLabel\(TRANSLATOR, state\)/);
+    assert.match(accounts, /client => client\.credentialState\(provider\.id\)/);
+});
+
+test('a key that the keyring did not save shows the 0.4.1 alert', async () => {
+    const [add, account, widgets] = await Promise.all([
+        read('src/prefs/addAccountDialog.ts'), read('src/prefs/accountPage.ts'), read('src/prefs/widgets.ts'),
+    ]);
+    // One call: the service stores the key before it adds the account, so nothing is left half done.
+    assert.match(add, /client => client\.addAccounts\(\[\{\.\.\.KEY_DRAFT, apiKey: key\}\]\)/);
+    assert.doesNotMatch(add, /saveApiKey|removeAccount/);
+    assert.match(account, /client => client\.saveApiKey\(this\._provider\.id, key\)/);
+    assert.match(widgets, /heading: _\('Could Not Save the Key'\), body: _\('The system keyring did not save the key\.'\)/);
+    assert.match(account, /client\.removeAccount\(this\._provider\.id, this\._provider\.app === 'keyring'\)/);
 });
 
 // The collectors, stores and scheduler live in the service; the Shell only shows what it sends.
@@ -334,10 +398,11 @@ test('review artifacts exclude compiled schemas and use the pinned Shexli runner
 });
 
 test('account paths apply only when valid, and each error stays on its own field', async () => {
-    const source = await read('src/prefs/accountPage.ts');
-    assert.match(source, /validateProviderDraft\(draft, others, expandPath\)/);
+    const [source, add] = await Promise.all([read('src/prefs/accountPage.ts'), read('src/prefs/addAccountDialog.ts')]);
+    assert.match(source, /client => client\.validateAccount\(draft\)/);
     assert.match(source, /markField\(row, errors\[field\]\);\s*if \(errors\[field\]\)\s*return;/);
-    assert.match(source, /markField\(row, 'required'\)/);
+    assert.match(source, /markField\(row, errors\.displayName\)/);
+    assert.match(add, /markField\(row, errors\.accountHome\)/);
 });
 
 test('nested shell inherits user settings and rejects conflicting Token Grill installs', async () => {
@@ -350,13 +415,12 @@ test('nested shell inherits user settings and rejects conflicting Token Grill in
     assert.doesNotMatch(source, /gnome-extensions enable.*\|\| true/);
 });
 
-test('the diagnostics report is redacted again, saved privately, and closing the dialog is not an error', async () => {
-    const [page, widgets, store] = await Promise.all([read('src/prefs/dataPage.ts'), read('src/prefs/widgets.ts'), read('src/storage/diagnosticsStore.ts')]);
-    assert.match(page, /redact\(formatReport\(entries, header\), GLib\.get_home_dir\(\)\)/);
+test('the diagnostics report comes from the service, is saved privately, and closing the dialog is not an error', async () => {
+    const [page, widgets] = await Promise.all([read('src/prefs/dataPage.ts'), read('src/prefs/widgets.ts')]);
+    assert.match(page, /client => client\.diagnosticsReport\(\)/);
     assert.match(page, /Gio\.FileCreateFlags\.PRIVATE/);
     assert.match(page, /if \(isDismissal\(error\)\)/);
     assert.match(widgets, /Gtk\.DialogError\.DISMISSED/);
-    assert.match(store, /detail: redact\(entry\.detail, this\._home\)/);
 });
 
 // A plain lookup unlocks a locked match, which would show a password prompt during a background refresh.
@@ -370,11 +434,9 @@ test('keyring reads search without unlocking, and locked items count as unavaila
 
 // EGO review of 0.3.2: Secret is always present, so it is a static import with its version (I-7).
 test('Secret is imported at the top of the file, never on demand', async () => {
-    const [keyring, keyStore] = await Promise.all([read('src/providers/keyring.ts'), read('src/prefs/keyStore.ts')]);
-    for (const source of [keyring, keyStore]) {
-        assert.match(source, /^import Secret from 'gi:\/\/Secret\?version=1';$/m);
-        assert.doesNotMatch(source, /import\('gi:\/\/Secret/);
-    }
+    const keyring = await read('src/providers/keyring.ts');
+    assert.match(keyring, /^import Secret from 'gi:\/\/Secret\?version=1';$/m);
+    assert.doesNotMatch(keyring, /import\('gi:\/\/Secret/);
 });
 
 test('rings stop at three', async () => {
@@ -393,4 +455,39 @@ test('a low balance is announced, not only shown as an icon', async () => {
 test('a replaced popup mark is destroyed, not left for the garbage collector', async () => {
     const source = await read('src/shell/providerCard.ts');
     assert.match(source, /this\._markBin\.get_child\(\)\?\.destroy\(\);\s*this\._markBin\.set_child\(actor\);/);
+});
+
+// The keyring may show an unlock prompt, which can take longer than any fixed limit.
+test('calls that store a key wait for the keyring without a time limit', async () => {
+    const source = await read('src/client.ts');
+    assert.match(source, /const NO_TIMEOUT = GLib\.MAXINT32;/);
+    assert.match(source, /this\._invoke\('SaveApiKey', [^;]*, NO_TIMEOUT\)/);
+    assert.match(source, /accounts\.some\(account => account\.apiKey !== undefined\)/);
+    assert.match(source, /this\._json\('AddAccounts', accounts, pasted \? NO_TIMEOUT : CALL_TIMEOUT_MS\)/);
+    assert.match(source, /proxy\.call\(method, parameters, Gio\.DBusCallFlags\.NONE, timeout, this\._cancellable\)/);
+});
+
+// Preferences opened before the Shell imported the 0.4 accounts must not show an empty list for good.
+test('Preferences import the 0.4 accounts when the service connects', async () => {
+    const entry = await read('src/prefs.ts');
+    const connected = entry.slice(entry.indexOf('if (connected) {'));
+    assert.match(connected, /^if \(connected\) \{[^}]*context\.request\(client => migrateOnce\(settings, client\)\);/);
+});
+
+test('adding waits for the service with its button off and shows a refusal', async () => {
+    const [add, discover, widgets, accounts] = await Promise.all([
+        read('src/prefs/addAccountDialog.ts'), read('src/prefs/discoverDialog.ts'), read('src/prefs/widgets.ts'), read('src/prefs/accountsPage.ts'),
+    ]);
+    assert.match(add, /busy\.sensitive = false;\s*this\._context\.request\(client => client\.addAccounts\(drafts\)/);
+    assert.match(add, /this\._add\(list\.selected\(\), add\)/);
+    assert.match(discover, /done\.sensitive = false;\s*context\.request\(client => client\.addAccounts\(list\.selected\(\)\)/);
+    for (const source of [add, discover]) {
+        assert.match(source, /presentAddError\(this, errors\)/);
+        assert.doesNotMatch(source, /logger\.warn/);
+    }
+    assert.match(widgets, /ngettext\('Could Not Add the Account', 'Could Not Add the Accounts', count\)/);
+    // A fixed path changes the rows, so the credential status is checked again.
+    const shown = accounts.slice(accounts.indexOf('function shownKey'), accounts.indexOf('export class AccountsPage'));
+    for (const field of ['id', 'kind', 'app', 'displayName', 'enabled', 'topBar', 'accountHome', 'authFileOverride', 'sessionsDirectoryOverride'])
+        assert.match(shown, new RegExp(`provider\\.${field}\\b`), field);
 });

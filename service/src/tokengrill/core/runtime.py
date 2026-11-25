@@ -10,6 +10,7 @@ from typing import Protocol
 
 import tokengrill
 from tokengrill.core.account_edits import (
+    pasted_keys,
     validate_draft,
     with_new_accounts,
     with_updated_account,
@@ -231,14 +232,35 @@ class Runtime:
             return imported
 
     async def add_accounts(self, entries: object) -> tuple[list[str], dict[str, ProviderValidationErrors]]:
+        """A draft may carry a pasted `apiKey`: it is stored before its account exists, as in 0.4.1, so a key the
+        keyring refuses (ServiceError) adds nothing and leaves no account without its key behind."""
+        keys = pasted_keys(entries)
         async with self._edits:
             before = self._accounts()
             after, errors = with_new_accounts(before, entries)
             if errors:
                 return [], errors
-            await self._apply_accounts(after)
             known = {account["id"] for account in before}
-            return [account["id"] for account in after if account["id"] not in known], {}
+            # with_new_accounts appends the drafts in their order.
+            added = [account for account in after if account["id"] not in known]
+            await self._store_keys([(account["id"], key) for account, key in zip(added, keys, strict=True) if key])
+            await self._apply_accounts(after)
+            return [account["id"] for account in added], {}
+
+    async def _store_keys(self, keys: list[tuple[str, str]]) -> None:
+        stored: list[str] = []
+        try:
+            for account_id, key in keys:
+                await store_api_key(account_id, key)
+                stored.append(account_id)
+        except ServiceError:
+            # The accounts are not added, so no key may stay behind for them.
+            for account_id in stored:
+                try:
+                    await clear_api_key(account_id)
+                except ServiceError:
+                    _LOG.warning("could not remove the API key of an account that was not added", exc_info=True)
+            raise
 
     async def update_account(self, entry: object) -> ProviderValidationErrors:
         async with self._edits:

@@ -38,6 +38,7 @@ const giStubs = {
 
 const MODULES = [
     ['src/core/accent.ts', 'accent.mjs'],
+    ['src/core/accountText.ts', 'account-text.mjs'],
     ['src/core/balanceMeter.ts', 'balance-meter.mjs'],
     ['src/core/config.ts', 'config.mjs'],
     ['src/core/diagnostics.ts', 'diagnostics.mjs'],
@@ -57,7 +58,6 @@ const MODULES = [
     ['src/core/providerOrder.ts', 'provider-order.mjs'],
     ['src/core/timeMath.ts', 'time-math.mjs'],
     ['src/core/topBar.ts', 'top-bar.mjs'],
-    ['src/prefs/providerValidation.ts', 'provider-validation.mjs'],
     ['src/pricing/calculator.ts', 'pricing-calculator.mjs'],
     ['src/providers/accountIdentity.ts', 'account-identity.mjs'],
     ['src/providers/candidates.ts', 'account-candidates.mjs'],

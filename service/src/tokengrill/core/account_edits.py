@@ -93,6 +93,25 @@ def with_new_accounts(
     return reorder_providers(combined, [account["id"] for account in combined]), {}
 
 
+def pasted_keys(entries: object) -> list[str | None]:
+    """The API key pasted with each draft, or None; only a DeepSeek draft whose key lives in the keyring may carry one.
+
+    The messages never contain the key.
+    """
+    keys: list[str | None] = []
+    for index, entry in enumerate(entries if isinstance(entries, list) else []):
+        key = entry.get("apiKey") if is_record(entry) else None
+        if key is None:
+            keys.append(None)
+            continue
+        if not is_record(entry) or entry.get("kind") != "deepseek" or entry.get("app") != "keyring":
+            raise InvalidRequest(f"account {index} does not keep its key in the keyring")
+        if not isinstance(key, str) or not key.strip():
+            raise InvalidRequest(f"the key of account {index} is empty")
+        keys.append(key.strip())
+    return keys
+
+
 def with_updated_account(
     existing: list[ProviderInstance], entry: object
 ) -> tuple[list[ProviderInstance], ProviderValidationErrors]:

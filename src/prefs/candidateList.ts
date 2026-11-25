@@ -2,12 +2,10 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import {newProvider} from '../core/config.js';
 import {formatText} from '../core/i18n.js';
 import {displayPath} from '../core/paths.js';
 import {providerMetadata} from '../core/providerMetadata.js';
-import type {ProviderInstance, ProviderKind} from '../core/types.js';
-import type {Candidate} from '../providers/candidates.js';
+import type {AccountDraft, Candidate, ProviderInstance, ProviderKind} from '../core/types.js';
 import {providerIcon} from './widgets.js';
 
 type Addable = Candidate & {kind: ProviderKind};
@@ -55,12 +53,13 @@ export class CandidateList {
         notify();
     }
 
-    selected(): ProviderInstance[] {
-        return this._rows.filter(row => row.check.active).map(({candidate}) => {
-            const provider = newProvider(candidate.kind, candidate.app, candidate.accountHome);
-            provider.displayName = candidate.label;
-            return provider;
-        });
+    selected(): AccountDraft[] {
+        return this._rows.filter(row => row.check.active).map(({candidate}) => ({
+            kind: candidate.kind,
+            app: candidate.app,
+            accountHome: candidate.accountHome,
+            displayName: candidate.label,
+        }));
     }
 
     private _checkRow(candidate: Addable): Adw.ActionRow {
