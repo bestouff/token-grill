@@ -117,7 +117,7 @@ export class Runtime implements IndicatorController {
         this._request(client => client.setPaused(paused));
     }
 
-    // The client also tries again every 15 seconds; the button saves the wait after an install.
+    // The client also tries again by itself; the button saves the wait after an install.
     checkService(): void {
         this._client!.retry();
     }

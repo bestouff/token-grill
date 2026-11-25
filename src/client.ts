@@ -15,6 +15,10 @@ import {INTERFACE_NAME, INTERFACE_XML, MIN_API_VERSION, OBJECT_PATH, SERVICE_NAM
 export type {ClientStatus};
 
 const RETRY_SECONDS = 15;
+// Each try starts the service again, so a service that keeps failing is tried less and less often.
+const MAX_RETRY_SECONDS = 300;
+// A Hello that meets the idle exit: the bus starts a new service as soon as the old one has gone.
+const SHUTTING_DOWN_RETRY_SECONDS = 1;
 // The service starts on the first call and answers Hello after it has read its files.
 const CALL_TIMEOUT_MS = 30000;
 // Storing a key can wait for the user to answer the keyring's unlock prompt, so it has no time limit.
@@ -74,6 +78,8 @@ export class ServiceClient {
     private _signalId: number | null = null;
     private _ownerId: number | null = null;
     private _retryId: number | null = null;
+    // The failed tries since the last connection.
+    private _failures = 0;
     // The proxy that Hello was sent on; it is told Goodbye when it is dropped.
     private _greeted: Gio.DBusProxy | null = null;
 
@@ -86,7 +92,8 @@ export class ServiceClient {
     ) {}
 
     // Reaches the service, starting it if needed. A failure of the connection or of the service's
-    // answer is a status and the client tries again every 15 seconds until it is connected; a bug rejects.
+    // answer is a status and the client tries again after 15 seconds, then less often, until it is
+    // connected; a bug rejects.
     async connect(): Promise<void> {
         if (this._cancellable.is_cancelled())
             return;
@@ -121,6 +128,7 @@ export class ServiceClient {
                 if (proxy.get_name_owner() === null)
                     this._fail('not-responding');
             });
+            this._failures = 0;
             this._setStatus('connected');
         } catch (error) {
             if (isCancellation(error) || this._cancellable.is_cancelled())
@@ -128,16 +136,22 @@ export class ServiceClient {
             // Only failures of the connection or of the service's answer are a status; the rest is a bug.
             if (!(error instanceof GLib.Error || error instanceof ServiceCallError || error instanceof ServiceSchemaError))
                 throw error;
+            if (error instanceof ServiceCallError && error.code === 'ShuttingDown' && this._failures === 0) {
+                // Still connecting: the card would only flash.
+                this._failures++;
+                this._dropProxy();
+                this._scheduleRetry(SHUTTING_DOWN_RETRY_SECONDS);
+                return;
+            }
             this._fail(statusForError(error));
         }
     }
 
-    // Tries now instead of waiting for the next 15 second step.
+    // Tries now instead of waiting for the next step.
     retry(): void {
         if (this.status === 'connected' || this.status === 'connecting')
             return;
-        this._clearRetry();
-        this.connect().catch((error: unknown) => this._logger.error('Connecting to the service failed', error));
+        this._reconnect();
     }
 
     destroy(): void {
@@ -297,15 +311,21 @@ export class ServiceClient {
     private _fail(status: ClientStatus): void {
         this._dropProxy();
         this._setStatus(status);
-        this._scheduleRetry();
+        this._failures++;
+        this._scheduleRetry(Math.min(RETRY_SECONDS * 2 ** (this._failures - 1), MAX_RETRY_SECONDS));
     }
 
-    private _scheduleRetry(): void {
+    private _reconnect(): void {
         this._clearRetry();
-        this._retryId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, RETRY_SECONDS, () => {
+        this.connect().catch((error: unknown) => this._logger.error('Connecting to the service failed', error));
+    }
+
+    private _scheduleRetry(seconds: number): void {
+        this._clearRetry();
+        this._retryId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, seconds, () => {
             this._retryId = null;
             if (!this._cancellable.is_cancelled())
-                this.retry();
+                this._reconnect();
             return GLib.SOURCE_REMOVE;
         });
     }

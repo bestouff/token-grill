@@ -72,6 +72,25 @@ test('an import counts as taken only when the service says it was not refused', 
 
 const CLIENT = 'src/client.ts';
 
+// Every try starts the service again, so a service that keeps failing must not be started every 15 seconds.
+test('the retries back off to five minutes and start again after a connection', async () => {
+    const source = await read(CLIENT);
+    assert.match(source, /MAX_RETRY_SECONDS = 300;/);
+    assert.match(source, /this\._failures\+\+;\s*this\._scheduleRetry\(Math\.min\(RETRY_SECONDS \* 2 \*\* \(this\._failures - 1\), MAX_RETRY_SECONDS\)\);/);
+    assert.match(source, /this\._failures = 0;\s*this\._setStatus\('connected'\);/);
+});
+
+// A Hello that meets the idle exit gets ShuttingDown; the next activation starts a new service.
+test('a first ShuttingDown is tried again after one second without the not-responding card', async () => {
+    const source = await read(CLIENT);
+    assert.match(source, /SHUTTING_DOWN_RETRY_SECONDS = 1;/);
+    const branch = source.slice(source.indexOf("error.code === 'ShuttingDown'"));
+    assert.match(branch, /^error\.code === 'ShuttingDown' && this\._failures === 0\) \{[^}]*this\._scheduleRetry\(SHUTTING_DOWN_RETRY_SECONDS\);\s*return;/);
+    assert.doesNotMatch(branch.slice(0, branch.indexOf('return;')), /_setStatus|_fail\(/);
+    // The scheduled try connects directly: retry() ignores a client that is still connecting.
+    assert.match(source, /if \(!this\._cancellable\.is_cancelled\(\)\)\s*this\._reconnect\(\);/);
+});
+
 test('the proxy is made asynchronously and calls are asynchronous', async () => {
     const source = await read(CLIENT);
     assert.match(source, /Gio\.DBusProxy\.new_for_bus\(/);
@@ -99,8 +118,8 @@ test('every signal connection is disconnected in destroy()', async () => {
 
 test('the retry source is removed in destroy()', async () => {
     const source = await read(CLIENT);
-    assert.match(source, /_retryId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, RETRY_SECONDS/);
-    assert.match(source, /RETRY_SECONDS = 15/);
+    assert.match(source, /_retryId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, seconds,/);
+    assert.match(source, /RETRY_SECONDS = 15;/);
     assert.match(destroyBody(source), /GLib\.Source\.remove\(this\._retryId\)/);
     // The owner's cancellable is the only one: the client neither makes nor cancels its own (R-11).
     assert.match(source, /private readonly _cancellable: Gio\.Cancellable\n {4}\) \{\}/);
