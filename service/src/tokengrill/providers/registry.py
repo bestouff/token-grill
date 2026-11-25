@@ -6,6 +6,7 @@ from tokengrill.providers.base import Collector
 from tokengrill.providers.claude.collector import ClaudeCollector
 from tokengrill.providers.codex.collector import CodexCollector
 from tokengrill.providers.kiro.collector import KiroCollector
+from tokengrill.providers.opencode_go.collector import OpenCodeGoCollector
 
 
 def create_collectors() -> dict[ProviderKind, Collector]:
@@ -15,4 +16,5 @@ def create_collectors() -> dict[ProviderKind, Collector]:
         "claude": ClaudeCollector(),
         "codex": CodexCollector(),
         "kiro": KiroCollector(),
+        "opencode-go": OpenCodeGoCollector(),
     }

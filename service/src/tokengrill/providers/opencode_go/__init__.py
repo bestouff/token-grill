@@ -1,0 +1,1 @@
+"""OpenCode Go usage limits."""

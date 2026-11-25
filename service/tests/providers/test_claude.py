@@ -303,12 +303,6 @@ async def test_token_without_expiry_is_accepted(tmp_path: Path) -> None:
     assert await load_claude_access_token(make_instance(tmp_path)) == "tok"
 
 
-async def test_opencode_accounts_are_not_wired_yet(tmp_path: Path) -> None:
-    with pytest.raises(ServiceError) as caught:
-        await load_claude_access_token(make_instance(tmp_path, app="opencode"))
-    assert caught.value.message_id == "opencode.auth-missing"
-
-
 class Recorder:
     def __init__(self) -> None:
         self.phases: list[RefreshPhase] = []
