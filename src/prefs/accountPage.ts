@@ -264,7 +264,7 @@ export class AccountPage extends Adw.NavigationPage {
     }
 
     // Paths apply when confirmed, and only when valid. The service checks the path as typed, and
-    // a valid one is saved expanded, as in 0.4.1.
+    // saves a valid one expanded.
     private _pathRow(title: string, value: string, field: PathField): Adw.EntryRow {
         const row = new Adw.EntryRow({title, text: value, show_apply_button: true});
         row.connect('apply', () => {

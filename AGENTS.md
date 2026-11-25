@@ -53,7 +53,7 @@ request. A module of one process must not import the UI modules of another.
 - `src/shell/`: the panel button and the popup (`indicator.ts`, `topBar.ts`,
   `providerCard.ts`, `serviceCard.ts`, `accountChip.ts`, `toggleGroup.ts`),
   the notifications, and `signIn.ts` (opens a CLI login in the user's
-  terminal with the argv and env that the service gives).
+  terminal with the command that `core/signIn.ts` builds).
 
 - `src/core/`: code for both processes and the unit tests. It does not import
   Shell modules (`resource:///org/gnome/shell/...`) or GTK modules. Each
@@ -113,7 +113,7 @@ npm run dev:shell      # nested GNOME Shell with the installed copy
 In `service/` (after `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'`):
 
 ```bash
-.venv/bin/pytest -q                 # unit tests, including the parity test
+.venv/bin/pytest -q                 # unit tests
 .venv/bin/pytest -q -m integration  # a real session bus, or the network
 .venv/bin/ruff check . && .venv/bin/mypy src
 ```
@@ -301,18 +301,20 @@ same.
 
 - **The User-Agent names the monitored services.** The Antigravity quota API
   (`cloudcode-pa`) returns 403 if the User-Agent does not contain Antigravity.
-  libsoup replaces the User-Agent of a request with the User-Agent of the
-  session. Thus, the single `USER_AGENT` identifies Token Grill and names the
-  services that it reads (X-10, Q-12). It does not claim to be the Antigravity
+  The HTTP client of the service sets one User-Agent for every request. Thus,
+  the single `USER_AGENT` identifies Token Grill and names the services that
+  it reads (SV-2, Q-12). It does not claim to be the Antigravity
   app or the agy CLI.
 
 
 - **"Sign In Again in a Terminal" launches the CLI login of an account.** It
-  runs only when the user clicks it. The service builds the argv and the env
-  (`SignInCommand`: `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `GH_CONFIG_DIR`), so the
-  right account signs in. `shell/signIn.ts` puts the env through `env` and
-  uses `Gio.AppInfo.create_from_commandline()` with `NEEDS_TERMINAL`, so GLib
-  picks the terminal and no shell parses the command (X-3, X-4).
+  runs only when the user clicks it. The extension builds the argv from its
+  own fixed table in `core/signIn.ts`, never from a D-Bus reply. For an
+  account outside the default home, `env` sets the CLI's own variable
+  (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `GH_CONFIG_DIR`), so the right account
+  signs in. `shell/signIn.ts` uses `Gio.AppInfo.create_from_commandline()`
+  with `NEEDS_TERMINAL`, so GLib picks the terminal and no shell parses the
+  command (X-3, X-4).
 
 - **The Copy buttons write a fixed setup command to the clipboard.** The popup
   (`shell/serviceCard.ts`) calls `St.Clipboard.set_text()`. The preferences

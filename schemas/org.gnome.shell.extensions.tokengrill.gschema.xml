@@ -4,29 +4,29 @@
         <key name="provider-instances-json" type="s">
             <default>'[]'</default>
             <summary>Configured accounts</summary>
-            <description>Versioned JSON definitions of the accounts that Token Grill monitors.</description>
+            <description>The accounts of Token Grill 0.4. Read once to import them into the service, then emptied.</description>
         </key>
         <key name="configuration-version" type="u">
             <default>3</default>
             <summary>Configuration format version</summary>
-            <description>Format version of the stored account definitions, used to migrate older configurations.</description>
+            <description>The format version of the 0.4 accounts. Read once by the import into the service.</description>
         </key>
         <key name="refresh-interval-seconds" type="u">
             <range min="60" max="3600"/>
             <default>300</default>
             <summary>Refresh interval</summary>
-            <description>Seconds between live quota updates.</description>
+            <description>The 0.4 refresh interval. Read once by the import; the service keeps this setting now.</description>
         </key>
         <key name="notifications-enabled" type="b">
             <default>true</default>
             <summary>Usage notifications</summary>
-            <description>Whether to notify when an account's selected limit crosses a usage step.</description>
+            <description>The 0.4 notification switch. Read once by the import; the service keeps this setting now.</description>
         </key>
         <key name="notification-step-percent" type="u">
             <range min="5" max="50"/>
             <default>10</default>
             <summary>Notification step</summary>
-            <description>Percentage of the limit between two usage notifications for the same account.</description>
+            <description>The 0.4 notification step. Read once by the import; the service keeps this setting now.</description>
         </key>
         <key name="active-provider-id" type="s">
             <default>''</default>
@@ -54,7 +54,7 @@
         <key name="diagnostics-journal" type="b">
             <default>false</default>
             <summary>Copy diagnostics to the system journal</summary>
-            <description>For testers: also write each redacted refresh step to the system journal.</description>
+            <description>The 0.4 journal diagnostics switch. Read once by the import; the service keeps this setting now.</description>
         </key>
         <key name="panel-display-style" type="s">
             <choices>

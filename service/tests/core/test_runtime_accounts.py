@@ -444,6 +444,30 @@ async def test_keys_stored_before_a_refused_one_are_removed_again(rig: Rig, monk
     assert len(rig.store.load()["accounts"]) == 2
 
 
+async def test_keys_are_removed_again_when_the_accounts_cannot_be_saved(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stored: list[str] = []
+    cleared: list[str] = []
+
+    async def store(account_id: str, key: str) -> None:
+        stored.append(account_id)
+
+    async def clear(account_id: str) -> None:
+        cleared.append(account_id)
+
+    async def disk_full(config: Config) -> None:
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr("tokengrill.core.runtime.store_api_key", store)
+    monkeypatch.setattr("tokengrill.core.runtime.clear_api_key", clear)
+    monkeypatch.setattr(rig.store, "save", disk_full)
+    with pytest.raises(OSError):
+        await rig.runtime.add_accounts([KEY_DRAFT])
+    assert len(stored) == 1 and cleared == stored
+    assert rig.events.account_lists == []
+
+
 async def test_a_key_is_accepted_only_on_a_keyring_draft_and_never_blank(
     rig: Rig, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -56,7 +56,7 @@ for (const target of targets) {
             console.error(`  ${finding.rule_id}: ${finding.message}`);
         failed = true;
     } else if (accepted.length > 0) {
-        console.log(`${label}: Shexli review clean, except EGO-M-004 for GNOME 51 (accepted, PRACTICES T-2).`);
+        console.log(`${label}: Shexli review clean, except ${[...new Set(accepted.map(finding => finding.rule_id))].join(' and ')} (accepted, PRACTICES T-2).`);
     } else {
         console.log(`${label}: Shexli review clean.`);
     }

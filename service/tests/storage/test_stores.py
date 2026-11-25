@@ -1,3 +1,4 @@
+import json
 import logging
 import shutil
 import stat
@@ -160,6 +161,22 @@ async def test_checkpoints_get_set_remove(tmp_path: Path) -> None:
     assert store.get("a", "/p") == checkpoint
     await store.remove_provider("a")
     assert store.get("a", "/p") is None
+
+
+async def test_damaged_checkpoints_are_dropped_on_load(tmp_path: Path) -> None:
+    path = tmp_path / "c.json"
+    good = {"providerId": "a", "path": "/ok", "size": 5, "mtime": 6, "offset": 5, "parserVersion": 1}
+    damaged = [
+        {**good, "path": "/text-size", "size": "5"},
+        {**good, "path": "/no-offset", "offset": None},
+        {**good, "path": "/flag", "mtime": True},
+        {**good, "path": "/negative", "offset": -1},
+    ]
+    path.write_text(json.dumps({"schemaVersion": 1, "files": [good, *damaged]}))
+    store = CheckpointStore(path)
+    await store.load()
+    assert store.get("a", "/ok") == good
+    assert all(store.get("a", str(item["path"])) is None for item in damaged)
 
 
 async def test_balances_drop_invalid_references(tmp_path: Path) -> None:

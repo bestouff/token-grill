@@ -9,11 +9,11 @@ import type {ProviderInstance, Settings} from '../core/types.js';
 export type Change = 'status' | 'accounts' | 'settings';
 export type PrefsLogger = Pick<Console, 'warn' | 'error'>;
 // A call that the service refused or could not answer.
-export type ServiceFailure = ServiceCallError | GLib.Error;
+export type CallFailure = ServiceCallError | GLib.Error;
 
 export interface Reply<T> {
     done?: (value: T) => void;
-    failed?: (error: ServiceFailure) => void;
+    failed?: (error: CallFailure) => void;
     // A narrower scope than the window, such as one rendering of a page.
     cancellable?: Gio.Cancellable;
 }

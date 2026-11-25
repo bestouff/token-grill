@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {migrateOnce} from '../../build/tests/migration.mjs';
 
+const LIVE = {is_cancelled: () => false};
 const LEGACY_JSON = '[{"schemaVersion":1,"id":"a","kind":"codex","app":"codex-cli"}]';
 
 function fakeSettings(values = {}) {
@@ -49,7 +50,7 @@ function fakeClient(accounts, reply = () => Promise.resolve(1)) {
 test('the 0.4 settings are handed over once with exactly the legacy fields', async () => {
     const settings = fakeSettings();
     const client = fakeClient([]);
-    await migrateOnce(settings, client);
+    await migrateOnce(settings, client, LIVE);
     assert.equal(client.calls.length, 1);
     assert.deepEqual(client.calls[0], {
         providerInstancesJson: LEGACY_JSON,
@@ -73,7 +74,7 @@ test('the key is cleared only after the service has the accounts', async () => {
     const client = fakeClient([], () => new Promise(done => {
         resolve = done;
     }));
-    const migration = migrateOnce(settings, client);
+    const migration = migrateOnce(settings, client, LIVE);
     await Promise.resolve();
     assert.equal(client.calls.length, 1);
     assert.deepEqual(settings.writes, [], 'nothing is cleared while the call is in flight');
@@ -85,7 +86,7 @@ test('the key is cleared only after the service has the accounts', async () => {
 test('a failed import leaves the key for the next connection', async () => {
     const settings = fakeSettings();
     const client = fakeClient([], () => Promise.reject(new Error('InvalidArgs')));
-    await assert.rejects(migrateOnce(settings, client), /InvalidArgs/);
+    await assert.rejects(migrateOnce(settings, client, LIVE), /InvalidArgs/);
     assert.deepEqual(settings.writes, []);
     assert.equal(settings.store['provider-instances-json'], LEGACY_JSON);
 });
@@ -93,24 +94,36 @@ test('a failed import leaves the key for the next connection', async () => {
 test('a second connection with accounts present does not import again', async () => {
     const settings = fakeSettings();
     const client = fakeClient([]);
-    await migrateOnce(settings, client);
+    await migrateOnce(settings, client, LIVE);
     client.state = {accounts: [{id: 'a'}]};
     settings.store['provider-instances-json'] = LEGACY_JSON;
-    await migrateOnce(settings, client);
+    await migrateOnce(settings, client, LIVE);
     assert.equal(client.calls.length, 1);
 });
 
 test('nothing is imported when the service has accounts, the key is empty, or there is no state', async () => {
     const withAccounts = fakeClient([{id: 'a'}]);
-    await migrateOnce(fakeSettings(), withAccounts);
+    await migrateOnce(fakeSettings(), withAccounts, LIVE);
     assert.equal(withAccounts.calls.length, 0);
 
     const emptyKey = fakeSettings({'provider-instances-json': '[]'});
     const fresh = fakeClient([]);
-    await migrateOnce(emptyKey, fresh);
+    await migrateOnce(emptyKey, fresh, LIVE);
     assert.equal(fresh.calls.length, 0);
     assert.deepEqual(emptyKey.writes, []);
 
     const disconnected = {calls: [], state: null, importAccounts: () => assert.fail('no import without a state')};
-    await migrateOnce(fakeSettings(), disconnected);
+    await migrateOnce(fakeSettings(), disconnected, LIVE);
+});
+
+test('a reply that arrives after disable() leaves the key alone', async () => {
+    const settings = fakeSettings();
+    let cancelled = false;
+    const client = fakeClient([], () => {
+        cancelled = true;
+        return Promise.resolve(1);
+    });
+    await migrateOnce(settings, client, {is_cancelled: () => cancelled});
+    assert.equal(client.calls.length, 1);
+    assert.deepEqual(settings.writes, []);
 });

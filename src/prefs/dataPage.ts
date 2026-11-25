@@ -12,7 +12,7 @@ import {isDismissal} from './widgets.js';
 Gio._promisify(Gtk.FileDialog.prototype, 'save', 'save_finish');
 Gio._promisify(Gio.File.prototype, 'replace_contents_async', 'replace_contents_finish');
 
-// The service keeps its files where 0.4.1 kept them.
+// The folder of the service's files in the XDG data and state directories.
 const APP_DIRECTORY = 'token-grill';
 
 export class DataPage extends Adw.PreferencesPage {

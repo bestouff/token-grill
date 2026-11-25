@@ -90,11 +90,6 @@ export const INTERFACE_XML = `<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS O
     <method name="SetSettings">
       <arg name="settings" type="s" direction="in"/>
     </method>
-    <method name="SignInCommand">
-      <arg name="account_id" type="s" direction="in"/>
-      <arg name="argv" type="as" direction="out"/>
-      <arg name="env" type="a{ss}" direction="out"/>
-    </method>
     <method name="SendTestAlert">
       <arg name="account_id" type="s" direction="in"/>
     </method>

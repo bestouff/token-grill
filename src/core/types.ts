@@ -104,7 +104,7 @@ export interface UsageWindow {
     // The length of the window when the service reports it; usage pace needs it.
     durationSeconds: number | null;
     unit: 'credits' | null;
-    // Set by the service; the extension's own normalizers leave it out.
+    // Set by the service; the popup works out its own pace text from the window.
     pace?: PaceState | null;
 }
 
@@ -158,33 +158,6 @@ export interface ProviderRuntimeState {
     sources: Record<RefreshSource, SourceResult | null>;
 }
 
-export interface UsageEvent {
-    capturedAt: number;
-    model: string | null;
-    totals: TokenTotals;
-}
-
-export interface AggregateBucket {
-    providerId: string;
-    date: string;
-    model: string;
-    totals: TokenTotals;
-}
-
-export interface FileCheckpoint {
-    providerId: string;
-    path: string;
-    size: number;
-    mtime: number;
-    offset: number;
-    parserVersion: number;
-}
-
-export interface ProviderPaths {
-    authFile: string;
-    historyDirectories: string[];
-}
-
 export interface Settings {
     refreshIntervalSeconds: number;
     alertsEnabled: boolean;
@@ -214,37 +187,6 @@ export interface Alert {
     at: number;
 }
 
-export const EMPTY_TOTALS: TokenTotals = {
-    input: 0,
-    output: 0,
-    cachedInput: 0,
-    cacheWrite: 0,
-    reasoning: 0,
-    total: 0,
-};
-
 export const BALANCE_KEY = 'balance';
 
 export const ACCENTS: AccentColor[] = ['blue', 'teal', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'slate'];
-
-export function emptySnapshot(providerId: string): ProviderSnapshot {
-    return {
-        providerId,
-        state: 'unknown',
-        lastUpdated: null,
-        errorInfo: null,
-        plan: null,
-        account: null,
-        windows: [],
-        balance: null,
-        totals: {...EMPTY_TOTALS},
-        todayTotals: {...EMPTY_TOTALS},
-        monthTotals: {...EMPTY_TOTALS},
-        todayCost: null,
-        monthCost: null,
-        quotaFetchedAt: null,
-        localHistoryUpdatedAt: null,
-        resetCredits: null,
-        pace: null,
-    };
-}

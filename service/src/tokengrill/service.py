@@ -111,6 +111,7 @@ async def run_service(idle_seconds: float = 60, *, collectors: dict[ProviderKind
     interface = TokenGrillInterface(tracker.call_started, tracker.call_finished)
     for number in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(number, finished.set)
+    # dbus-fast leaves wait_for_disconnect() without annotations.
     disconnected = asyncio.ensure_future(bus.wait_for_disconnect())  # type: ignore[no-untyped-call]
     disconnected.add_done_callback(on_disconnect)
     try:

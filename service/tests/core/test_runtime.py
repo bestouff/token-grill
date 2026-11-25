@@ -1,13 +1,13 @@
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
 import pytest
 
 import tokengrill
 from tokengrill.core.config import Config, ConfigStore, default_settings, new_provider
-from tokengrill.core.errors import InvalidRequest, NoSignInCommand, ServiceError
+from tokengrill.core.errors import InvalidRequest, ServiceError
 from tokengrill.core.runtime import Emitter, Runtime
 from tokengrill.core.types import (
     Alert,
@@ -320,6 +320,29 @@ async def test_stop_flushes_stores(rig: Rig) -> None:
     assert (folder / "diagnostics-v1.json").exists()
 
 
+async def test_stop_writes_the_other_stores_when_one_cannot_be_written(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await rig.runtime.start()
+    flushed: list[str] = []
+
+    def spy(name: str, fail: bool = False) -> Callable[[], Awaitable[None]]:
+        async def flush() -> None:
+            flushed.append(name)
+            if fail:
+                raise OSError(28, "No space left on device")
+
+        return flush
+
+    runtime = rig.runtime
+    monkeypatch.setattr(runtime._aggregates, "flush", spy("aggregates", fail=True))
+    for name in ("checkpoints", "balances", "readings", "alerts", "diagnostics"):
+        monkeypatch.setattr(getattr(runtime, f"_{name}"), "flush", spy(name))
+    await runtime.stop()
+    # The checkpoints never move past totals that were not written.
+    assert flushed == ["aggregates", "balances", "readings", "alerts", "diagnostics"]
+
+
 async def test_stop_cancels_a_running_collection(rig: Rig) -> None:
     await rig.runtime.start()
     rig.fake.block = asyncio.Event()
@@ -505,20 +528,10 @@ async def test_the_report_has_the_service_version_and_the_redacted_steps(rig: Ri
     assert str(Path.home()) not in report
 
 
-async def test_sign_in_command_answers_for_a_known_account_and_rejects_the_rest(rig: Rig) -> None:
+async def test_a_request_for_an_unknown_account_is_refused(rig: Rig) -> None:
     await rig.runtime.start()
-    assert rig.runtime.sign_in_command(ACCOUNT_ID) == (["codex", "login"], {})
     with pytest.raises(InvalidRequest):
-        rig.runtime.sign_in_command("nope")
-
-
-async def test_an_account_without_a_login_command_raises_no_sign_in_command(xdg: Path) -> None:
-    key = {**new_provider("deepseek", "keyring", "~/.claude"), "id": "k"}
-    made = await build(xdg, accounts=[key])  # type: ignore[list-item]
-    await made.runtime.start()
-    with pytest.raises(NoSignInCommand):
-        made.runtime.sign_in_command("k")
-    await made.runtime.stop()
+        rig.runtime.send_test_alert("nope")
 
 
 async def test_start_sweeps_stale_private_database_copies(

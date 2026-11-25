@@ -37,12 +37,17 @@ function legacySettings(settings: LegacySettingsSource): LegacySettings {
 
 // 0.4 kept the accounts in GSettings. The service takes them only while it has none, and the key is
 // emptied only after the service has them, so a failed import is tried again at the next connection.
-export async function migrateOnce(settings: LegacySettingsSource, client: ImportingClient): Promise<void> {
+// After disable() or a closed window the key stays: the service has the accounts then, so the next connection skips this.
+export async function migrateOnce(
+    settings: LegacySettingsSource, client: ImportingClient, cancellable: Pick<Gio.Cancellable, 'is_cancelled'>
+): Promise<void> {
     const state = client.state;
     if (state === null || state.accounts.length > 0)
         return;
     if (settings.get_string(ACCOUNTS_KEY).trim() === NO_ACCOUNTS)
         return;
     await client.importAccounts(legacySettings(settings));
+    if (cancellable.is_cancelled())
+        return;
     settings.set_string(ACCOUNTS_KEY, NO_ACCOUNTS);
 }

@@ -26,13 +26,12 @@ from tokengrill.core.config import (
     parse_legacy,
 )
 from tokengrill.core.diagnostics import DiagnosticEntry, format_report, redact
-from tokengrill.core.errors import InvalidRequest, NoSignInCommand, ServiceError
+from tokengrill.core.errors import InvalidRequest, ServiceError
 from tokengrill.core.order import reorder_providers
 from tokengrill.core.pace import with_pace
 from tokengrill.core.paths import provider_paths, runtime_dir
 from tokengrill.core.readings import restored_snapshot, snapshot_fingerprint
 from tokengrill.core.scheduler import Scheduler, SchedulerJob
-from tokengrill.core.signin import sign_in_command
 from tokengrill.core.timemath import now_ms
 from tokengrill.core.topbar import is_shown, limit_key, set_automatic, shown_limits, toggle_limit
 from tokengrill.core.types import (
@@ -243,24 +242,36 @@ class Runtime:
             known = {account["id"] for account in before}
             # with_new_accounts appends the drafts in their order.
             added = [account for account in after if account["id"] not in known]
-            await self._store_keys([(account["id"], key) for account, key in zip(added, keys, strict=True) if key])
-            await self._apply_accounts(after)
+            stored = await self._store_keys(
+                [(account["id"], key) for account, key in zip(added, keys, strict=True) if key]
+            )
+            try:
+                await self._apply_accounts(after)
+            except OSError:
+                # Only a failed save leaves the accounts out; later steps run with the accounts added.
+                if self._accounts() != after:
+                    await self._clear_keys(stored)
+                raise
             return [account["id"] for account in added], {}
 
-    async def _store_keys(self, keys: list[tuple[str, str]]) -> None:
+    async def _store_keys(self, keys: list[tuple[str, str]]) -> list[str]:
         stored: list[str] = []
         try:
             for account_id, key in keys:
                 await store_api_key(account_id, key)
                 stored.append(account_id)
         except ServiceError:
-            # The accounts are not added, so no key may stay behind for them.
-            for account_id in stored:
-                try:
-                    await clear_api_key(account_id)
-                except ServiceError:
-                    _LOG.warning("could not remove the API key of an account that was not added", exc_info=True)
+            await self._clear_keys(stored)
             raise
+        return stored
+
+    async def _clear_keys(self, account_ids: list[str]) -> None:
+        """The accounts are not added, so no key may stay behind for them."""
+        for account_id in account_ids:
+            try:
+                await clear_api_key(account_id)
+            except ServiceError:
+                _LOG.warning("could not remove the API key of an account that was not added", exc_info=True)
 
     async def update_account(self, entry: object) -> ProviderValidationErrors:
         async with self._edits:
@@ -335,12 +346,6 @@ class Runtime:
             self._config = updated
             self._scheduler.set_interval(settings["refreshIntervalSeconds"])
             self._emitter.settings_changed(settings)
-
-    def sign_in_command(self, account_id: str) -> tuple[list[str], dict[str, str]]:
-        command = sign_in_command(self._account(account_id))
-        if command is None:
-            raise NoSignInCommand("this account has no sign-in command")
-        return command
 
     def diagnostics_report(self) -> str:
         """The stored steps, redacted once more in case an entry was written by an older version."""
@@ -688,6 +693,7 @@ class Runtime:
             "account": f"{instance['kind']}-{kind_index + 1}",
             "kind": instance["kind"],
             "app": instance["app"],
+            # The callers pass the step names of DiagnosticEntry as plain strings.
             "step": step,  # type: ignore[typeddict-item]
             "detail": detail,
         }
@@ -696,8 +702,21 @@ class Runtime:
             _LOG.info("%s (%s) %s: %s", kept["account"], kept["app"], kept["step"], kept["detail"])
 
     async def _flush(self) -> None:
-        for store in self._stores():
-            await store.flush()
+        """One store that cannot be written must not keep the last changes of the others off the disk.
+
+        The checkpoints are written only after the totals they describe, so a failed write never moves a
+        checkpoint past lines whose totals are lost.
+        """
+        try:
+            await self._aggregates.flush()
+            await self._checkpoints.flush()
+        except OSError:
+            _LOG.warning("could not write the history state", exc_info=True)
+        for store in (self._balances, self._readings, self._alerts, self._diagnostics):
+            try:
+                await store.flush()
+            except OSError:
+                _LOG.warning("could not write a state file", exc_info=True)
 
     def _stores(self) -> tuple[_Store, ...]:
         return (

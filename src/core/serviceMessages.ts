@@ -1,5 +1,6 @@
 // The service names each failure by a message id with parameters and sends no text, so the
-// sentence is translated here with the 0.4.1 msgids and follows the user's language.
+// sentence is translated here and follows the user's language. The msgids are the earlier ones,
+// so the existing translations still apply.
 import {formatText, type Translator} from './i18n.js';
 import type {ClientStatus} from './serviceState.js';
 import type {ErrorInfo, ProviderErrorCode} from './types.js';
@@ -116,19 +117,19 @@ const SHOW_THE_LOG = 'journalctl --user -t tokengrill';
 export function serviceStatusContent({_}: Translator, failure: ServiceFailure): ServiceCardPart[] {
     const cards: Record<ServiceFailure, ServiceCardPart[]> = {
         missing: [
-            {kind: 'title', text: _('Token Grill needs its service')},
-            {kind: 'body', text: _('The service reads your sign-ins and asks each service for your usage.')},
+            {kind: 'title', text: _('Token Grill Needs Its Service')},
+            {kind: 'body', text: _('The service reads your sign-ins and asks each service for your usage')},
             {kind: 'command', text: INSTALL_WITH_PIPX},
-            {kind: 'hint', text: formatText(_('No pipx? Install it with %s (Ubuntu, Debian) or %s (Fedora).'), 'sudo apt install pipx', 'sudo dnf install pipx')},
+            {kind: 'hint', text: formatText(_('No pipx? Install it with %s (Ubuntu, Debian) or %s (Fedora)'), 'sudo apt install pipx', 'sudo dnf install pipx')},
             {kind: 'command', text: INSTALL_WITH_UV},
             {kind: 'check-again', text: _('Check Again')},
         ],
         'too-old': [
-            {kind: 'title', text: _('Update the service')},
+            {kind: 'title', text: _('Update the Service')},
             {kind: 'command', text: UPGRADE_WITH_PIPX},
         ],
         'not-responding': [
-            {kind: 'title', text: _('The service is not responding')},
+            {kind: 'title', text: _('The Service Is Not Responding')},
             {kind: 'check-again', text: _('Check Again')},
             {kind: 'command', text: SHOW_THE_LOG},
         ],

@@ -56,7 +56,7 @@ async def test_bad_arguments_raise_dbus_errors(env: dict[str, str], service: sub
         await iface.call_hello("browser")  # type: ignore[attr-defined]
     assert bad_kind.value.type == f"{NAME}.Error.InvalidArgs"
     with pytest.raises(DBusError) as unknown:
-        await iface.call_sign_in_command("x")  # type: ignore[attr-defined]
+        await iface.call_send_test_alert("x")  # type: ignore[attr-defined]
     assert unknown.value.type == f"{NAME}.Error.InvalidArgs"
     report = await iface.call_diagnostics_report()  # type: ignore[attr-defined]
     assert report.startswith("Token Grill service ")
@@ -187,7 +187,7 @@ async def test_introspection_matches_interface_xml(env: dict[str, str], service:
     shipped = next(i for i in ET.fromstring(shipped_text).findall("interface") if i.get("name") == IFACE)
     expected = _signature(shipped)
     assert _signature(live) == expected
-    assert len(expected["methods"]) == 21  # type: ignore[arg-type]
+    assert len(expected["methods"]) == 20  # type: ignore[arg-type]
     bus.disconnect()
 
 

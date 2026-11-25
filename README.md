@@ -158,8 +158,8 @@ account on the **Accounts** page.
 
 ## The service
 
-The service is the Python package `tokengrill`. The extension starts it
-through D-Bus when it needs it, and the service exits 60 seconds after the last
+The service is the Python package `tokengrill`. The session bus starts it
+(D-Bus activation) when the extension calls it, and the service exits 60 seconds after the last
 Token Grill window or preferences window has left. It does these tasks:
 
 - It reads the sign-ins of the apps that you use, and the API keys that you
@@ -215,7 +215,7 @@ monitors.
 
 Token Grill starts no other program by itself. Only when you click
 **Sign In Again in a Terminal**, the extension opens your terminal with the
-login command of the CLI that the service gives it. It does not collect
+login command of that account's CLI, from a fixed list in the extension. It does not collect
 telemetry. It does not read or send prompts or responses.
 
 The Kiro usage request gets the e-mail address of the account. The popup shows

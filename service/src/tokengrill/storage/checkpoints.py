@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, TypeGuard
 
 from tokengrill.core.json_util import is_record
 from tokengrill.storage.atomic_json import Persisted, state_path
@@ -21,6 +21,30 @@ def _key(provider_id: str, path: str) -> str:
     return json.dumps([provider_id, path])
 
 
+def _is_count(value: object) -> TypeGuard[int]:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _checkpoint(item: object) -> FileCheckpoint | None:
+    """A damaged entry is dropped, so its file is read again instead of failing every scan."""
+    if not is_record(item):
+        return None
+    provider_id, path = item.get("providerId"), item.get("path")
+    size, mtime, offset, version = item.get("size"), item.get("mtime"), item.get("offset"), item.get("parserVersion")
+    if not (isinstance(provider_id, str) and isinstance(path, str)):
+        return None
+    if not (_is_count(size) and _is_count(mtime) and _is_count(offset) and _is_count(version)):
+        return None
+    return {
+        "providerId": provider_id,
+        "path": path,
+        "size": size,
+        "mtime": mtime,
+        "offset": offset,
+        "parserVersion": version,
+    }
+
+
 class CheckpointStore(Persisted):
     def __init__(self, path: Path | None = None) -> None:
         super().__init__(path or state_path("checkpoints-v1.json"))
@@ -30,8 +54,9 @@ class CheckpointStore(Persisted):
         file = await self._read()
         files: Any = file.get("files")
         for item in files if isinstance(files, list) else []:
-            if is_record(item) and isinstance(item.get("providerId"), str) and isinstance(item.get("path"), str):
-                self._files[_key(item["providerId"], item["path"])] = item  # type: ignore[assignment]
+            checkpoint = _checkpoint(item)
+            if checkpoint is not None:
+                self._files[_key(checkpoint["providerId"], checkpoint["path"])] = checkpoint
 
     def get(self, provider_id: str, path: str) -> FileCheckpoint | None:
         return self._files.get(_key(provider_id, path))

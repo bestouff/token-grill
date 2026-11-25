@@ -8,6 +8,7 @@ import {activeProvider} from './core/display.js';
 import {isCancellation} from './core/gio.js';
 import {migrateOnce} from './core/migration.js';
 import {alertText} from './core/notificationPolicy.js';
+import {signInCommand} from './core/signIn.js';
 import {isShown} from './core/topBar.js';
 import type {Alert, PanelDisplayStyle, PanelPercentageMode, ProviderInstance, ProviderKind} from './core/types.js';
 import {TokenGrillIndicator, type IndicatorController} from './shell/indicator.js';
@@ -98,12 +99,12 @@ export class Runtime implements IndicatorController {
         this._request(client => client.setAutomatic(providerId, on));
     }
 
+    // The command comes from the extension's own table, never from the bus.
     signIn(providerId: string): void {
-        const cancellable = this._cancellable!;
-        this._request(client => client.signInCommand(providerId).then(({argv, env}) => {
-            if (!cancellable.is_cancelled())
-                openSignIn(argv, env);
-        }));
+        const provider = this._accounts().find(account => account.id === providerId);
+        const command = provider ? signInCommand(provider) : null;
+        if (command)
+            openSignIn(command.argv);
     }
 
     openPreferences(): void {
@@ -148,7 +149,7 @@ export class Runtime implements IndicatorController {
         if (this._migration !== null)
             return;
         const cancellable = this._cancellable!;
-        this._migration = migrateOnce(this._settings!, this._client!)
+        this._migration = migrateOnce(this._settings!, this._client!, cancellable)
             .catch(error => {
                 if (!cancellable.is_cancelled() && !isCancellation(error))
                     this._logFailure(error);
@@ -176,7 +177,6 @@ export class Runtime implements IndicatorController {
             if (cancellable.is_cancelled() || isCancellation(error))
                 return;
             this._logFailure(error);
-            // A switch the user moved goes back to what the service has.
             this._render();
         });
     }

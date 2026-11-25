@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Final, TypeVar
@@ -10,14 +11,14 @@ from dbus_fast import DBusError, PropertyAccess
 from dbus_fast.service import ServiceInterface, dbus_property, method, signal
 
 import tokengrill
-from tokengrill.core.errors import InvalidRequest, NoSignInCommand, ServiceError
+from tokengrill.core.errors import InvalidRequest, ServiceError
 from tokengrill.core.runtime import Runtime
 from tokengrill.core.types import Alert, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, Settings
 from tokengrill.dbus.clients import CLIENT_KINDS
 from tokengrill.dbus.payloads import (
+    INTERNAL,
     INVALID_ARGS,
     KEYRING_UNAVAILABLE,
-    NO_SIGN_IN_COMMAND,
     SHUTTING_DOWN,
     account_json,
     alert_json,
@@ -26,6 +27,7 @@ from tokengrill.dbus.payloads import (
 )
 
 INTERFACE_NAME: Final = "io.github.sh02sahil.TokenGrill1"
+_LOG = logging.getLogger("tokengrill.dbus")
 _T = TypeVar("_T")
 
 
@@ -91,10 +93,19 @@ class TokenGrillInterface(ServiceInterface):
 
     @asynccontextmanager
     async def _call(self) -> AsyncIterator[Runtime]:
-        """Counts the call as in flight, so the idle timer cannot cut it off."""
+        """Counts the call as in flight, so the idle timer cannot cut it off.
+
+        A D-Bus error is the caller's answer. Anything else, a bug or a failed write of the service's own
+        files, goes to the journal, and the caller gets the Internal error instead of a traceback.
+        """
         self._on_call_started()
         try:
             yield await self._attached()
+        except DBusError:
+            raise
+        except Exception as error:
+            _LOG.exception("a D-Bus method failed")
+            raise DBusError(INTERNAL, "the service hit an unexpected error") from error
         finally:
             self._on_call_finished()
 
@@ -237,14 +248,6 @@ class TokenGrillInterface(ServiceInterface):
     async def SetSettings(self, settings: "s") -> None:
         async with self._call() as runtime:
             await _checked(runtime.set_settings(parse_json_arg(settings)))
-
-    @method()
-    async def SignInCommand(self, account_id: "s") -> "asa{ss}":
-        async with self._call() as runtime:
-            try:
-                return list(_checked_sync(lambda: runtime.sign_in_command(account_id)))
-            except NoSignInCommand as error:
-                raise DBusError(NO_SIGN_IN_COMMAND, str(error)) from error
 
     @method()
     async def SendTestAlert(self, account_id: "s") -> None:

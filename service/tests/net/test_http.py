@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import AsyncIterator
 
@@ -89,6 +90,21 @@ async def test_streamed_body_over_limit_is_too_large() -> None:
         await _client(transport).request_json("GET", "https://api.github.com/x", {})
     assert err.value.message_id == "net.too-large"
     assert err.value.code == "response-shape"
+
+
+async def test_a_body_that_trickles_past_the_deadline_is_a_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("tokengrill.net.http.TIMEOUT_SECONDS", 0.2)
+
+    async def trickle() -> AsyncIterator[bytes]:
+        # Each chunk arrives well within any per-read timeout; only the whole request is too slow.
+        for _ in range(100):
+            await asyncio.sleep(0.05)
+            yield b" "
+
+    transport, _ = _recording(httpx.Response(200, content=trickle()))
+    with pytest.raises(ServiceError) as err:
+        await asyncio.wait_for(_client(transport).request_json("GET", "https://api.github.com/x", {}), 5)
+    assert (err.value.code, err.value.message_id) == ("timeout", "net.timed-out")
 
 
 async def test_content_length_over_limit_is_too_large() -> None:

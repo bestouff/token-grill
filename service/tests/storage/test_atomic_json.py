@@ -110,3 +110,38 @@ async def test_failed_write_is_retried_by_flush(tmp_path: Path) -> None:
     blocker.unlink()
     await writer.flush()
     assert (tmp_path / "blocker" / "f.json").read_text() == '{"a":1}'
+
+
+async def test_a_cancelled_write_still_running_never_overwrites_a_newer_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import threading
+
+    from tokengrill.storage import atomic_json
+
+    real_write = atomic_json._write_atomic
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_first(path: Path, text: str) -> None:
+        if text == '{"n":1}':
+            started.set()
+            release.wait(5)
+        real_write(path, text)
+
+    monkeypatch.setattr(atomic_json, "_write_atomic", slow_first)
+    target = tmp_path / "state.json"
+    writer = SerialWriter(target)
+    first = asyncio.create_task(writer.write({"n": 1}))
+    await asyncio.to_thread(started.wait, 5)
+    first.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await first
+    second = asyncio.create_task(writer.write({"n": 2}))
+    await asyncio.sleep(0.05)
+    release.set()
+    await second
+    # The first thread may still be finishing; wait until it has given up the file.
+    await asyncio.to_thread(writer._thread_lock.acquire)
+    writer._thread_lock.release()
+    assert target.read_text() == '{"n":2}'

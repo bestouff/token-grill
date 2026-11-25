@@ -24,6 +24,8 @@
   (`journalDiagnostics`) now belongs to the service.
 - Kiro and Cursor no longer need the Gda library. The extension no longer
   needs libsecret.
+- A history scan that stops in the middle of a file, for example at a screen
+  lock, no longer counts the lines of that file two times.
 
 ## 0.4.1
 

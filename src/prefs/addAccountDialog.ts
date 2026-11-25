@@ -40,7 +40,7 @@ const HOME_APPS: Partial<Record<AccountApp, ProviderKind>> = {
     'cursor-agent': 'cursor',
 };
 
-// The service stores the pasted key first and adds the account only when the keyring took it, as in 0.4.1.
+// The service stores the pasted key first and adds the account only when the keyring took it.
 const KEY_DRAFT: AccountDraft = {kind: 'deepseek', app: 'keyring', accountHome: '', displayName: providerMetadata('deepseek').label};
 
 function emptyHint(app: AccountApp): string {
@@ -196,12 +196,13 @@ export class AddAccountDialog extends Adw.Dialog {
         const page = new Adw.PreferencesPage();
         const navigation = this._page('DeepSeek', page, add);
         const search = (client: ServiceClient) => Promise.all([client.discover('opencode'), client.discover('claude-settings')]);
+        // A pasted key needs no search, so a refused search still leaves the paste group.
         this._request(search, ([openCode, settings]) => {
             const candidates = [...openCode.filter(candidate => candidate.kind === 'deepseek'), ...settings];
             if (candidates.length)
                 page.add(this._candidateGroup(candidates, add, _('Keys found on this computer')));
             page.add(this._pasteGroup());
-        });
+        }, () => page.add(this._pasteGroup()));
         return navigation;
     }
 
@@ -269,7 +270,7 @@ export class AddAccountDialog extends Adw.Dialog {
         });
     }
 
-    private _request<T>(work: (client: ServiceClient) => Promise<T>, done: (value: T) => void): void {
-        this._context.request(work, {done, cancellable: this._cancellable});
+    private _request<T>(work: (client: ServiceClient) => Promise<T>, done: (value: T) => void, failed?: () => void): void {
+        this._context.request(work, {done, failed, cancellable: this._cancellable});
     }
 }

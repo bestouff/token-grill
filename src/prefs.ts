@@ -37,7 +37,7 @@ export default class TokenGrillPreferences extends ExtensionPreferences {
             if (connected) {
                 // Preferences opened before the Shell imported the 0.4 accounts import them too. The
                 // service takes them once, so a second import is refused.
-                context.request(client => migrateOnce(settings, client));
+                context.request(client => migrateOnce(settings, client, context.cancellable));
                 pages.forEach(page => window.add(page));
                 window.remove(service);
                 // The window does not pick another page when its visible page goes.

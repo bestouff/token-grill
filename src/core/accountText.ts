@@ -3,7 +3,7 @@ import type {Translator} from './i18n.js';
 import {providerMetadata} from './providerMetadata.js';
 import type {ProviderKind} from './types.js';
 
-// The service reports the 0.4.1 state names. Null for a state that a newer service reports and
+// The state names that the service reports. Null for a state that a newer service reports and
 // this version has no words for.
 export function credentialLabel(tr: Translator, state: string): string | null {
     const {_} = tr;

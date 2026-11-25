@@ -33,7 +33,7 @@ export function accentName(color: AccentColor): string {
     return names[color];
 }
 
-// The codes of the service's account checks, which are the 0.4.1 ones.
+// The codes of the service's account checks.
 function validationMessage(code: string): string | null {
     switch (code) {
     case 'required':

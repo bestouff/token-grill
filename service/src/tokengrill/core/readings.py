@@ -19,6 +19,7 @@ def restored_snapshot(provider_id: str, reading: StoredReading) -> ProviderSnaps
         "plan": reading["plan"],
         "windows": [cast(UsageWindow, {**window, "pace": None}) for window in reading["windows"]],
         "balance": reading["balance"],
+        # mypy types a TypedDict spread with a new key as a plain dict.
         "resetCredits": {**credits, "stale": True} if credits else None,  # type: ignore[typeddict-item]
         "lastUpdated": reading["fetchedAt"],
         "quotaFetchedAt": reading["fetchedAt"],

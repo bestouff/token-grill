@@ -31,13 +31,8 @@ export interface ClientHandlers {
     onAlert(alert: Alert): void;
 }
 
-export interface SignInLaunch {
-    argv: string[];
-    env: Record<string, string>;
-}
-
 // A failure that the service reported: `code` is the error name without its prefix, for example
-// InvalidArgs, ShuttingDown, NotSupported, KeyringUnavailable or NoSignInCommand.
+// InvalidArgs, ShuttingDown, NotSupported, KeyringUnavailable or Internal.
 export class ServiceCallError extends Error {
     constructor(readonly code: string, message: string) {
         super(message);
@@ -74,11 +69,13 @@ export class ServiceClient {
     state: ServiceState | null = null;
 
     private readonly _cancellable = new Gio.Cancellable();
+    // The interface text is a constant, so it is parsed once and not at every retry.
+    private readonly _info = Gio.DBusNodeInfo.new_for_xml(INTERFACE_XML).lookup_interface(INTERFACE_NAME)!;
     private _proxy: Gio.DBusProxy | null = null;
     private _signalId: number | null = null;
     private _ownerId: number | null = null;
     private _retryId: number | null = null;
-    // The proxy that a Hello succeeded on; it is told Goodbye when it is dropped.
+    // The proxy that Hello was sent on; it is told Goodbye when it is dropped.
     private _greeted: Gio.DBusProxy | null = null;
 
     constructor(
@@ -95,10 +92,7 @@ export class ServiceClient {
         this._dropProxy();
         this._setStatus('connecting');
         try {
-            const info = Gio.DBusNodeInfo.new_for_xml(INTERFACE_XML).lookup_interface(INTERFACE_NAME);
-            if (info === null)
-                throw new Error('The interface text has no interface');
-            const proxy = await newProxy(info, this._cancellable);
+            const proxy = await newProxy(this._info, this._cancellable);
             if (this._cancellable.is_cancelled())
                 return;
             this._proxy = proxy;
@@ -113,7 +107,14 @@ export class ServiceClient {
             }
             this.state = state;
             this._signalId = proxy.connect('g-signal', (_proxy, _sender, name, parameters) => {
-                this._onSignal(name, parameters.deepUnpack<string[]>());
+                try {
+                    this._onSignal(name, parameters.deepUnpack<string[]>());
+                } catch (error) {
+                    // A payload that does not parse is a fault of the service; the last state stays.
+                    if (!(error instanceof ServiceSchemaError))
+                        throw error;
+                    this._logger.error(`The service sent a malformed ${name} signal`, error);
+                }
             });
             this._ownerId = proxy.connect('notify::g-name-owner', () => {
                 if (proxy.get_name_owner() === null)
@@ -223,12 +224,6 @@ export class ServiceClient {
 
     async setSettings(settings: Partial<Settings>): Promise<void> {
         await this._invoke('SetSettings', new GLib.Variant('(s)', [JSON.stringify(settings)]));
-    }
-
-    async signInCommand(accountId: string): Promise<SignInLaunch> {
-        const reply = await this._call('SignInCommand', new GLib.Variant('(s)', [accountId]));
-        const [argv, env] = reply.deepUnpack<[string[], Record<string, string>]>();
-        return {argv, env};
     }
 
     async sendTestAlert(accountId: string): Promise<void> {

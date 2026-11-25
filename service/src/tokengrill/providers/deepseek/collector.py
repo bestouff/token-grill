@@ -1,5 +1,7 @@
 """DeepSeek prepaid balance, shown as a meter against the last top-up."""
 
+import logging
+
 from tokengrill.core.balance_meter import balance_window, next_balance_reference
 from tokengrill.core.types import ProviderInstance, ProviderSnapshot
 from tokengrill.providers.base import CollectorContext, LimitsUpdate, collect_limits
@@ -7,6 +9,7 @@ from tokengrill.providers.deepseek.auth import load_deepseek_key
 from tokengrill.providers.deepseek.normalize import normalize_deepseek_balance
 
 BALANCE_URL = "https://api.deepseek.com/user/balance"
+_LOG = logging.getLogger("tokengrill.deepseek")
 
 
 class DeepSeekCollector:
@@ -25,5 +28,9 @@ class DeepSeekCollector:
         balance = normalize_deepseek_balance(payload)
         reference = next_balance_reference(ctx.balances.get(instance["id"]), balance)
         ctx.balances.set(instance["id"], reference)
-        await ctx.balances.flush()
+        try:
+            await ctx.balances.flush()
+        except OSError:
+            # The store stays dirty, so the reference is written with the next flush; the reading is still good.
+            _LOG.warning("could not write the balance state", exc_info=True)
         return {"balance": balance, "windows": [balance_window(balance, reference)]}

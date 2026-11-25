@@ -16,10 +16,14 @@ test('another home is passed through the CLI\'s own variable, without a shell', 
         ['env', 'CODEX_HOME=/home/test/.codex-work', 'codex', 'login']);
     assert.deepEqual(signInCommand({app: 'claude-code', accountHome: '/home/test/my claude'}).argv,
         ['env', 'CLAUDE_CONFIG_DIR=/home/test/my claude', 'claude', 'auth', 'login']);
+    assert.deepEqual(signInCommand({app: 'github-cli', accountHome: '~/gh-work'}).argv,
+        ['env', 'GH_CONFIG_DIR=/home/test/gh-work', 'gh', 'auth', 'login']);
+    assert.deepEqual(signInCommand({app: 'github-cli', accountHome: '~/.config/gh'}).argv, ['gh', 'auth', 'login']);
 });
 
 test('apps that cannot be pointed at another home, or have no login command, get no button', () => {
     assert.equal(signInCommand({app: 'cursor-agent', accountHome: '~/other'}), null);
+    assert.equal(signInCommand({app: 'kiro-cli', accountHome: '~/other'}), null);
     assert.equal(signInCommand({app: 'cursor', accountHome: '~/.config/Cursor'}), null);
     assert.equal(signInCommand({app: 'keyring', accountHome: ''}), null);
 });

@@ -8,6 +8,7 @@ import os
 import re
 import stat
 import tempfile
+import threading
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,8 @@ from tokengrill.core.paths import data_dir, state_dir
 MAX_STATE_BYTES = 4 * 1024 * 1024
 
 _LOG = logging.getLogger("tokengrill.storage")
-_SURROGATE = re.compile("[\ud800-\udfff]")
+# Lone surrogates, built from their code points so the source stays ASCII without escapes (Q-17).
+_SURROGATE = re.compile(f"[{chr(0xD800)}-{chr(0xDFFF)}]")
 
 
 def data_path(name: str) -> Path:
@@ -43,6 +45,7 @@ def read_json(path: Path, max_bytes: int) -> object | None:
     except FileNotFoundError:
         return None
     try:
+        # json.loads returns Any; the callers check the shape.
         return json.loads(text, parse_constant=_refuse_constant)  # type: ignore[no-any-return]
     except ValueError:
         _LOG.warning("Ignoring unreadable state file %s", path)
@@ -131,6 +134,11 @@ class SerialWriter:
         self.path = path
         self._lock = asyncio.Lock()
         self._pending: str | None = None
+        # A cancelled write keeps running in its thread after the lock is released, so the threads
+        # compare generations: an older payload never replaces a newer one on disk.
+        self._generation = 0
+        self._written = 0
+        self._thread_lock = threading.Lock()
 
     async def write(self, payload: object) -> None:
         # Serialized now, so later changes to the caller's objects never leak into this write.
@@ -146,13 +154,21 @@ class SerialWriter:
             if text is None:
                 return
             self._pending = None
+            self._generation += 1
             try:
-                await asyncio.to_thread(_write_atomic, self.path, text)
+                await asyncio.to_thread(self._write_newest, self._generation, text)
             except BaseException:
                 # A failed write is kept for the next flush unless a newer payload replaced it.
                 if self._pending is None:
                     self._pending = text
                 raise
+
+    def _write_newest(self, generation: int, text: str) -> None:
+        with self._thread_lock:
+            if generation < self._written:
+                return
+            _write_atomic(self.path, text)
+            self._written = generation
 
 
 class Persisted:

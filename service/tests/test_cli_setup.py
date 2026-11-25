@@ -12,6 +12,7 @@ SERVICE_FILE = "dbus-1/services/io.github.sh02sahil.TokenGrill.service"
 def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     for name in ("CONFIG", "DATA", "STATE", "CACHE"):
         monkeypatch.setenv(f"XDG_{name}_HOME", str(tmp_path / name.lower()))
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", f"unix:path={tmp_path}/no-such-bus")
     return tmp_path
@@ -48,7 +49,13 @@ def test_uninstall_removes_file(home: Path) -> None:
 
 
 def _make_folders(home: Path) -> list[Path]:
-    folders = [home / "config" / "token-grill", home / "data" / "token-grill", home / "state" / "token-grill"]
+    folders = [
+        home / "config" / "token-grill",
+        home / "data" / "token-grill",
+        home / "state" / "token-grill",
+        # The private database copies.
+        home / "run" / "token-grill",
+    ]
     for folder in folders:
         folder.mkdir(parents=True)
         (folder / "x.json").write_text("{}", encoding="ascii")

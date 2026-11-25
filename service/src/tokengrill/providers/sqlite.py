@@ -80,8 +80,13 @@ def _make_private_copy(path: str) -> str:
     target = str(directory / f"{uuid.uuid4().hex}.sqlite")
     contents = Path(path).read_bytes()
     descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "wb") as handle:
-        handle.write(contents)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(contents)
+    except BaseException:
+        # A partial copy still holds credentials.
+        _remove_private_copy(target)
+        raise
     return target
 
 

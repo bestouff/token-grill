@@ -32,3 +32,19 @@ def test_deeply_nested_json_is_invalid_args() -> None:
     with pytest.raises(DBusError) as raised:
         parse_json_arg("[" * 200_000)
     assert raised.value.type == INVALID_ARGS
+
+
+async def test_a_failure_inside_a_method_is_logged_and_answered_with_the_internal_error(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    from tokengrill.dbus.payloads import INTERNAL
+
+    interface = TokenGrillInterface()
+    async with HttpClient() as http:
+        interface.attach(Runtime(ConfigStore(tmp_path / "config.json"), interface, http, {}))
+        with pytest.raises(DBusError) as raised:
+            async with interface._call():
+                raise OSError(28, "No space left on device")
+    assert raised.value.type == INTERNAL
+    assert "Traceback" not in raised.value.text
+    assert any(record.name == "tokengrill.dbus" and record.exc_info for record in caplog.records)

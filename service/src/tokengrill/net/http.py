@@ -1,5 +1,6 @@
 """The one HTTPS client: fixed hosts, no redirects, a bounded body, one User-Agent."""
 
+import asyncio
 import json
 import re
 import ssl
@@ -138,9 +139,14 @@ class HttpClient:
                 send_headers["Content-Type"] = "application/json"
             content = json.dumps(body, separators=(",", ":")).encode()
         try:
-            data = await self._fetch(method, url, send_headers, content)
+            # httpx applies its timeout to each phase; this bounds the whole request, so a server that
+            # trickles bytes cannot hold the collection.
+            async with asyncio.timeout(TIMEOUT_SECONDS):
+                data = await self._fetch(method, url, send_headers, content)
         except httpx.TransportError as error:
             raise _network_error(error) from None
+        except TimeoutError:
+            raise ServiceError("timeout", "net.timed-out") from None
         return self._parse(data)
 
     async def _fetch(self, method: str, url: str, headers: dict[str, str], content: bytes | None) -> tuple[int, bytes]:

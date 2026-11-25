@@ -275,7 +275,7 @@ test('the runtime drives the popup from the service client', async () => {
     assert.match(source, /new ServiceClient\('shell', \{/);
     assert.match(source, /this\._client!\.connect\(\)/);
     assert.match(source, /if \(status === 'connected'\)[\s\S]*this\._migrate\(\)/);
-    assert.match(source, /migrateOnce\(this\._settings!, this\._client!\)/);
+    assert.match(source, /migrateOnce\(this\._settings!, this\._client!, cancellable\)/);
     assert.match(source, /Main\.panel\.addToStatusArea\(this\._extension\.uuid, this\._indicator, 1, side\)/);
     assert.match(entry, /this\._runtime = new Runtime\(this\);\s*this\._runtime\.start\(\);/);
     assert.match(entry, /this\._runtime\?\.stop\(\);\s*this\._runtime = null;/);
@@ -290,8 +290,6 @@ test('popup actions go to the service and their replies are dropped after disabl
     assert.match(source, /client => client\.toggleLimit\(providerId, key\)/);
     assert.match(source, /client => client\.setAutomatic\(providerId, on\)/);
     assert.match(source, /client => client\.setPaused\(paused\)/);
-    assert.match(source, /client\.signInCommand\(providerId\)/);
-    assert.match(source, /openSignIn\(argv, env\)/);
     const request = source.slice(source.indexOf('private _request('));
     // A switch the user moved while the service is away goes back to what it last sent.
     assert.match(request, /if \(client\.status !== 'connected'\) \{\s*this\._render\(\);\s*return;\s*\}/);
@@ -316,13 +314,17 @@ test('the popup shows the service card while the service is not connected', asyn
     assert.match(card, /can_focus: true/);
 });
 
-// 0.4.1 put the account home in argv through env; the service now returns it as a dictionary.
-test('sign-in passes the account home through env without a shell', async () => {
-    const source = await read('src/shell/signIn.ts');
-    assert.match(source, /export function openSignIn\(argv: string\[\], env: Record<string, string>\)/);
-    assert.match(source, /\['env', \.\.\.assignments, \.\.\.argv\]/);
-    assert.match(source, /GLib\.shell_quote\(arg\)/);
-    assert.match(source, /Gio\.AppInfoCreateFlags\.NEEDS_TERMINAL/);
+// The Shell launches only a command from its own fixed table, never one that came over the bus.
+test('sign-in builds its command in the extension and opens it without a shell', async () => {
+    const [signIn, runtime, client, iface] = await Promise.all([
+        read('src/shell/signIn.ts'), read('src/runtime.ts'), read('src/client.ts'), read('src/dbus/interface.ts'),
+    ]);
+    assert.match(signIn, /export function openSignIn\(argv: string\[\]\): void/);
+    assert.match(signIn, /GLib\.shell_quote\(arg\)/);
+    assert.match(signIn, /Gio\.AppInfoCreateFlags\.NEEDS_TERMINAL/);
+    assert.match(runtime, /import \{signInCommand\} from '\.\/core\/signIn\.js';/);
+    assert.match(runtime, /const command = provider \? signInCommand\(provider\) : null;\s*if \(command\)\s*openSignIn\(command\.argv\);/);
+    assert.doesNotMatch(runtime + client + iface, /SignInCommand|client\.signInCommand/);
 });
 
 test('UI signals are disconnected and owned actors are released', async () => {
@@ -428,7 +430,7 @@ test('calls that store a key wait for the keyring without a time limit', async (
 test('Preferences import the 0.4 accounts when the service connects', async () => {
     const entry = await read('src/prefs.ts');
     const connected = entry.slice(entry.indexOf('if (connected) {'));
-    assert.match(connected, /^if \(connected\) \{[^}]*context\.request\(client => migrateOnce\(settings, client\)\);/);
+    assert.match(connected, /^if \(connected\) \{[^}]*context\.request\(client => migrateOnce\(settings, client, context\.cancellable\)\);/);
 });
 
 test('adding waits for the service with its button off and shows a refusal', async () => {
@@ -447,4 +449,12 @@ test('adding waits for the service with its button off and shows a refusal', asy
     const shown = accounts.slice(accounts.indexOf('function shownKey'), accounts.indexOf('export class AccountsPage'));
     for (const field of ['id', 'kind', 'app', 'displayName', 'enabled', 'topBar', 'accountHome', 'authFileOverride', 'sessionsDirectoryOverride'])
         assert.match(shown, new RegExp(`provider\\.${field}\\b`), field);
+});
+
+// A pasted key is the only way to add a key-only account, so a refused search must not hide it.
+test('the DeepSeek page offers the paste group whether or not the key search works', async () => {
+    const source = await read('src/prefs/addAccountDialog.ts');
+    const page = source.slice(source.indexOf('private _deepSeekPage('), source.indexOf('private _pasteGroup('));
+    assert.match(page, /page\.add\(this\._pasteGroup\(\)\);\s*\}, \(\) => page\.add\(this\._pasteGroup\(\)\)\);/);
+    assert.match(source, /this\._context\.request\(work, \{done, failed, cancellable: this\._cancellable\}\)/);
 });

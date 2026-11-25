@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 
@@ -42,6 +43,14 @@ async def test_directory_and_oversized_files_are_not_credential_files(tmp_path: 
     with pytest.raises(ServiceError) as raised_big:
         await read_credential_text(str(big), max_bytes=10)
     assert raised_big.value.message_id == "config.not-credential-file"
+
+
+async def test_a_fifo_is_refused_without_blocking(tmp_path: Path) -> None:
+    fifo = tmp_path / "auth.json"
+    os.mkfifo(fifo)
+    with pytest.raises(ServiceError) as raised:
+        await asyncio.wait_for(read_credential_text(str(fifo)), 5)
+    assert raised.value.message_id == "config.not-credential-file"
 
 
 async def test_non_record_json_is_invalid_credentials(tmp_path: Path) -> None:

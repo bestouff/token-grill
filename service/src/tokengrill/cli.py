@@ -10,7 +10,7 @@ from dbus_fast import DBusError, Message, MessageType
 from dbus_fast.aio import MessageBus
 
 from tokengrill import API_VERSION, __version__
-from tokengrill.core.paths import config_dir, data_dir, state_dir
+from tokengrill.core.paths import config_dir, data_dir, runtime_dir, state_dir
 from tokengrill.core.timemath import now_ms
 from tokengrill.core.types import ServiceState
 from tokengrill.statusview import render_status
@@ -91,7 +91,7 @@ def _uninstall(purge: bool) -> int:
         except EOFError:
             answer = ""
         if answer in ("y", "Y"):
-            for folder in (config_dir(), data_dir(), state_dir()):
+            for folder in (config_dir(), data_dir(), state_dir(), runtime_dir()):
                 shutil.rmtree(folder, ignore_errors=True)
             print("The accounts and history are deleted.")
     return 0

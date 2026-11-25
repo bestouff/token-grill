@@ -1,9 +1,11 @@
 import base64
+import errno
 import json
 import os
 import sqlite3
 import stat
 from pathlib import Path
+from typing import BinaryIO, Self
 
 import pytest
 
@@ -124,6 +126,32 @@ async def test_the_private_copy_is_deleted_when_the_query_fails(tmp_path: Path, 
         await query_rows(str(path), "SELECT * FROM missing_table", ())
     assert listing(runtime) == []
     assert listing(tmp_path) == ["state.vscdb"]
+
+
+async def test_a_partial_private_copy_is_deleted_when_the_copy_fails(
+    tmp_path: Path, runtime: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path, _ = make_closed_wal_database(tmp_path)
+    real_fdopen = os.fdopen
+
+    class FullDisk:
+        def __init__(self, handle: BinaryIO) -> None:
+            self._handle = handle
+
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            self._handle.close()
+
+        def write(self, data: bytes) -> None:
+            self._handle.write(data[:16])
+            raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(sqlite_module.os, "fdopen", lambda fd, mode: FullDisk(real_fdopen(fd, mode)))
+    with pytest.raises(OSError):
+        await query_rows(str(path), "SELECT 1", ())
+    assert listing(runtime) == []
 
 
 async def test_a_non_wal_database_is_read_in_place(tmp_path: Path, runtime: Path) -> None:

@@ -18,8 +18,8 @@ If you do not have pipx, run `sudo apt install pipx` (Ubuntu, Debian) or
 `sudo dnf install pipx` (Fedora) first. With uv, run
 `uv tool install tokengrill && ~/.local/bin/tokengrill setup`.
 
-`setup` writes one D-Bus service file. After that, the extension starts the
-service when it needs it. You do not start it yourself. To update, run
+`setup` writes one D-Bus service file. After that, the session bus starts the
+service when the extension calls it. You do not start it yourself. To update, run
 `pipx upgrade tokengrill`.
 
 ## Commands
@@ -37,7 +37,7 @@ service when it needs it. You do not start it yourself. To update, run
 - Bus name: `io.github.sh02sahil.TokenGrill` on the session bus.
 - Object path: `/io/github/sh02sahil/TokenGrill`.
 - Interface: `io.github.sh02sahil.TokenGrill1`. Its full text is
-  [`src/tokengrill/dbus/interface.xml`](src/tokengrill/dbus/interface.xml).
+  [`src/tokengrill/dbus/interface.xml`](https://github.com/sh02sahil/token-grill/blob/main/service/src/tokengrill/dbus/interface.xml).
 
 Structured data crosses as JSON strings with `"schema": 1`. No method or signal
 returns a token, a key, or the content of a file.
@@ -65,7 +65,7 @@ The service reads the credentials that the tools of each service stored on this
 computer, read-only. It never unlocks a keyring, and it never refreshes a Codex
 or a Claude token. It sends a credential only to its own service, over HTTPS,
 with no redirects, and only to the hosts in the table in the
-[main README](../README.md#privacy-and-network-access). It has no telemetry.
+[main README](https://github.com/sh02sahil/token-grill/blob/main/README.md#privacy-and-network-access). It has no telemetry.
 
 ## Uninstall
 
@@ -85,4 +85,4 @@ python3 -m venv .venv
 .venv/bin/ruff check . && .venv/bin/mypy src
 ```
 
-Refer to [CONTRIBUTING.md](../CONTRIBUTING.md). The license is GPL-3.0-or-later.
+Refer to [CONTRIBUTING.md](https://github.com/sh02sahil/token-grill/blob/main/CONTRIBUTING.md). The license is GPL-3.0-or-later.

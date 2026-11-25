@@ -26,9 +26,9 @@ export class ReorderDialog extends Adw.Dialog {
         GObject.registerClass({GTypeName: 'TokenGrillReorderDialog'}, this);
     }
 
-    _providers: ProviderInstance[];
-    _extensionPath: string;
-    _list: Gtk.ListBox;
+    private _providers: ProviderInstance[];
+    private readonly _extensionPath: string;
+    private readonly _list: Gtk.ListBox;
 
     constructor(providers: ProviderInstance[], extensionPath: string, onSave: (providers: ProviderInstance[]) => void) {
         super({title: _('Reorder Accounts'), content_width: 520, content_height: 560});
@@ -60,7 +60,7 @@ export class ReorderDialog extends Adw.Dialog {
         this._render();
     }
 
-    _render(): void {
+    private _render(): void {
         this._list.remove_all();
         const last = this._providers.length - 1;
         this._providers.forEach((provider, index) => {
@@ -92,7 +92,7 @@ export class ReorderDialog extends Adw.Dialog {
         });
     }
 
-    _move(providerId: string, requestedIndex: number): void {
+    private _move(providerId: string, requestedIndex: number): void {
         const provider = this._providers.find(item => item.id === providerId);
         if (!provider)
             return;
@@ -102,7 +102,7 @@ export class ReorderDialog extends Adw.Dialog {
         this._render();
     }
 
-    _drop(providerId: string, targetId: string, after: boolean): void {
+    private _drop(providerId: string, targetId: string, after: boolean): void {
         if (providerId === targetId)
             return;
         const provider = this._providers.find(item => item.id === providerId);

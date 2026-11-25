@@ -180,6 +180,7 @@ def normalize_provider(entry: object) -> list[ProviderInstance]:
             "displayName": display_name or metadata.label,
             "accent": _normalize_accent(entry.get("accent"), metadata.default_accent),
             "enabled": entry.get("enabled") is not False,
+            # _is_number checks the type at run time, but it is no TypeGuard for mypy.
             "sortOrder": sort_order if _is_number(sort_order) else 0,  # type: ignore[typeddict-item]
             "accountHome": home,
             "authFileOverride": _optional_path(entry.get("authFileOverride")),
@@ -277,6 +278,7 @@ def needs_refresh(before: ProviderInstance | None, after: ProviderInstance) -> b
     one turned back on, or a change to how it is read does."""
     if before is None or (after["enabled"] and not before["enabled"]):
         return True
+    # The field names come from a tuple of ProviderInstance keys, which mypy does not see as literals.
     return any(before[field] != after[field] for field in _READ_FIELDS)  # type: ignore[literal-required]
 
 
@@ -410,6 +412,7 @@ def parse_legacy(value: object) -> LegacySettings:
         item = value.get(key)
         if not isinstance(item, expected) or (expected is int and isinstance(item, bool)):
             raise InvalidRequest(f"{key} is missing or has the wrong type")
+    # Every key and its type were checked above; mypy cannot follow a check in a loop.
     return {key: value[key] for key in checks}  # type: ignore[return-value]
 
 

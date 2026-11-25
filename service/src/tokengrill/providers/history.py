@@ -26,8 +26,14 @@ class HistoryFile:
     mtime: int
 
 
-def _find_history_files(directory: str, cutoff: int) -> list[HistoryFile]:
+def _find_history_files(directory: str, cutoff: int, visited: set[tuple[int, int]] | None = None) -> list[HistoryFile]:
+    # Folder links are followed, but each folder is listed once, so a link loop ends.
+    visited = set() if visited is None else visited
     try:
+        info = os.stat(directory)
+        if (info.st_dev, info.st_ino) in visited:
+            return []
+        visited.add((info.st_dev, info.st_ino))
         entries = sorted(os.scandir(directory), key=lambda entry: entry.name)
     except FileNotFoundError:
         # A tool that was never used has no history directory.
@@ -36,18 +42,27 @@ def _find_history_files(directory: str, cutoff: int) -> list[HistoryFile]:
     for entry in entries:
         try:
             if entry.is_dir():
-                files.extend(_find_history_files(entry.path, cutoff))
+                files.extend(_find_history_files(entry.path, cutoff, visited))
                 continue
             if not entry.is_file() or not entry.name.endswith(".jsonl"):
                 continue
-            info = entry.stat()
+            found = entry.stat()
         except FileNotFoundError:
             # Sessions can be removed while they are listed.
             continue
-        mtime = int(info.st_mtime)
+        mtime = int(found.st_mtime)
         if mtime >= cutoff:
-            files.append(HistoryFile(entry.path, info.st_size, mtime))
+            files.append(HistoryFile(entry.path, found.st_size, mtime))
     return files
+
+
+def _collect_into(events: list[UsageEvent], parse_line: Callable[[str], UsageEvent | None]) -> Callable[[str], None]:
+    def on_line(line: str) -> None:
+        event = parse_line(line)
+        if event is not None:
+            events.append(event)
+
+    return on_line
 
 
 async def scan_history(
@@ -56,15 +71,14 @@ async def scan_history(
     aggregates: AggregateStore,
     checkpoints: CheckpointStore,
 ) -> None:
-    """Each file is read from where the previous pass stopped; files that did not change are not opened."""
+    """Each file is read from where the previous pass stopped; files that did not change are not opened.
+
+    The events of a file reach the totals together with its new checkpoint, after the file is read, so a scan
+    that is cancelled or fails part way adds nothing for that file and the next pass reads it again.
+    """
     cutoff = int(time.time()) - RETENTION_SECONDS
     roots = provider_paths(instance)["historyDirectories"]
     found = await asyncio.to_thread(lambda: [file for root in roots for file in _find_history_files(root, cutoff)])
-
-    def on_line(line: str) -> None:
-        event = parse_line(line)
-        if event is not None:
-            aggregates.add(instance["id"], event)
 
     for file in found:
         checkpoint = checkpoints.get(instance["id"], file.path)
@@ -77,10 +91,14 @@ async def scan_history(
         )
         if resumable is not None and resumable["size"] == file.size and resumable["mtime"] == file.mtime:
             continue
+        events: list[UsageEvent] = []
+        start = resumable["offset"] if resumable else 0
         try:
-            offset = await scan_jsonl(Path(file.path), resumable["offset"] if resumable else 0, on_line, MAX_LINE_BYTES)
+            offset = await scan_jsonl(Path(file.path), start, _collect_into(events, parse_line), MAX_LINE_BYTES)
         except FileNotFoundError:
             continue
+        for event in events:
+            aggregates.add(instance["id"], event)
         checkpoints.set(
             {
                 "providerId": instance["id"],

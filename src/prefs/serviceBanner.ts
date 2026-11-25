@@ -22,7 +22,7 @@ function textLabel(text: string, cssClasses: string[]): Gtk.Label {
 }
 
 // Adw.StatusPage is a final type, so the banner holds one instead of extending it.
-export class ServiceBanner extends Adw.Bin {
+class ServiceBanner extends Adw.Bin {
     static {
         GObject.registerClass({GTypeName: 'TokenGrillServiceBanner'}, this);
     }
@@ -69,17 +69,22 @@ export class ServiceBanner extends Adw.Bin {
         this._page.set_child(box);
     }
 
+    // The title goes to the status page itself, in _rebuild().
     private _part(part: ServiceCardPart): Gtk.Widget {
         switch (part.kind) {
-        case 'title':
-        case 'body':
-            return textLabel(part.text, ['body']);
         case 'hint':
             return textLabel(part.text, ['dim-label', 'caption']);
         case 'command':
             return this._command(part.text);
+        case 'check-again':
+            return this._checkAgainButton(part.text);
+        default:
+            return textLabel(part.text, ['body']);
         }
-        const button = new Gtk.Button({label: part.text, halign: Gtk.Align.CENTER, css_classes: ['pill', 'suggested-action']});
+    }
+
+    private _checkAgainButton(label: string): Gtk.Button {
+        const button = new Gtk.Button({label, halign: Gtk.Align.CENTER, css_classes: ['pill', 'suggested-action']});
         button.connect('clicked', () => this._onCheckAgain());
         this._checkAgain = button;
         return button;

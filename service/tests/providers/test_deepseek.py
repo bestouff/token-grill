@@ -213,6 +213,23 @@ async def test_live_collection_reports_the_balance_and_stores_the_reference(
     assert json.loads((tmp_path / "balances-v1.json").read_text())["accounts"]["acct"]["full"] == 7.0
 
 
+async def test_a_balance_state_that_cannot_be_written_still_gives_the_reading(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_keyring(monkeypatch, "sk-secret")
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file where the state folder should be")
+    store = BalanceStore(blocker / "balances-v1.json")
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, json=balance([{"currency": "USD", "total_balance": "7.00"}]))
+    )
+    snap = await DeepSeekCollector().collect(
+        make_instance(tmp_path, "keyring"), empty_snapshot("acct"), make_ctx(tmp_path, transport, store)
+    )
+    assert snap["state"] == "ready"
+    assert store.get("acct") == {"currency": "USD", "full": 7.0, "last": 7.0}
+
+
 async def test_spending_keeps_the_stored_full_amount(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     fake_keyring(monkeypatch, "sk-secret")
     store = BalanceStore(tmp_path / "balances-v1.json")

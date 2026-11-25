@@ -73,19 +73,19 @@ test('the message table uses literal msgids', async () => {
 
 test('the service cards have the setup copy', () => {
     assert.deepEqual(serviceStatusContent(UNTRANSLATED, 'missing'), [
-        {kind: 'title', text: 'Token Grill needs its service'},
-        {kind: 'body', text: 'The service reads your sign-ins and asks each service for your usage.'},
+        {kind: 'title', text: 'Token Grill Needs Its Service'},
+        {kind: 'body', text: 'The service reads your sign-ins and asks each service for your usage'},
         {kind: 'command', text: 'pipx install tokengrill && ~/.local/bin/tokengrill setup'},
-        {kind: 'hint', text: 'No pipx? Install it with sudo apt install pipx (Ubuntu, Debian) or sudo dnf install pipx (Fedora).'},
+        {kind: 'hint', text: 'No pipx? Install it with sudo apt install pipx (Ubuntu, Debian) or sudo dnf install pipx (Fedora)'},
         {kind: 'command', text: 'uv tool install tokengrill && ~/.local/bin/tokengrill setup'},
         {kind: 'check-again', text: 'Check Again'},
     ]);
     assert.deepEqual(serviceStatusContent(UNTRANSLATED, 'too-old'), [
-        {kind: 'title', text: 'Update the service'},
+        {kind: 'title', text: 'Update the Service'},
         {kind: 'command', text: 'pipx upgrade tokengrill'},
     ]);
     assert.deepEqual(serviceStatusContent(UNTRANSLATED, 'not-responding'), [
-        {kind: 'title', text: 'The service is not responding'},
+        {kind: 'title', text: 'The Service Is Not Responding'},
         {kind: 'check-again', text: 'Check Again'},
         {kind: 'command', text: 'journalctl --user -t tokengrill'},
     ]);
@@ -93,8 +93,8 @@ test('the service cards have the setup copy', () => {
 
 test('card sentences go through gettext and the commands do not', async () => {
     const source = await read('src/core/serviceMessages.ts');
-    for (const msgid of ['Token Grill needs its service', 'The service reads your sign-ins and asks each service for your usage.',
-        'No pipx? Install it with %s (Ubuntu, Debian) or %s (Fedora).', 'Update the service', 'The service is not responding', 'Check Again'])
+    for (const msgid of ['Token Grill Needs Its Service', 'The service reads your sign-ins and asks each service for your usage',
+        'No pipx? Install it with %s (Ubuntu, Debian) or %s (Fedora)', 'Update the Service', 'The Service Is Not Responding', 'Check Again'])
         assert.ok(source.includes(`_('${msgid}')`), msgid);
     for (const command of ['pipx install tokengrill', 'uv tool install tokengrill', 'pipx upgrade tokengrill', 'journalctl --user', 'sudo apt install pipx'])
         assert.doesNotMatch(source, new RegExp(`_\\('[^']*${command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`), command);
