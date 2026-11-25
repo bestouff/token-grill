@@ -39,8 +39,8 @@ test('each message reads as the service text, with the parameters in place', asy
 test('parameters keep the order of the 0.4.1 text', () => {
     assert.equal(serviceMessage(UNTRANSLATED, info('net.http-status', {reason: 'Bad Gateway', status: '502'})),
         'The service answered with HTTP 502 (Bad Gateway).');
-    assert.equal(serviceMessage(UNTRANSLATED, info('sqlite.gda-missing', {service: 'Kiro'})),
-        'Kiro accounts need the Gda 5.0 library (gir1.2-gda-5.0).');
+    assert.equal(serviceMessage(UNTRANSLATED, info('config.not-allowed', {path: '~/.codex/auth.json'})),
+        'Token Grill is not allowed to read ~/.codex/auth.json.');
     assert.equal(serviceMessage(UNTRANSLATED, info('kiro.region-unsupported', {name: 'eu-west-9'})),
         'Kiro usage is not available in the eu-west-9 region.');
 });

@@ -27,7 +27,6 @@ const MESSAGES: Readonly<Record<string, ServiceMessage>> = {
     'config.not-credential-file': {text: ({_}) => _('%s is not a credential file.'), params: ['path']},
     'config.invalid-credentials': {text: ({_}) => _('%s does not contain valid credentials.'), params: ['path']},
     'history.update-failed': {text: ({_}) => _('The local usage history could not be updated.')},
-    'sqlite.gda-missing': {text: ({_}) => _('%s accounts need the Gda 5.0 library (gir1.2-gda-5.0).'), params: ['service']},
     'service.internal': {text: ({_}) => _('Token Grill hit an unexpected error.')},
     'antigravity.auth-missing': {text: ({_}) => _('Antigravity is not signed in.')},
     'antigravity.agy-expired': {text: ({_}) => _('The agy sign-in has expired.')},

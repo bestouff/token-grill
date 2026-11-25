@@ -70,7 +70,7 @@ async def test_error_params_show_the_home_relative_path(tmp_path: Path, monkeypa
 
 
 def test_credential_error_status_maps_codes() -> None:
-    assert credential_error_status(ServiceError("dependency", "sqlite.gda-missing")) == "dependency-missing"
+    assert credential_error_status(ServiceError("dependency", "deepseek.keyring-unavailable")) == "dependency-missing"
     assert credential_error_status(ServiceError("auth-missing", "config.no-credentials")) == "login-required"
     assert credential_error_status(ServiceError("permission", "config.not-allowed")) == "database-unreadable"
     with pytest.raises(RuntimeError):

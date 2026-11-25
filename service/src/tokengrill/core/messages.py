@@ -37,7 +37,6 @@ MESSAGES: dict[str, str] = {
     "config.not-credential-file": "{path} is not a credential file.",
     "config.invalid-credentials": "{path} does not contain valid credentials.",
     "history.update-failed": "The local usage history could not be updated.",
-    "sqlite.gda-missing": "{service} accounts need the Gda 5.0 library (gir1.2-gda-5.0).",
     "service.internal": "Token Grill hit an unexpected error.",
     "antigravity.auth-missing": "Antigravity is not signed in.",
     "antigravity.agy-expired": "The agy sign-in has expired.",

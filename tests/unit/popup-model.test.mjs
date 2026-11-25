@@ -103,8 +103,8 @@ test('error text adds the service-specific fix once', () => {
     assert.equal(errorText(tr, failure('codex.auth-expired', 'reauthenticate'), {kind: 'codex'}), 'The Codex sign-in has expired. Run codex login.');
     assert.equal(errorText(tr, failure('claude.auth-missing', 'reauthenticate'), {kind: 'claude'}), 'Claude Code is not signed in. Run claude auth login.');
     assert.equal(errorText(tr, failure('net.timed-out', 'retry', {}, 'timeout'), {kind: 'codex'}), 'The service did not answer in time. Try again later.');
-    assert.equal(errorText(tr, failure('sqlite.gda-missing', 'none', {service: 'Kiro'}, 'dependency'), {kind: 'kiro'}),
-        'Kiro accounts need the Gda 5.0 library (gir1.2-gda-5.0).');
+    assert.equal(errorText(tr, failure('kiro.region-unsupported', 'none', {name: 'eu-west-9'}, 'dependency'), {kind: 'kiro'}),
+        'Kiro usage is not available in the eu-west-9 region.');
     assert.equal(errorText(tr, {errorInfo: null}, {kind: 'kiro'}), null);
     assert.equal(errorText(tr, null, {kind: 'kiro'}), null);
 });
