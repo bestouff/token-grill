@@ -10,7 +10,6 @@ from tokengrill.core.types import Alert, ProviderRuntimeState, ProviderSnapshot,
 ERROR_PREFIX: Final = "io.github.sh02sahil.TokenGrill.Error"
 INVALID_ARGS: Final = f"{ERROR_PREFIX}.InvalidArgs"
 SHUTTING_DOWN: Final = f"{ERROR_PREFIX}.ShuttingDown"
-NOT_SUPPORTED: Final = f"{ERROR_PREFIX}.NotSupported"
 KEYRING_UNAVAILABLE: Final = f"{ERROR_PREFIX}.KeyringUnavailable"
 INTERNAL: Final = f"{ERROR_PREFIX}.Internal"
 

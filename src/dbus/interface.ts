@@ -23,6 +23,12 @@ export const INTERFACE_XML = `<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS O
   string. The service stores it in the keyring before it adds the account. If the
   keyring cannot store it, the call fails with the error
   io.github.sh02sahil.TokenGrill.Error.KeyringUnavailable and adds nothing.
+  A method that fails returns one of these errors:
+  io.github.sh02sahil.TokenGrill.Error.InvalidArgs (an argument is not valid),
+  io.github.sh02sahil.TokenGrill.Error.ShuttingDown (the service is exiting; a
+  later call starts a new one), io.github.sh02sahil.TokenGrill.Error.KeyringUnavailable
+  (see AddAccounts and SaveApiKey) and io.github.sh02sahil.TokenGrill.Error.Internal
+  (a fault of the service, which it writes to its log).
   ImportAccounts returns {"schema": 1, "imported": n, "refused": b}. "refused" is
   true when the service did not take the values and does not hold them (it has
   accounts, or it imported other 0.4 values before); the caller then keeps its

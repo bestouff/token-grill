@@ -36,7 +36,7 @@ export interface ClientHandlers {
 }
 
 // A failure that the service reported: `code` is the error name without its prefix, for example
-// InvalidArgs, ShuttingDown, NotSupported, KeyringUnavailable or Internal.
+// InvalidArgs, ShuttingDown, KeyringUnavailable or Internal (see interface.xml).
 export class ServiceCallError extends Error {
     constructor(readonly code: string, message: string) {
         super(message);
