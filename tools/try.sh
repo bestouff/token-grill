@@ -88,6 +88,15 @@ else
 fi
 printf '[D-BUS Service]\nName=org.freedesktop.secrets\nExec=%s\n' "$secrets_exec" \
     > "$scratch/services/org.freedesktop.secrets.service"
+# The nested bus finds services only in the scratch folders, so it gets a copy
+# of the service file that `tokengrill setup` wrote. The service that it starts
+# uses the test settings and state.
+service_file="${XDG_DATA_HOME:-$HOME/.local/share}/dbus-1/services/io.github.sh02sahil.TokenGrill.service"
+if [[ -f "$service_file" ]]; then
+    cp "$service_file" "$scratch/services/"
+else
+    echo "The Token Grill service is not set up, so the nested shell shows how to install it." >&2
+fi
 # The first service folder in the list takes priority.
 sed "s|<standard_session_servicedirs */>|<servicedir>$scratch/services</servicedir>&|" \
     "$session_conf" > "$scratch/session.conf"

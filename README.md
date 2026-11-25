@@ -117,7 +117,8 @@ The nested shell reads the sign-ins of your apps, but not the keys in your
 keyring. To try an API key, paste it again in the nested shell. The first key
 asks for a password for a new test keyring. When you close the window, the
 script deletes the test settings and the test keyring. The script also needs
-the service: install it as above and run `tokengrill setup` first.
+the service: install it as above and run `tokengrill setup` first. The nested
+shell starts its own copy of the service, with the test settings.
 
 ## Add an account
 
