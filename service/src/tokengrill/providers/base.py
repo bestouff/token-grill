@@ -1,10 +1,11 @@
 """The collector contract and the two steps every collector shares."""
 
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from typing import Protocol, TypedDict
 
+from tokengrill.core.diagnostics import request_detail, shape_of
 from tokengrill.core.errors import ServiceError
 from tokengrill.core.types import (
     Balance,
@@ -46,6 +47,25 @@ def _ignore_record(step: str, detail: str) -> None:
     return None
 
 
+class RecordedHttp:
+    """What collectors send requests through: the client, plus a diagnostics step before and after each call.
+
+    The steps carry the method, host and path and the shape of the answer, never headers, queries or values.
+    """
+
+    def __init__(self, http: HttpClient, record: Callable[[str, str], None]) -> None:
+        self._http = http
+        self._record = record
+
+    async def request_json(
+        self, method: str, url: str, headers: Mapping[str, str], body: object | None = None
+    ) -> object:
+        self._record("request", request_detail(method, url))
+        result = await self._http.request_json(method, url, headers, body)
+        self._record("response", shape_of(result))
+        return result
+
+
 class CollectorContext:
     """What a collector may use; progress and diagnostics go out through the callbacks."""
 
@@ -62,7 +82,7 @@ class CollectorContext:
         history_enabled: bool = True,
         balances: BalanceStore | None = None,
     ) -> None:
-        self.http = http
+        self.http = RecordedHttp(http, self.record)
         self.pricing = pricing
         self.aggregates = aggregates
         self.checkpoints = checkpoints

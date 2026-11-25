@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -23,12 +24,14 @@ from tokengrill.core.config import (
     needs_refresh,
     parse_legacy,
 )
-from tokengrill.core.errors import InvalidRequest, ServiceError
+from tokengrill.core.diagnostics import DiagnosticEntry, format_report, redact
+from tokengrill.core.errors import InvalidRequest, NoSignInCommand, ServiceError
 from tokengrill.core.order import reorder_providers
 from tokengrill.core.pace import with_pace
 from tokengrill.core.paths import provider_paths
 from tokengrill.core.readings import restored_snapshot, snapshot_fingerprint
 from tokengrill.core.scheduler import Scheduler, SchedulerJob
+from tokengrill.core.signin import sign_in_command
 from tokengrill.core.timemath import now_ms
 from tokengrill.core.topbar import is_shown, limit_key, set_automatic, shown_limits, toggle_limit
 from tokengrill.core.types import (
@@ -61,7 +64,7 @@ from tokengrill.storage.aggregate import AggregateStore
 from tokengrill.storage.alerts import AlertStateStore
 from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
-from tokengrill.storage.diagnostics import DiagnosticEntry, DiagnosticsStore
+from tokengrill.storage.diagnostics import DiagnosticsStore
 from tokengrill.storage.readings import ReadingStore
 
 ACCOUNT_LIMIT_MS = 30_000
@@ -305,6 +308,21 @@ class Runtime:
             self._config = updated
             self._scheduler.set_interval(settings["refreshIntervalSeconds"])
             self._emitter.settings_changed(settings)
+
+    def sign_in_command(self, account_id: str) -> tuple[list[str], dict[str, str]]:
+        command = sign_in_command(self._account(account_id))
+        if command is None:
+            raise NoSignInCommand("this account has no sign-in command")
+        return command
+
+    def diagnostics_report(self) -> str:
+        """The stored steps, redacted once more in case an entry was written by an older version."""
+        home = str(Path.home())
+        entries: list[DiagnosticEntry] = [
+            {**entry, "detail": redact(entry["detail"], home)} for entry in self._diagnostics.entries()
+        ]
+        date = datetime.fromtimestamp(self._clock() / 1000, UTC).strftime("%Y-%m-%d")
+        return format_report(entries, {"version": tokengrill.__version__, "date": date})
 
     def _loaded(self) -> Config:
         if self._config is None:

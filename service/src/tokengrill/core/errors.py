@@ -49,3 +49,7 @@ def http_error(status: int, reason: str | None) -> ServiceError:
 
 class InvalidRequest(ValueError):
     """A request from a client that cannot be carried out; the D-Bus layer reports it as InvalidArgs."""
+
+
+class NoSignInCommand(Exception):
+    """The account's app has no CLI login that Token Grill can point at this account."""

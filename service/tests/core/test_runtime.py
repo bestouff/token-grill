@@ -7,7 +7,7 @@ import pytest
 
 import tokengrill
 from tokengrill.core.config import Config, ConfigStore, default_settings, new_provider
-from tokengrill.core.errors import ServiceError
+from tokengrill.core.errors import InvalidRequest, NoSignInCommand, ServiceError
 from tokengrill.core.runtime import Emitter, Runtime
 from tokengrill.core.types import (
     Alert,
@@ -456,3 +456,42 @@ async def test_state_describes_the_service(rig: Rig) -> None:
     assert [account["id"] for account in state["accounts"]] == [ACCOUNT_ID]
     assert state["snapshots"] == {}
     assert state["runtime"] == {}
+
+
+async def test_the_journal_gets_each_recorded_step_only_when_journal_diagnostics_is_on(
+    xdg: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    for on in (True, False):
+        caplog.clear()
+        made = await build(xdg, settings={**default_settings(), "journalDiagnostics": on})
+        await made.runtime.start()
+        with caplog.at_level(logging.INFO, logger="tokengrill.runtime"):
+            await made.runtime.refresh(ACCOUNT_ID)
+        await made.runtime.stop()
+        assert any("codex-1 (codex-cli) sign-in:" in line for line in caplog.messages) is on
+
+
+async def test_the_report_has_the_service_version_and_the_redacted_steps(rig: Rig) -> None:
+    await rig.runtime.start()
+    await rig.runtime.refresh(ACCOUNT_ID)
+    report = rig.runtime.diagnostics_report()
+    lines = report.splitlines()
+    assert lines[0].startswith(f"Token Grill service {tokengrill.__version__} - ")
+    assert any(" codex-1 (codex, codex-cli) sign-in: codex-cli ~/.codex/auth.json" in line for line in lines[1:])
+    assert str(Path.home()) not in report
+
+
+async def test_sign_in_command_answers_for_a_known_account_and_rejects_the_rest(rig: Rig) -> None:
+    await rig.runtime.start()
+    assert rig.runtime.sign_in_command(ACCOUNT_ID) == (["codex", "login"], {})
+    with pytest.raises(InvalidRequest):
+        rig.runtime.sign_in_command("nope")
+
+
+async def test_an_account_without_a_login_command_raises_no_sign_in_command(xdg: Path) -> None:
+    key = {**new_provider("deepseek", "keyring", "~/.claude"), "id": "k"}
+    made = await build(xdg, accounts=[key])  # type: ignore[list-item]
+    await made.runtime.start()
+    with pytest.raises(NoSignInCommand):
+        made.runtime.sign_in_command("k")
+    await made.runtime.stop()

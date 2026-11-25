@@ -1,7 +1,9 @@
 """Owns the bus name, runs the runtime and exits when nobody needs it."""
 
 import asyncio
+import logging
 import signal
+import sys
 from typing import Final
 
 from dbus_fast import Message, MessageType, NameFlag, RequestNameReply
@@ -65,8 +67,24 @@ async def _watch_client_names(bus: MessageBus, tracker: ClientTracker) -> None:
     )
 
 
+def configure_logging() -> None:
+    """The journal diagnostics are INFO lines of the service's own loggers, written to stderr.
+
+    Only the tokengrill loggers are raised: an HTTP library logs full request URLs at INFO.
+    """
+    logger = logging.getLogger("tokengrill")
+    if logger.handlers:
+        return
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
 async def run_service(idle_seconds: float = 60, *, collectors: dict[ProviderKind, Collector] | None = None) -> int:
     """Returns 0 after an idle exit, a termination signal or the loss of the bus, 1 when another instance owns the name."""
+    configure_logging()
     loop = asyncio.get_running_loop()
     finished = asyncio.Event()
     bus_lost = False

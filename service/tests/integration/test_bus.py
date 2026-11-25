@@ -49,17 +49,17 @@ async def test_hello_returns_state_and_registers(env: dict[str, str], service: s
     bus.disconnect()
 
 
-async def test_bad_arguments_and_unfinished_methods_raise_dbus_errors(
-    env: dict[str, str], service: subprocess.Popen[str]
-) -> None:
+async def test_bad_arguments_raise_dbus_errors(env: dict[str, str], service: subprocess.Popen[str]) -> None:
     bus = await connect(env)
     iface = await proxy(bus)
     with pytest.raises(DBusError) as bad_kind:
         await iface.call_hello("browser")  # type: ignore[attr-defined]
     assert bad_kind.value.type == f"{NAME}.Error.InvalidArgs"
-    with pytest.raises(DBusError) as unfinished:
+    with pytest.raises(DBusError) as unknown:
         await iface.call_sign_in_command("x")  # type: ignore[attr-defined]
-    assert unfinished.value.type == f"{NAME}.Error.NotSupported"
+    assert unknown.value.type == f"{NAME}.Error.InvalidArgs"
+    report = await iface.call_diagnostics_report()  # type: ignore[attr-defined]
+    assert report.startswith("Token Grill service ")
     bus.disconnect()
 
 

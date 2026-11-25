@@ -2,23 +2,13 @@
 
 import asyncio
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Any, TypedDict
 
-from tokengrill.core.diagnostics import redact
+from tokengrill.core.diagnostics import DiagnosticEntry, redact
 from tokengrill.core.json_util import is_record
-from tokengrill.core.types import AccountApp, ProviderKind
 from tokengrill.storage.atomic_json import MAX_STATE_BYTES, Persisted, read_json, state_path
 
 MAX_ENTRIES = 200
-
-
-class DiagnosticEntry(TypedDict):
-    at: int
-    account: str
-    kind: ProviderKind
-    app: AccountApp
-    step: Literal["sign-in", "request", "response", "error"]
-    detail: str
 
 
 class DiagnosticsAbout(TypedDict):
@@ -67,6 +57,9 @@ class DiagnosticsStore(Persisted):
         self._entries = [*diagnostics["entries"], *self._entries][-MAX_ENTRIES:]
         # A new version or Shell is worth recording even before the next request.
         self._mark_dirty()
+
+    def entries(self) -> list[DiagnosticEntry]:
+        return list(self._entries)
 
     def record(self, entry: DiagnosticEntry) -> DiagnosticEntry:
         kept: DiagnosticEntry = {**entry, "detail": redact(entry["detail"], self._home)}

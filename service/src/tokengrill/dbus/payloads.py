@@ -12,6 +12,7 @@ INVALID_ARGS: Final = f"{ERROR_PREFIX}.InvalidArgs"
 SHUTTING_DOWN: Final = f"{ERROR_PREFIX}.ShuttingDown"
 NOT_SUPPORTED: Final = f"{ERROR_PREFIX}.NotSupported"
 KEYRING_UNAVAILABLE: Final = f"{ERROR_PREFIX}.KeyringUnavailable"
+NO_SIGN_IN_COMMAND: Final = f"{ERROR_PREFIX}.NoSignInCommand"
 
 
 def state_json(state: ServiceState) -> str:

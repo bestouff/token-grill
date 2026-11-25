@@ -10,14 +10,14 @@ from dbus_fast import DBusError, PropertyAccess
 from dbus_fast.service import ServiceInterface, dbus_property, method, signal
 
 import tokengrill
-from tokengrill.core.errors import InvalidRequest, ServiceError
+from tokengrill.core.errors import InvalidRequest, NoSignInCommand, ServiceError
 from tokengrill.core.runtime import Runtime
 from tokengrill.core.types import Alert, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, Settings
 from tokengrill.dbus.clients import CLIENT_KINDS
 from tokengrill.dbus.payloads import (
     INVALID_ARGS,
     KEYRING_UNAVAILABLE,
-    NOT_SUPPORTED,
+    NO_SIGN_IN_COMMAND,
     SHUTTING_DOWN,
     account_json,
     alert_json,
@@ -27,10 +27,6 @@ from tokengrill.dbus.payloads import (
 
 INTERFACE_NAME: Final = "io.github.sh02sahil.TokenGrill1"
 _T = TypeVar("_T")
-
-
-def _not_supported(name: str) -> DBusError:
-    return DBusError(NOT_SUPPORTED, f"{name} is not available in this version of the service")
 
 
 def _result(value: dict[str, object]) -> str:
@@ -233,8 +229,12 @@ class TokenGrillInterface(ServiceInterface):
             await _checked(runtime.set_settings(parse_json_arg(settings)))
 
     @method()
-    def SignInCommand(self, account_id: "s") -> "asa{ss}":
-        raise _not_supported("SignInCommand")
+    async def SignInCommand(self, account_id: "s") -> "asa{ss}":
+        async with self._call() as runtime:
+            try:
+                return list(_checked_sync(lambda: runtime.sign_in_command(account_id)))
+            except NoSignInCommand as error:
+                raise DBusError(NO_SIGN_IN_COMMAND, str(error)) from error
 
     @method()
     async def SendTestAlert(self, account_id: "s") -> None:
@@ -242,8 +242,9 @@ class TokenGrillInterface(ServiceInterface):
             _checked_sync(lambda: runtime.send_test_alert(account_id))
 
     @method()
-    def DiagnosticsReport(self) -> "s":
-        raise _not_supported("DiagnosticsReport")
+    async def DiagnosticsReport(self) -> "s":
+        async with self._call() as runtime:
+            return runtime.diagnostics_report()
 
     # Signals
 
