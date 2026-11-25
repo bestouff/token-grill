@@ -107,7 +107,7 @@ npm run check          # tsc --noEmit, then ESLint (GNOME rules) on src/, tools/
 npm test               # bundles pure modules into build/tests/, then node --test
 npm run build          # per-file tsc emit into dist/<uuid>/, then GNOME ESLint over dist/
 npm run release:check  # metadata, package tree, development traces, line length
-npm run review:check   # pack, then Shexli on dist/ and on the zip; must report zero findings
+npm run review:check   # pack, then Shexli on dist/ and on the zip; only the findings PRACTICES T-2 accepts
 npm run install:local  # replaces the user's installed copy: only after nested-shell checks
 npm run dev:shell      # nested GNOME Shell with the installed copy
 ```
@@ -123,7 +123,8 @@ In `service/` (after `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 ## Examine a change
 
 1. Run `npm run check`, `npm test`, `npm run build`, `npm run release:check`,
-   and `npm run review:check`. Each command must show 0 findings.
+   and `npm run review:check`. Each command must show 0 findings, except the
+   two Shexli findings that PRACTICES T-2 accepts.
 
 2. If you change a collector or the network code of the service, run its
    integration test (`-m integration`) for each service that the change
