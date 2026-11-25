@@ -27,7 +27,7 @@ service when the extension calls it. You do not start it yourself. To update, ru
 | Command | What it does |
 | ------- | ------------ |
 | `tokengrill setup` | Writes the D-Bus service file and asks the session bus to read it. |
-| `tokengrill uninstall [--purge]` | Removes the service file. With `--purge`, it asks if it should also delete the accounts and the history. |
+| `tokengrill uninstall [--purge]` | Removes the service file. With `--purge`, it asks if it should also delete the accounts, the history, and the pasted API keys; it stops the running service first. |
 | `tokengrill status [--json] [--refresh]` | Starts the service if needed and prints the accounts and their limits. `--refresh` refreshes all accounts first and waits. `--json` prints the raw state. |
 | `tokengrill version` | Prints the package version and the D-Bus API version. |
 | `tokengrill run` | Serves the D-Bus interface. The D-Bus service file runs this. |
@@ -74,7 +74,9 @@ tokengrill uninstall
 pipx uninstall tokengrill
 ```
 
-Add `--purge` to the first command to also delete the accounts and the history.
+Add `--purge` to the first command to also delete the accounts, the history,
+and the pasted API keys in the keyring. It stops the running service before
+it deletes them. The keyring can ask to be unlocked.
 
 ## Develop
 

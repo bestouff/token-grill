@@ -97,8 +97,10 @@ limits in a terminal, run `tokengrill status`. Add `--refresh` to refresh all
 accounts first, or `--json` for the raw state.
 
 To remove the service registration, run `tokengrill uninstall`. Add `--purge`
-to be asked if the accounts and the history are also deleted. Then run
-`pipx uninstall tokengrill`.
+to be asked if the accounts, the history, and the pasted API keys are also
+deleted. Before it deletes them, it stops the running service, so that the
+service does not write the files again. The keyring can ask to be unlocked.
+Then run `pipx uninstall tokengrill`.
 
 ### Try a release without logging out
 

@@ -117,3 +117,23 @@ def test_lookup_never_calls_unlock(private_keyring: subprocess.Popen[str], bus_a
     assert output.count("member=Unlock") == 0
     assert output.count("member=Prompt") == 0
     assert "synthetic-secret" not in output
+
+
+def test_purge_removes_only_token_grill_key_items(private_keyring: subprocess.Popen[str]) -> None:
+    connection = secretstorage.dbus_init()
+    try:
+        collection = secretstorage.Collection(connection, LOGIN)
+        for account in ("a", "b"):
+            own = {"xdg:schema": keyring.TOKEN_GRILL_KEY_SCHEMA, "account": account}
+            collection.create_item(keyring.API_KEY_LABEL, own, b"synthetic-key")
+        collection.create_item("Token Grill synthetic", {"xdg:schema": SCHEMA, **ATTRS}, b"synthetic-secret")
+    finally:
+        connection.close()
+    assert keyring.remove_all_api_keys() == 2
+    assert keyring.remove_all_api_keys() == 0
+    connection = secretstorage.dbus_init()
+    try:
+        left = [item.get_label() for item in secretstorage.Collection(connection, LOGIN).get_all_items()]
+    finally:
+        connection.close()
+    assert left == ["Token Grill synthetic"]

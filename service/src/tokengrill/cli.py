@@ -3,6 +3,7 @@ import asyncio
 import json
 import os
 import shutil
+import signal
 import sys
 from pathlib import Path
 from typing import Final
@@ -22,6 +23,11 @@ INTERFACE: Final = "io.github.sh02sahil.TokenGrill1"
 _BUS_TIMEOUT: Final = 5.0
 _REFRESH_TIMEOUT: Final = 60.0
 _POLL_SECONDS: Final = 0.5
+_STOP_TIMEOUT: Final = 15.0
+_BUS_DAEMON: Final = "org.freedesktop.DBus"
+_BUS_DAEMON_PATH: Final = "/org/freedesktop/DBus"
+_NAME_HAS_NO_OWNER: Final = "org.freedesktop.DBus.Error.NameHasNoOwner"
+_NO_REPLY: Final = "org.freedesktop.DBus.Error.NoReply"
 _MISSING_SERVICE: Final = (
     "org.freedesktop.DBus.Error.ServiceUnknown",
     "org.freedesktop.DBus.Error.NameHasNoOwner",
@@ -105,20 +111,107 @@ def _setup() -> int:
     return 0
 
 
+async def _has_owner(bus: MessageBus) -> bool:
+    reply = await bus.call(
+        Message(
+            destination=_BUS_DAEMON,
+            path=_BUS_DAEMON_PATH,
+            interface=_BUS_DAEMON,
+            member="NameHasOwner",
+            signature="s",
+            body=[BUS_NAME],
+        )
+    )
+    if reply is None:
+        raise DBusError(_NO_REPLY, "NameHasOwner got no reply")
+    if reply.message_type == MessageType.ERROR:
+        raise _error(reply)
+    return bool(reply.body[0])
+
+
+async def _stop_running_service() -> bool:
+    """Asks a running service to exit and waits until it has, so its last flush cannot write the deleted files
+    again. False when it is still running."""
+    bus = await asyncio.wait_for(MessageBus().connect(), _BUS_TIMEOUT)
+    try:
+        reply = await bus.call(
+            Message(
+                destination=_BUS_DAEMON,
+                path=_BUS_DAEMON_PATH,
+                interface=_BUS_DAEMON,
+                member="GetConnectionUnixProcessID",
+                signature="s",
+                body=[BUS_NAME],
+            )
+        )
+        if reply is None:
+            return False
+        if reply.message_type == MessageType.ERROR:
+            if reply.error_name == _NAME_HAS_NO_OWNER:
+                return True
+            raise _error(reply)
+        try:
+            # The service flushes its files and releases the name on SIGTERM.
+            os.kill(int(reply.body[0]), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        deadline = asyncio.get_running_loop().time() + _STOP_TIMEOUT
+        while await _has_owner(bus):
+            if asyncio.get_running_loop().time() >= deadline:
+                return False
+            await asyncio.sleep(_POLL_SECONDS)
+        return True
+    finally:
+        bus.disconnect()
+
+
+def _stop_service() -> bool:
+    try:
+        return asyncio.run(_stop_running_service())
+    except (OSError, EOFError, TimeoutError, ValueError):
+        # No session bus here, so no service of a session on it can write the files.
+        return True
+    except DBusError:
+        return False
+
+
+def _remove_api_keys() -> None:
+    from tokengrill.providers.keyring import API_KEY_LABEL, SERVICE_ERRORS, remove_all_api_keys
+
+    try:
+        removed = remove_all_api_keys()
+    except SERVICE_ERRORS:
+        print(f'The keyring could not be reached. Delete the items "{API_KEY_LABEL}" in Passwords and Keys.')
+        return
+    if removed:
+        print(f"Deleted {removed} pasted API key(s) from the keyring.")
+
+
 def _uninstall(purge: bool) -> int:
     _service_file().unlink(missing_ok=True)
     if not _reload():
         print("The session bus could not be reached; it will notice the removal at next login.")
     print("The Token Grill service file is removed.")
-    if purge:
-        try:
-            answer = input("Also delete the accounts and history? [y/N] ")
-        except EOFError:
-            answer = ""
-        if answer in ("y", "Y"):
-            for folder in (config_dir(), data_dir(), state_dir(), runtime_dir()):
-                shutil.rmtree(folder, ignore_errors=True)
-            print("The accounts and history are deleted.")
+    if not purge:
+        return 0
+    try:
+        answer = input("Also delete the accounts, the history and the pasted API keys? [y/N] ")
+    except EOFError:
+        answer = ""
+    if answer not in ("y", "Y"):
+        return 0
+    # The bus no longer starts the service, so once this one has exited nothing writes the files again.
+    if not _stop_service():
+        print(
+            "The Token Grill service did not stop, so nothing is deleted. Disable Token Grill in Extensions,"
+            " then run this command again.",
+            file=sys.stderr,
+        )
+        return 1
+    _remove_api_keys()
+    for folder in (config_dir(), data_dir(), state_dir(), runtime_dir()):
+        shutil.rmtree(folder, ignore_errors=True)
+    print("The accounts and history are deleted.")
     return 0
 
 

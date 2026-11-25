@@ -23,7 +23,7 @@ _LOOKUP_WORKERS = 2
 _lookup_executor = ThreadPoolExecutor(max_workers=_LOOKUP_WORKERS, thread_name_prefix="tokengrill-keyring")
 
 # What a missing, locked or misbehaving Secret Service raises.
-_SERVICE_ERRORS = (secretstorage.SecretStorageException, DBusErrorResponse, OSError)
+SERVICE_ERRORS = (secretstorage.SecretStorageException, DBusErrorResponse, OSError)
 
 
 def _search_attributes(schema: str, attributes: dict[str, str]) -> dict[str, str]:
@@ -60,7 +60,7 @@ async def lookup_secret(schema: str, attributes: dict[str, str], unavailable_id:
         return await asyncio.wait_for(work, LOOKUP_TIMEOUT_SECONDS)
     except UnicodeDecodeError:
         pass
-    except (TimeoutError, *_SERVICE_ERRORS) as error:
+    except (TimeoutError, *SERVICE_ERRORS) as error:
         raise ServiceError("dependency", unavailable_id) from error
     # Only a secret that is not UTF-8 gets here. It is raised outside the handler: the decode error holds the
     # secret's bytes, so it must be neither the cause nor the context of this error.
@@ -97,15 +97,38 @@ def _clear_sync(account_id: str) -> None:
         connection.close()
 
 
+def remove_all_api_keys() -> int:
+    """Deletes every API-key item of Token Grill, of any account, for `tokengrill uninstall --purge`.
+
+    The user runs that command, so the keyring may ask to be unlocked. Returns the number of items deleted.
+    """
+    wanted = _search_attributes(TOKEN_GRILL_KEY_SCHEMA, {})
+    connection = secretstorage.dbus_init()
+    try:
+        removed = 0
+        for collection in secretstorage.get_all_collections(connection):
+            matches = [
+                item for item in collection.search_items(wanted) if wanted.items() <= item.get_attributes().items()
+            ]
+            if matches and collection.is_locked():
+                collection.unlock()
+            for item in matches:
+                item.delete()
+                removed += 1
+        return removed
+    finally:
+        connection.close()
+
+
 async def store_api_key(account_id: str, key: str) -> None:
     try:
         await asyncio.to_thread(_store_sync, account_id, key)
-    except _SERVICE_ERRORS as error:
+    except SERVICE_ERRORS as error:
         raise ServiceError("dependency", KEY_UNAVAILABLE) from error
 
 
 async def clear_api_key(account_id: str) -> None:
     try:
         await asyncio.to_thread(_clear_sync, account_id)
-    except _SERVICE_ERRORS as error:
+    except SERVICE_ERRORS as error:
         raise ServiceError("dependency", KEY_UNAVAILABLE) from error

@@ -93,7 +93,21 @@ def _make_folders(home: Path) -> list[Path]:
     return folders
 
 
-def test_purge_asks_before_deleting(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture
+def removed_keys(monkeypatch: pytest.MonkeyPatch) -> list[bool]:
+    calls: list[bool] = []
+
+    def remove() -> int:
+        calls.append(True)
+        return 2
+
+    monkeypatch.setattr("tokengrill.providers.keyring.remove_all_api_keys", remove)
+    return calls
+
+
+def test_purge_asks_before_deleting(
+    home: Path, monkeypatch: pytest.MonkeyPatch, removed_keys: list[bool], capsys: pytest.CaptureFixture[str]
+) -> None:
     folders = _make_folders(home)
     prompts: list[str] = []
 
@@ -103,15 +117,20 @@ def test_purge_asks_before_deleting(home: Path, monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setattr("builtins.input", refuse)
     assert main(["uninstall", "--purge"]) == 0
-    assert prompts == ["Also delete the accounts and history? [y/N] "]
+    assert prompts == ["Also delete the accounts, the history and the pasted API keys? [y/N] "]
     assert all(folder.exists() for folder in folders)
+    assert removed_keys == []
 
     monkeypatch.setattr("builtins.input", lambda prompt: "y")
     assert main(["uninstall", "--purge"]) == 0
     assert not any(folder.exists() for folder in folders)
+    assert removed_keys == [True]
+    assert "Deleted 2 pasted API key(s) from the keyring." in capsys.readouterr().out
 
 
-def test_purge_without_an_answer_keeps_everything(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_purge_without_an_answer_keeps_everything(
+    home: Path, monkeypatch: pytest.MonkeyPatch, removed_keys: list[bool]
+) -> None:
     folders = _make_folders(home)
 
     def eof(prompt: str) -> str:
@@ -120,3 +139,31 @@ def test_purge_without_an_answer_keeps_everything(home: Path, monkeypatch: pytes
     monkeypatch.setattr("builtins.input", eof)
     assert main(["uninstall", "--purge"]) == 0
     assert all(folder.exists() for folder in folders)
+    assert removed_keys == []
+
+
+def test_purge_deletes_nothing_while_the_service_keeps_running(
+    home: Path, monkeypatch: pytest.MonkeyPatch, removed_keys: list[bool], capsys: pytest.CaptureFixture[str]
+) -> None:
+    folders = _make_folders(home)
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+    monkeypatch.setattr("tokengrill.cli._stop_service", lambda: False)
+    assert main(["uninstall", "--purge"]) == 1
+    assert all(folder.exists() for folder in folders)
+    assert removed_keys == []
+    assert "nothing is deleted" in capsys.readouterr().err
+
+
+def test_purge_names_the_key_items_when_the_keyring_cannot_be_reached(
+    home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    folders = _make_folders(home)
+
+    def unreachable() -> int:
+        raise OSError("no keyring")
+
+    monkeypatch.setattr("tokengrill.providers.keyring.remove_all_api_keys", unreachable)
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+    assert main(["uninstall", "--purge"]) == 0
+    assert not any(folder.exists() for folder in folders)
+    assert 'Delete the items "Token Grill: DeepSeek API key"' in capsys.readouterr().out
