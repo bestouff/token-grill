@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -67,13 +68,37 @@ def _reload() -> bool:
     return True
 
 
+# dbus-daemon reads backslash escapes before it splits the Exec line and dbus-broker does not, so
+# no spelling of these characters works on both. Spaces, quotes ('), $ and % work in double quotes.
+_UNQUOTABLE: Final = frozenset('"\\\n\r')
+
+
+def _exec_line() -> str | None:
+    """The console script beside the interpreter, so that dbus-broker's journal identifier is "tokengrill";
+    an install without one (pip into a system Python) runs the module. None when the path cannot be quoted."""
+    script = Path(sys.executable).parent / "tokengrill"
+    if script.is_file() and os.access(script, os.X_OK):
+        command, arguments = str(script), "run"
+    else:
+        command, arguments = sys.executable, "-m tokengrill run"
+    if _UNQUOTABLE.intersection(command):
+        return None
+    return f'"{command}" {arguments}'
+
+
 def _setup() -> int:
+    line = _exec_line()
+    if line is None:
+        print(
+            "tokengrill: the D-Bus service file cannot name a program whose path has a double quote, a backslash"
+            f" or a line break: {sys.executable!r}. Install tokengrill in another folder.",
+            file=sys.stderr,
+        )
+        return 1
     target = _service_file()
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(
-        f"[D-BUS Service]\nName={BUS_NAME}\nExec={sys.executable} -m tokengrill run\n",
-        encoding="ascii",
-    )
+    # UTF-8, as the bus reads it: a home folder can have any name.
+    target.write_text(f"[D-BUS Service]\nName={BUS_NAME}\nExec={line}\n", encoding="utf-8")
     if not _reload():
         print("The session bus could not be reached; it will pick up the service file at next login.")
     print("Token Grill will start the service when it needs it.")

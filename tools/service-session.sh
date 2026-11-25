@@ -209,7 +209,7 @@ in_session() {
     tokengrill setup > "$OUT/setup.log" 2>&1
     local service_file=$XDG_DATA_HOME/dbus-1/services/$BUS_NAME.service
     check "setup" "service file in the scratch data folder, Exec in the scratch pipx home" \
-        grep -q "^Exec=$S/pipx/" "$service_file"
+        grep -q "^Exec=\"$S/pipx/venvs/tokengrill/bin/tokengrill\" run$" "$service_file"
     check "not running before enable" "no owner of $BUS_NAME" wait_owned no 1
 
     gsettings set org.gnome.shell enabled-extensions "['$HELPER_UUID']"

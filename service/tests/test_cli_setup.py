@@ -18,21 +18,52 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def test_setup_writes_service_file_with_absolute_python(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_setup_runs_the_console_script_beside_python(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    script = Path(sys.executable).parent / "tokengrill"
+    assert script.is_file(), "the test environment installs the console script"
     assert main(["setup"]) == 0
-    written = (home / "data" / SERVICE_FILE).read_text(encoding="ascii")
-    assert written == (
-        f"[D-BUS Service]\nName=io.github.sh02sahil.TokenGrill\nExec={sys.executable} -m tokengrill run\n"
-    )
+    written = (home / "data" / SERVICE_FILE).read_text(encoding="utf-8")
+    assert written == f'[D-BUS Service]\nName=io.github.sh02sahil.TokenGrill\nExec="{script}" run\n'
     assert Path(sys.executable).is_absolute()
     assert "Token Grill will start the service when it needs it." in capsys.readouterr().out
 
 
+def test_setup_without_a_console_script_runs_the_module(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    folder = home / "python only"
+    folder.mkdir()
+    monkeypatch.setattr(sys, "executable", str(folder / "python3"))
+    assert main(["setup"]) == 0
+    written = (home / "data" / SERVICE_FILE).read_text(encoding="utf-8")
+    assert written.endswith(f'\nExec="{folder}/python3" -m tokengrill run\n')
+
+
+def test_setup_quotes_a_path_with_spaces_and_non_ascii(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # An e-acute, which is not ASCII (the file stays ASCII).
+    folder = home / f"a b {chr(0xE9)} 'q' $HOME %h"
+    folder.mkdir()
+    (folder / "tokengrill").write_text("#!/bin/sh\n", encoding="ascii")
+    (folder / "tokengrill").chmod(0o755)
+    monkeypatch.setattr(sys, "executable", str(folder / "python3"))
+    assert main(["setup"]) == 0
+    written = (home / "data" / SERVICE_FILE).read_bytes().decode("utf-8")
+    assert written.endswith(f'\nExec="{folder}/tokengrill" run\n')
+
+
+@pytest.mark.parametrize("name", ['a "q"', "a\\b", "a\nb", "a\rb"])
+def test_setup_refuses_a_path_the_bus_cannot_read(
+    home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], name: str
+) -> None:
+    monkeypatch.setattr(sys, "executable", str(home / name / "python3"))
+    assert main(["setup"]) == 1
+    assert not (home / "data" / SERVICE_FILE).exists()
+    assert "Install tokengrill in another folder" in capsys.readouterr().err
+
+
 def test_setup_is_idempotent(home: Path) -> None:
     assert main(["setup"]) == 0
-    first = (home / "data" / SERVICE_FILE).read_text(encoding="ascii")
+    first = (home / "data" / SERVICE_FILE).read_text(encoding="utf-8")
     assert main(["setup"]) == 0
-    assert (home / "data" / SERVICE_FILE).read_text(encoding="ascii") == first
+    assert (home / "data" / SERVICE_FILE).read_text(encoding="utf-8") == first
 
 
 def test_setup_without_a_session_bus_still_writes_and_notes(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
