@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 alpha 2
+## 0.4.1
 
 - Token Grill also operates with GNOME Shell 48, 49, and 51.
 - Preferences -> General -> Position puts Token Grill on the left or the right
@@ -21,6 +21,9 @@
   Cursor app. The Cursor app sign-in needs the Gda 5.0 SQLite library, as Kiro
   does. If the Cursor app encrypts its sign-in, Token Grill does not read it;
   use the Cursor CLI sign-in.
+- Texts use plain characters: " - " separates parts, such as "Weekly - Fable",
+  and "..." ends a button that opens a dialog. If you showed a Claude model
+  limit such as "Weekly - Fable" in the top bar, check it again in the popup.
 
 ## 0.4.0
 
