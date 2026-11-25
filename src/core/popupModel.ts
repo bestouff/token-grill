@@ -5,9 +5,10 @@ import {formatTokenCount, type HistoryMetrics} from './historyMetrics.js';
 import {formatText, type Translator} from './i18n.js';
 import {displayPath} from './paths.js';
 import {providerMetadata} from './providerMetadata.js';
+import {serviceMessage} from './serviceMessages.js';
 import {signInCommand} from './signIn.js';
 import {durationUntil, formatDuration} from './timeMath.js';
-import type {ProviderErrorCode, ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from './types.js';
+import type {ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from './types.js';
 
 export interface ChooserAccount {
     id: string;
@@ -26,7 +27,7 @@ export interface ChooserGroup {
     attention: boolean;
 }
 
-type SnapshotLookup = Pick<Map<string, Pick<ProviderSnapshot, 'error'> | null>, 'get'>;
+type SnapshotLookup = Pick<Map<string, Pick<ProviderSnapshot, 'errorInfo'> | null>, 'get'>;
 
 // Drops a leading provider name ("Codex - Work" becomes "Work") so account
 // buttons stay short; names that merely contain the provider are kept.
@@ -47,7 +48,7 @@ export function accountGroups(providers: ProviderInstance[], activeId: string, s
             groups.push(group);
         }
         const selected = provider.id === active?.id;
-        const attention = Boolean(snapshots.get(provider.id)?.error);
+        const attention = Boolean(snapshots.get(provider.id)?.errorInfo);
         group.accounts.push({
             id: provider.id,
             displayName: provider.displayName,
@@ -190,45 +191,18 @@ function withSignInHint(tr: Translator, {kind, app, accountHome}: HintInstance, 
     return formatText(templates[kind], message);
 }
 
-export function errorText(tr: Translator, snapshot: Pick<ProviderSnapshot, 'error' | 'errorInfo'> | null, instance: HintInstance): string | null {
+export function errorText(tr: Translator, snapshot: Pick<ProviderSnapshot, 'errorInfo'> | null, instance: HintInstance): string | null {
     const {_} = tr;
-    if (!snapshot?.error)
+    const info = snapshot?.errorInfo ?? null;
+    if (!info)
         return null;
-    switch (snapshot.errorInfo?.recovery) {
+    const message = serviceMessage(tr, info);
+    switch (info.recovery) {
     case 'reauthenticate':
-        return withSignInHint(tr, instance, snapshot.error);
+        return withSignInHint(tr, instance, message);
     case 'retry':
-        return formatText(_('%s Try again later.'), snapshot.error);
+        return formatText(_('%s Try again later.'), message);
     default:
-        return snapshot.error;
+        return message;
     }
-}
-
-function codeErrorText({_}: Translator, code: ProviderErrorCode): string {
-    const texts: Record<ProviderErrorCode, string> = {
-        'auth-missing': _('The account is not signed in.'),
-        'auth-expired': _('The sign-in has expired.'),
-        'auth-invalid': _('The sign-in was not accepted.'),
-        'unsupported-account': _('This account type is not supported.'),
-        dependency: _('A library that this account needs is missing.'),
-        permission: _('Token Grill is not allowed to read the sign-in.'),
-        offline: _('The service could not be reached.'),
-        timeout: _('The service did not answer in time.'),
-        'rate-limited': _('The service is limiting requests.'),
-        http: _('The service answered with an error.'),
-        'response-shape': _('The service sent a response that could not be read.'),
-        'local-history': _('The local usage history could not be updated.'),
-        internal: _('Token Grill could not read this account.'),
-    };
-    return texts[code];
-}
-
-// A snapshot from the service names its error by code and message id, without text. Until the
-// message table exists, the popup shows the generic text of the code with its correction.
-export function withCodeErrorText(tr: Translator, snapshot: ProviderSnapshot): ProviderSnapshot {
-    const info = snapshot.errorInfo;
-    if (info === null)
-        return {...snapshot, error: null};
-    const message = codeErrorText(tr, info.code);
-    return {...snapshot, error: message, errorInfo: {code: info.code, message, recovery: info.recovery}};
 }

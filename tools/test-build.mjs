@@ -49,6 +49,7 @@ const MODULES = [
     ['src/core/notificationPolicy.ts', 'notification-policy.mjs'],
     ['src/core/pace.ts', 'pace.mjs'],
     ['src/core/serviceState.ts', 'service-state.mjs'],
+    ['src/core/serviceMessages.ts', 'service-messages.mjs'],
     ['src/core/signIn.ts', 'sign-in.mjs'],
     ['src/core/storedReading.ts', 'stored-reading.mjs'],
     ['src/core/popupModel.ts', 'popup-model.mjs'],

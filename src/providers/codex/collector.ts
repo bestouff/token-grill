@@ -56,7 +56,7 @@ export class CodexCollector extends BaseCollector {
             if (!(error instanceof CollectorError))
                 throw error;
             context.onSourceResult('reset-credits', 'failed');
-            return cached && {...cached, stale: true, error: providerErrorInfo(error, context.tr)};
+            return cached && {...cached, stale: true, error: providerErrorInfo(error)};
         }
     }
 }

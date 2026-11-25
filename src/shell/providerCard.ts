@@ -54,6 +54,9 @@ function wrappingLabel(styleClass: string, params: Partial<St.Label.ConstructorP
     return actor;
 }
 
+// The opacity of libadwaita's dim-label (0.55).
+const DIMMED_OPACITY = 140;
+
 function clockLabel(timestamp: number): string {
     return formatTime(new Date(timestamp), {timeOnly: true});
 }
@@ -321,6 +324,11 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
         this._items = [this._identity, this._error, this._signIn, this._legend, this._balance, this._automatic, this._credits, this._creditsNone, this._history];
         for (const item of this._items)
             this.addMenuItem(item);
+    }
+
+    // The last readings of a service that stopped answering stay readable but look out of date.
+    setDimmed(dimmed: boolean): void {
+        this.actor.opacity = dimmed ? DIMMED_OPACITY : 255;
     }
 
     private _withInstance(callback: (instance: ProviderInstance) => void): void {

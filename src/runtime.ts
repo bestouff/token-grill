@@ -8,7 +8,6 @@ import {activeProvider} from './core/display.js';
 import {isCancellation} from './core/gio.js';
 import {migrateOnce} from './core/migration.js';
 import {alertText} from './core/notificationPolicy.js';
-import {withCodeErrorText} from './core/popupModel.js';
 import {isShown} from './core/topBar.js';
 import type {Alert, PanelDisplayStyle, PanelPercentageMode, ProviderInstance, ProviderKind} from './core/types.js';
 import {TokenGrillIndicator, type IndicatorController} from './shell/indicator.js';
@@ -115,6 +114,11 @@ export class Runtime implements IndicatorController {
         this._request(client => client.setPaused(paused));
     }
 
+    // The client also tries again every 15 seconds; the button saves the wait after an install.
+    checkService(): void {
+        this._client!.retry();
+    }
+
     private _onStatus(status: ClientStatus): void {
         if (status === 'connected') {
             this._ensureActiveProvider();
@@ -159,8 +163,11 @@ export class Runtime implements IndicatorController {
     private _request(action: (client: ServiceClient) => Promise<unknown>): void {
         const client = this._client!;
         const cancellable = this._cancellable!;
-        if (client.status !== 'connected')
+        // A switch the user moved goes back to what the service last sent.
+        if (client.status !== 'connected') {
+            this._render();
             return;
+        }
         action(client).then(() => {
             if (cancellable.is_cancelled())
                 return;
@@ -221,10 +228,10 @@ export class Runtime implements IndicatorController {
 
     private _render(): void {
         const state = this._client!.state;
-        const snapshots = Object.entries(state?.snapshots ?? {});
         this._indicator!.update({
+            service: this._client!.status,
             providers: state?.accounts ?? [],
-            snapshots: new Map(snapshots.map(([id, snapshot]) => [id, withCodeErrorText(TRANSLATOR, snapshot)])),
+            snapshots: new Map(Object.entries(state?.snapshots ?? {})),
             runtimeStates: new Map(Object.entries(state?.runtime ?? {})),
             activeProviderId: this._settings!.get_string('active-provider-id'),
             mode: this._percentageMode(),

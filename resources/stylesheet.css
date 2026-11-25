@@ -122,3 +122,8 @@
 .tokengrill-light .tokengrill-value.tokengrill-warning { color: #866000; }
 .tokengrill-light .tokengrill-value.tokengrill-critical { color: #c01c28; }
 .tokengrill-info-item { spacing: 8px; }
+
+/* Service card: shown instead of the accounts while the service cannot be used. */
+.tokengrill-service-box { spacing: 8px; }
+.tokengrill-command-row { spacing: 6px; }
+.tokengrill-command { font-weight: bold; }

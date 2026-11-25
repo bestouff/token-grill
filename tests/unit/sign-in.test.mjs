@@ -25,7 +25,7 @@ test('apps that cannot be pointed at another home, or have no login command, get
 });
 
 test('the hint names the variable for an account in another home', () => {
-    const snapshot = {error: 'Codex is not signed in.', errorInfo: {code: 'auth-missing', message: '', recovery: 'reauthenticate'}};
+    const snapshot = {errorInfo: {code: 'auth-missing', messageId: 'codex.auth-missing', params: {}, recovery: 'reauthenticate'}};
     assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'codex-cli', accountHome: '~/.codex-work'}),
         'Codex is not signed in. Run codex login with CODEX_HOME set to ~/.codex-work.');
     assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'codex-cli', accountHome: '~/.codex'}),

@@ -1,6 +1,6 @@
 import {formatText, UNTRANSLATED, type Translator} from './i18n.js';
 import {parseRecord} from './json.js';
-import type {ProviderErrorCode, ProviderErrorInfo} from './types.js';
+import type {ErrorInfo, ProviderErrorCode, Recovery} from './types.js';
 
 // Error text is produced at display time so it follows the user's language,
 // while every msgid stays a literal at the throw site.
@@ -35,7 +35,7 @@ export const INVALID_JSON: ErrorText = ({_}) => _('The service sent a response t
 export const NOT_ALLOWED: ErrorText = ({_}) => _('The request was blocked because its destination is not a known service host.');
 export const NO_USAGE: ErrorText = ({_}) => _('The service response did not contain any usage limits.');
 
-const RECOVERY: Record<ProviderErrorCode, ProviderErrorInfo['recovery']> = {
+const RECOVERY: Record<ProviderErrorCode, Recovery> = {
     'auth-missing': 'reauthenticate',
     'auth-expired': 'reauthenticate',
     'auth-invalid': 'reauthenticate',
@@ -69,8 +69,9 @@ export function isTransientError(error: unknown): boolean {
     return error instanceof CollectorError && TRANSIENT_CODES.has(error.code);
 }
 
-export function providerErrorInfo(error: CollectorError, tr: Translator): ProviderErrorInfo {
-    return {code: error.code, message: error.text(tr), recovery: RECOVERY[error.code]};
+// These collectors name no message id of the service, so the popup shows the generic text of the code.
+export function providerErrorInfo(error: CollectorError): ErrorInfo {
+    return {code: error.code, messageId: '', params: {}, recovery: RECOVERY[error.code]};
 }
 
 // Only identifier-shaped values are returned, so free text that might echo

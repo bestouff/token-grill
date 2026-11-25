@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ACCENT_COLORS, accentHex, accentRgb, normalizeAccent} from '../../build/tests/accent.mjs';
 import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
-import {accountGroups, errorText, historySummary, refreshStatusText, shortAccountName, windowCaption, withCodeErrorText} from '../../build/tests/popup-model.mjs';
+import * as popupModel from '../../build/tests/popup-model.mjs';
+import {accountGroups, errorText, historySummary, refreshStatusText, shortAccountName, windowCaption} from '../../build/tests/popup-model.mjs';
 
 const provider = (id, kind, displayName, extra = {}) => ({id, kind, displayName, enabled: true, accent: 'blue', localHistoryEnabled: false, panelWindowPreference: 'automatic', ...extra});
 
@@ -37,7 +38,7 @@ test('the chooser groups enabled accounts by provider in first-appearance order'
         provider('x3', 'codex', 'Codex - Spare', {enabled: false}),
         provider('c2', 'claude', 'Claude - Work'),
     ];
-    const snapshots = new Map([['x2', {error: 'refresh failed'}]]);
+    const snapshots = new Map([['x2', {errorInfo: {code: 'offline', messageId: 'net.offline', params: {}, recovery: 'retry'}}], ['c1', {errorInfo: null}]]);
     const groups = accountGroups(providers, 'x2', snapshots);
     assert.deepEqual(groups.map(group => group.kind), ['claude', 'codex', 'kiro']);
     assert.deepEqual(groups.map(group => group.label), ['Claude', 'Codex', 'Kiro']);
@@ -95,45 +96,47 @@ test('history summary appears only with real history data', () => {
     assert.equal(historySummary(tr, metrics('ready', {todayTokens: 1.2e6, monthTokens: 41e6})), 'Today 1.2M tokens - 30 days 41.0M tokens');
 });
 
+const failure = (messageId, recovery, params = {}, code = 'auth-expired') => ({errorInfo: {code, messageId, params, recovery}});
+
 test('error text adds the service-specific fix once', () => {
-    const snapshot = (error, recovery) => ({error, errorInfo: {recovery}});
-    assert.equal(errorText(tr, snapshot('kiro-cli is not signed in.', 'reauthenticate'), {kind: 'kiro'}), 'kiro-cli is not signed in. Run kiro-cli login.');
-    assert.equal(errorText(tr, snapshot('The Codex sign-in has expired.', 'reauthenticate'), {kind: 'codex'}), 'The Codex sign-in has expired. Run codex login.');
-    assert.equal(errorText(tr, snapshot('Claude Code is not signed in.', 'reauthenticate'), {kind: 'claude'}), 'Claude Code is not signed in. Run claude auth login.');
-    assert.equal(errorText(tr, snapshot('The service did not answer in time.', 'retry'), {kind: 'codex'}), 'The service did not answer in time. Try again later.');
-    assert.equal(errorText(tr, snapshot('Kiro accounts need the Gda 5.0 library (gir1.2-gda-5.0).', 'none'), {kind: 'kiro'}),
+    assert.equal(errorText(tr, failure('kiro.auth-missing', 'reauthenticate'), {kind: 'kiro'}), 'kiro-cli is not signed in. Run kiro-cli login.');
+    assert.equal(errorText(tr, failure('codex.auth-expired', 'reauthenticate'), {kind: 'codex'}), 'The Codex sign-in has expired. Run codex login.');
+    assert.equal(errorText(tr, failure('claude.auth-missing', 'reauthenticate'), {kind: 'claude'}), 'Claude Code is not signed in. Run claude auth login.');
+    assert.equal(errorText(tr, failure('net.timed-out', 'retry', {}, 'timeout'), {kind: 'codex'}), 'The service did not answer in time. Try again later.');
+    assert.equal(errorText(tr, failure('sqlite.gda-missing', 'none', {service: 'Kiro'}, 'dependency'), {kind: 'kiro'}),
         'Kiro accounts need the Gda 5.0 library (gir1.2-gda-5.0).');
-    assert.equal(errorText(tr, {error: null}, {kind: 'kiro'}), null);
+    assert.equal(errorText(tr, {errorInfo: null}, {kind: 'kiro'}), null);
+    assert.equal(errorText(tr, null, {kind: 'kiro'}), null);
+});
+
+test('error text fills the parameters the service sent', () => {
+    assert.equal(errorText(tr, failure('net.http-status', 'retry', {status: '502', reason: 'Bad Gateway'}, 'http'), {kind: 'codex'}),
+        'The service answered with HTTP 502 (Bad Gateway). Try again later.');
+    assert.equal(errorText(tr, failure('config.not-allowed', 'edit-provider', {path: '~/.codex/auth.json'}, 'permission'), {kind: 'codex'}),
+        'Token Grill is not allowed to read ~/.codex/auth.json.');
+    assert.equal(errorText(tr, failure('cursor.database-unreadable', 'reauthenticate', {path: '~/.config/Cursor/state.vscdb'}, 'auth-invalid'),
+        {kind: 'cursor', app: 'cursor'}),
+    'The Cursor database at ~/.config/Cursor/state.vscdb could not be read. Open Cursor and sign in again, or run agent login and add the Cursor CLI account.');
+});
+
+test('an internal error of the service renders with its retry hint', () => {
+    assert.equal(errorText(tr, failure('service.internal', 'retry', {}, 'internal'), {kind: 'claude'}), 'Token Grill hit an unexpected error. Try again later.');
 });
 
 test('claude reauthentication hint names claude auth login', () => {
-    const snapshot = {error: 'The Claude Code sign-in has expired.', errorInfo: {code: 'auth-expired', message: 'The Claude Code sign-in has expired.', recovery: 'reauthenticate'}};
-    assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'claude'}), 'The Claude Code sign-in has expired. Run claude auth login.');
+    assert.equal(errorText(UNTRANSLATED, failure('claude.auth-expired', 'reauthenticate'), {kind: 'claude'}), 'The Claude Code sign-in has expired. Run claude auth login.');
 });
 
 test('OpenCode accounts are told to open OpenCode', () => {
-    const snapshot = {error: 'The OpenCode sign-in has expired.', errorInfo: {code: 'auth-expired', message: '', recovery: 'reauthenticate'}};
+    const snapshot = failure('opencode.auth-expired', 'reauthenticate');
     assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'opencode'}), 'The OpenCode sign-in has expired. Open OpenCode and sign in again.');
     assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'codex-cli', accountHome: '~/.codex'}), 'The OpenCode sign-in has expired. Run codex login.');
 });
 
-// Service snapshots carry an error code and a message id but no text; until the message table
-// exists, the popup shows the generic text of the code and never an undefined message.
-test('a service snapshot shows the generic text of its error code', () => {
-    const codes = ['auth-missing', 'auth-expired', 'auth-invalid', 'unsupported-account', 'dependency', 'permission', 'offline',
-        'timeout', 'rate-limited', 'http', 'response-shape', 'local-history', 'internal'];
-    for (const code of codes) {
-        const view = withCodeErrorText(UNTRANSLATED, {state: 'error', errorInfo: {code, messageId: 'x.y', params: {}, recovery: 'none'}});
-        assert.equal(typeof view.error, 'string', code);
-        assert.ok(view.error.length > 0, code);
-        assert.equal(view.errorInfo.message, view.error, code);
-    }
-    const expired = withCodeErrorText(UNTRANSLATED, {state: 'error', errorInfo: {code: 'auth-expired', messageId: 'codex.auth-expired', params: {}, recovery: 'reauthenticate'}});
-    assert.equal(errorText(UNTRANSLATED, expired, {kind: 'codex'}), 'The sign-in has expired. Run codex login.');
-    assert.deepEqual(expired.errorInfo, {code: 'auth-expired', message: 'The sign-in has expired.', recovery: 'reauthenticate'});
-    const healthy = withCodeErrorText(UNTRANSLATED, {state: 'ready', errorInfo: null});
-    assert.equal(healthy.error, null);
-    assert.equal(errorText(UNTRANSLATED, healthy, {kind: 'codex'}), null);
+// An id this extension does not know yet still shows a sentence: the generic text of the code.
+test('an unknown message id shows the generic text of its code with the fix', () => {
+    assert.equal(errorText(UNTRANSLATED, failure('codex.new-failure', 'reauthenticate'), {kind: 'codex'}), 'The sign-in has expired. Run codex login.');
+    assert.equal('withCodeErrorText' in popupModel, false, 'the interim per-code text is gone');
 });
 
 test('accentRgb returns the colour channels as fractions', () => {

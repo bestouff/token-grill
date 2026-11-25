@@ -162,22 +162,21 @@ export abstract class BaseCollector implements ProviderCollector {
     abstract collect(instance: ProviderInstance, context: CollectorContext, snapshot: ProviderSnapshot): Promise<ProviderSnapshot>;
 
     // Expected failures keep the last known values, marked stale; anything else is a bug and propagates.
-    protected failed(snapshot: ProviderSnapshot, error: unknown, tr: Translator): ProviderSnapshot {
+    protected failed(snapshot: ProviderSnapshot, error: unknown): ProviderSnapshot {
         if (!(error instanceof CollectorError))
             throw error;
-        const errorInfo = providerErrorInfo(error, tr);
-        return {...snapshot, state: snapshot.lastUpdated ? 'stale' : 'error', error: errorInfo.message, errorInfo};
+        return {...snapshot, state: snapshot.lastUpdated ? 'stale' : 'error', errorInfo: providerErrorInfo(error)};
     }
 
     protected limitsReady(context: CollectorContext, snapshot: ProviderSnapshot, update: LimitsUpdate): ProviderSnapshot {
         context.onSourceResult('limits', 'success');
         const now = Date.now();
-        return {...snapshot, ...update, state: 'ready', lastUpdated: now, quotaFetchedAt: now, error: null, errorInfo: null};
+        return {...snapshot, ...update, state: 'ready', lastUpdated: now, quotaFetchedAt: now, errorInfo: null};
     }
 
     protected limitsFailed(context: CollectorContext, snapshot: ProviderSnapshot, error: unknown): ProviderSnapshot {
         context.onSourceResult('limits', 'failed');
-        return this.failed(snapshot, error, context.tr);
+        return this.failed(snapshot, error);
     }
 
     protected async collectLimits(
@@ -207,7 +206,7 @@ export abstract class BaseCollector implements ProviderCollector {
             await Promise.all([aggregates.flush(), checkpoints.flush()]);
         } catch (error) {
             context.onSourceResult('history', 'failed');
-            return this.failed(snapshot, historyError(error), context.tr);
+            return this.failed(snapshot, historyError(error));
         }
         context.onSourceResult('history', 'success');
         const today = startOfUtcDay();

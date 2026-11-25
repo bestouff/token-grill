@@ -44,12 +44,6 @@ export interface PaceState {
     runsOutAt: number | null;
 }
 
-export interface ProviderErrorInfo {
-    code: ProviderErrorCode;
-    message: string;
-    recovery: 'retry' | 'reauthenticate' | 'edit-provider' | 'none';
-}
-
 // What the top bar shows for an account: the most pressing limit, or the ticked ones.
 export interface TopBarSelection {
     automatic: boolean;
@@ -106,7 +100,7 @@ export interface LimitResetCreditSummary {
     credits: LimitResetCredit[];
     fetchedAt: number;
     stale: boolean;
-    error: ProviderErrorInfo | null;
+    error: ErrorInfo | null;
 }
 
 export interface TokenTotals {
@@ -122,8 +116,7 @@ export interface ProviderSnapshot {
     providerId: string;
     state: ConnectionState;
     lastUpdated: number | null;
-    error: string | null;
-    errorInfo: ProviderErrorInfo | null;
+    errorInfo: ErrorInfo | null;
     plan: string | null;
     account: string | null;
     windows: UsageWindow[];
@@ -221,7 +214,6 @@ export function emptySnapshot(providerId: string): ProviderSnapshot {
         providerId,
         state: 'unknown',
         lastUpdated: null,
-        error: null,
         errorInfo: null,
         plan: null,
         account: null,

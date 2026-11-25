@@ -9,6 +9,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {activeProvider} from '../core/display.js';
 import {accountGroups, type ChooserGroup} from '../core/popupModel.js';
+import type {ClientStatus} from '../core/serviceState.js';
 import {topBarGroups} from '../core/topBar.js';
 import type {
     PanelDisplayStyle,
@@ -20,6 +21,7 @@ import type {
 } from '../core/types.js';
 import {accentDot, providerIcon} from './accountChip.js';
 import {InfoItem, ProviderDetail, StaticMenuItem} from './providerCard.js';
+import {ServiceCard} from './serviceCard.js';
 import {createToggleGroup, type ToggleItem, type ToggleSegment} from './toggleGroup.js';
 import {createTopBarEntry, entryDescription} from './topBar.js';
 
@@ -33,9 +35,11 @@ export interface IndicatorController {
     signIn(providerId: string): void;
     openPreferences(): void;
     setPaused(paused: boolean): void;
+    checkService(): void;
 }
 
 export interface IndicatorState {
+    service: ClientStatus;
     providers: ProviderInstance[];
     snapshots: Map<string, ProviderSnapshot>;
     runtimeStates: Map<string, ProviderRuntimeState>;
@@ -50,6 +54,7 @@ export interface IndicatorState {
 interface IndicatorParts {
     panelBox: St.BoxLayout;
     menuBox: St.BoxLayout;
+    serviceCard: ServiceCard;
     chooser: ChooserItem;
     accountMenu: PopupMenu.PopupSubMenuMenuItem;
     chooserSeparator: PopupMenu.PopupSeparatorMenuItem;
@@ -223,6 +228,8 @@ export class TokenGrillIndicator extends PanelMenu.Button {
         const menuBox = menu.box;
         menuBox.add_style_class_name('tokengrill-menu');
 
+        const serviceCard = new ServiceCard(() => controller.checkService());
+        menu.addMenuItem(serviceCard);
         const chooser = new ChooserItem(extensionPath, id => controller.selectProvider(id));
         menu.addMenuItem(chooser);
         const accountMenu = new PopupMenu.PopupSubMenuMenuItem('', false);
@@ -247,7 +254,7 @@ export class TokenGrillIndicator extends PanelMenu.Button {
         menu.addMenuItem(automatic);
         if (Main.sessionMode.allowSettings)
             menu.addAction(_('Preferences...'), () => controller.openPreferences());
-        this._ui = {panelBox, menuBox, chooser, accountMenu, chooserSeparator, detail, empty, refreshAll, automatic};
+        this._ui = {panelBox, menuBox, serviceCard, chooser, accountMenu, chooserSeparator, detail, empty, refreshAll, automatic};
         this._controller = controller;
         // Each service has its own top-bar entry but they share one menu, so the
         // entry under the pointer picks the service to show.
@@ -311,9 +318,13 @@ export class TokenGrillIndicator extends PanelMenu.Button {
     }
 
     private _renderMenu(state: IndicatorState): void {
-        const {chooser, chooserSeparator, detail, empty, refreshAll, automatic} = this._ui!;
-        const current = activeProvider(state.providers, state.activeProviderId);
-        const groups = accountGroups(state.providers, current?.id ?? '', state.snapshots);
+        const {serviceCard, chooser, chooserSeparator, detail, empty, refreshAll, automatic} = this._ui!;
+        const connected = state.service === 'connected';
+        serviceCard.update(state.service);
+        // The card takes the place of the accounts; a silent service leaves its last readings, dimmed.
+        const accounts = connected || serviceCard.failure === 'not-responding' || serviceCard.failure === null ? state.providers : [];
+        const current = activeProvider(accounts, state.activeProviderId);
+        const groups = accountGroups(accounts, current?.id ?? '', state.snapshots);
         const dropdown = state.accountPicker === 'dropdown';
         chooser.visible = groups.length > 1 || groups.some(group => group.accounts.length > 1);
         chooserSeparator.visible = chooser.visible;
@@ -323,16 +334,17 @@ export class TokenGrillIndicator extends PanelMenu.Button {
         const snapshot = current ? state.snapshots.get(current.id) ?? null : null;
         const runtime = current ? state.runtimeStates.get(current.id) ?? null : null;
         detail.update(current, snapshot, state.mode, runtime);
+        detail.setDimmed(!connected);
 
         const hasProviders = current !== null;
-        empty.visible = !hasProviders;
+        empty.visible = connected && !hasProviders;
         const busy = [...state.runtimeStates.values()].filter(runtimeState => runtimeState.phase !== 'idle').length;
-        refreshAll.visible = hasProviders;
+        refreshAll.visible = connected && hasProviders;
         refreshAll.label.set_text(busy
             ? ngettext('Refreshing %d Account...', 'Refreshing %d Accounts...', busy).format(busy)
             : _('Refresh All Accounts'));
         refreshAll.setSensitive(busy === 0);
-        automatic.visible = hasProviders;
+        automatic.visible = connected && hasProviders;
         automatic.setToggleState(!state.paused);
     }
 

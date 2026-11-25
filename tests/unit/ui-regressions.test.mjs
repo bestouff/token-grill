@@ -73,7 +73,7 @@ test('the chooser mirrors AdwToggleGroup with radio semantics, pseudo-class stat
 
 test('the account chooser groups providers and wraps their accounts', async () => {
     const source = await read('src/shell/indicator.ts');
-    assert.match(source, /accountGroups\(state\.providers, current\?\.id \?\? '', state\.snapshots\)/);
+    assert.match(source, /accountGroups\(accounts, current\?\.id \?\? '', state\.snapshots\)/);
     assert.match(source, /const SHORT_NAME_LENGTH = 9/);
     assert.match(source, /<= SHORT_NAME_LENGTH\) \? 3 : 2/);
     assert.match(source, /start \+= perRow/);
@@ -243,8 +243,27 @@ test('popup actions go to the service and their replies are dropped after disabl
     assert.match(source, /client\.signInCommand\(providerId\)/);
     assert.match(source, /openSignIn\(argv, env\)/);
     const request = source.slice(source.indexOf('private _request('));
-    assert.match(request, /if \(client\.status !== 'connected'\)\s*return;/);
+    // A switch the user moved while the service is away goes back to what it last sent.
+    assert.match(request, /if \(client\.status !== 'connected'\) \{\s*this\._render\(\);\s*return;\s*\}/);
     assert.match(request, /if \(cancellable\.is_cancelled\(\)\)\s*return;/);
+});
+
+// Without the service the popup shows how to install, update or restart it instead of the accounts.
+test('the popup shows the service card while the service is not connected', async () => {
+    const [runtime, indicator, card] = await Promise.all([
+        read('src/runtime.ts'), read('src/shell/indicator.ts'), read('src/shell/serviceCard.ts'),
+    ]);
+    assert.doesNotMatch(runtime, /withCodeErrorText/);
+    assert.match(runtime, /service: this\._client!\.status,/);
+    assert.match(runtime, /checkService\(\): void \{\s*this\._client!\.retry\(\);/);
+    assert.match(indicator, /new ServiceCard\(\(\) => controller\.checkService\(\)\)/);
+    assert.match(indicator, /serviceCard\.update\(state\.service\)/);
+    assert.match(indicator, /serviceCard\.failure === 'not-responding'/);
+    assert.match(indicator, /detail\.setDimmed\(/);
+    assert.match(card, /class ServiceCard extends StaticMenuItem/);
+    assert.match(card, /GTypeName: 'TokenGrillServiceCard'/);
+    assert.match(card, /this\._box\.destroy_all_children\(\)/);
+    assert.match(card, /can_focus: true/);
 });
 
 // 0.4.1 put the account home in argv through env; the service now returns it as a dictionary.
