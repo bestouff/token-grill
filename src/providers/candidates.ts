@@ -21,7 +21,7 @@ export interface Candidate {
 type Configured = Pick<ProviderInstance, 'id' | 'kind' | 'app'>;
 
 const STATUS_ORDER: Record<CandidateStatus, number> = {
-    'ready': 0,
+    ready: 0,
     'already-added': 1,
     'uses-other-app': 2,
     'nothing-to-track': 3,

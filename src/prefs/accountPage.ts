@@ -6,7 +6,7 @@ import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {accentHex, normalizeAccent} from '../core/accent.js';
-import {readProviders} from '../core/config.js';
+import {PROVIDERS_KEY, readProviders} from '../core/config.js';
 import {isCancellation} from '../core/gio.js';
 import {formatText} from '../core/i18n.js';
 import {displayPath, expandPath} from '../core/paths.js';
@@ -19,8 +19,6 @@ import {validateProviderDraft, type ProviderValidationCode} from './providerVali
 import {TRANSLATOR} from './translator.js';
 import {accentName, setAccessibleLabel} from './widgets.js';
 
-const PROVIDERS_KEY = 'provider-instances-json';
-
 export interface AccountActions {
     update: (provider: ProviderInstance) => void;
     remove: (providerId: string) => void;
@@ -31,11 +29,11 @@ const APP_NAMES: Record<AccountApp, string> = {
     'codex-cli': 'Codex CLI',
     'claude-code': 'Claude Code',
     'kiro-cli': 'Kiro CLI',
-    'antigravity': 'Antigravity',
-    'opencode': 'OpenCode',
+    antigravity: 'Antigravity',
+    opencode: 'OpenCode',
     'github-cli': 'GitHub CLI',
     'copilot-cli': 'Copilot CLI',
-    'keyring': 'GNOME Keyring',
+    keyring: 'GNOME Keyring',
     'claude-settings': 'Claude Code',
     'kimi-cli': 'Kimi CLI',
 };
@@ -45,7 +43,7 @@ const FILE_APPS: AccountApp[] = ['codex-cli', 'claude-code', 'kiro-cli', 'antigr
 
 function validationMessage(code: ProviderValidationCode): string {
     const messages: Record<ProviderValidationCode, string> = {
-        'required': _('This field is required'),
+        required: _('This field is required'),
         'not-absolute': _('Use an absolute path or one that starts with ~/'),
         'duplicate-home': _('Another account already uses this home'),
     };
@@ -119,7 +117,7 @@ export class AccountPage extends Adw.NavigationPage {
         this._topBar = new Adw.ActionRow({title: _('Top Bar'), subtitle: this._topBarText()});
         main.add(this._topBar);
 
-        // Kept near the top: the promise is that history is visible without scrolling.
+        // Kept near the top so that the switch is visible without scrolling.
         if (metadata.localHistorySupported && provider.app === metadata.apps[0]) {
             const history = new Adw.SwitchRow({
                 title: _('Local History'),
@@ -222,8 +220,10 @@ export class AccountPage extends Adw.NavigationPage {
         // Translators: an app name, then where its sign-in is read.
         const source = where ? formatText(_('%s · %s'), app, where) : app;
         const row = new Adw.ActionRow({title: _('Signed In With'), subtitle: source});
-        credentialState(provider, this._cancellable).then(state => {
-            row.subtitle = formatText(_('%s · %s'), source, credentialLabel(state));
+        const cancellable = this._cancellable;
+        credentialState(provider, cancellable).then(state => {
+            if (!cancellable.is_cancelled())
+                row.subtitle = formatText(_('%s · %s'), source, credentialLabel(state));
         }).catch(error => {
             if (!isCancellation(error))
                 logError(error, 'Token Grill');

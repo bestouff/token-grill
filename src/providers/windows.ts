@@ -4,8 +4,8 @@ import type {CanonicalQuotaWindow} from '../core/types.js';
 // windows outside the three canonical ones; the UI names those itself.
 const LABELS: Record<Exclude<CanonicalQuotaWindow, 'other'>, string> = {
     'five-hour': 'Five-hour',
-    'weekly': 'Weekly',
-    'monthly': 'Monthly',
+    weekly: 'Weekly',
+    monthly: 'Monthly',
 };
 
 export interface WindowType {

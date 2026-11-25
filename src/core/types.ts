@@ -158,7 +158,6 @@ export const EMPTY_TOTALS: TokenTotals = {
     total: 0,
 };
 
-// The limit key of a prepaid balance shown as a meter.
 export const BALANCE_KEY = 'balance';
 
 export const ACCENTS: AccentColor[] = ['blue', 'teal', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'slate'];

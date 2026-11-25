@@ -170,10 +170,10 @@ function withSignInHint(tr: Translator, kind: ProviderKind, app: AccountApp, mes
         claude: _('%s Run claude auth login.'),
         kiro: _('%s Run kiro-cli login.'),
         antigravity: _('%s Sign in again with Antigravity or agy.'),
-        'copilot': _('%s Run gh auth login.'),
+        copilot: _('%s Run gh auth login.'),
         'opencode-go': _('%s Run opencode auth login.'),
-        'deepseek': _('%s Check the DeepSeek API key in Preferences.'),
-        'kimi': _('%s Start kimi and run /login.'),
+        deepseek: _('%s Check the DeepSeek API key in Preferences.'),
+        kimi: _('%s Start kimi and run /login.'),
     };
     return formatText(templates[kind], message);
 }

@@ -39,20 +39,14 @@ async function codexIdentity(provider: ProviderInstance, cancellable: Gio.Cancel
     return payload ? identityFromCodexAuth(payload) : null;
 }
 
-// Plans the configured accounts are signed in to, where the sign-in tells.
+// Only a Codex sign-in carries an account identity, so only Codex accounts can
+// be matched against a sign-in found elsewhere.
 async function configuredIdentities(configured: ProviderInstance[], entries: Map<string, OpenCodeEntry>, cancellable: Gio.Cancellable): Promise<Map<string, AccountIdentity | null>> {
-    const identities = new Map<string, AccountIdentity | null>();
-    for (const provider of configured) {
-        if (provider.kind !== 'codex')
-            continue;
-        const openAi = entries.get('openai');
-        if (provider.app === 'opencode')
-            identities.set(provider.id, openAi ? identityFromOpenCode('openai', openAi) : null);
-        else
-            // eslint-disable-next-line no-await-in-loop
-            identities.set(provider.id, await codexIdentity(provider, cancellable));
-    }
-    return identities;
+    const openAi = entries.get('openai');
+    const fromOpenCode = openAi ? identityFromOpenCode('openai', openAi) : null;
+    const codex = configured.filter(provider => provider.kind === 'codex');
+    return new Map(await Promise.all(codex.map(async (provider): Promise<[string, AccountIdentity | null]> =>
+        [provider.id, provider.app === 'opencode' ? fromOpenCode : await codexIdentity(provider, cancellable)])));
 }
 
 async function homeCandidates(
@@ -61,43 +55,35 @@ async function homeCandidates(
     identities: Map<string, AccountIdentity | null>,
     cancellable: Gio.Cancellable
 ): Promise<Candidate[]> {
-    const candidates: Candidate[] = [];
-    for (const provider of found) {
+    const candidates = await Promise.all(found.map(async (provider): Promise<Candidate> => {
         const added = configured.some(item => item.app === provider.app && sameHome(item.accountHome, provider.accountHome));
-        // eslint-disable-next-line no-await-in-loop
         const identity = !added && provider.kind === 'codex' ? await codexIdentity(provider, cancellable) : null;
-        candidates.push({
+        return {
             kind: provider.kind,
             app: provider.app,
             accountHome: provider.accountHome,
             label: provider.displayName,
             status: added ? 'already-added' : 'ready',
             duplicateOf: duplicateOf(identity, identities),
-        });
-    }
+        };
+    }));
     return byStatus(candidates);
 }
 
 // Claude Code homes whose settings send Claude Code to DeepSeek with an API key.
 async function claudeSettingsCandidates(configured: ProviderInstance[], cancellable: Gio.Cancellable): Promise<Candidate[]> {
-    const candidates: Candidate[] = [];
-    for (const home of cliHomes('claude')) {
-        const path = GLib.build_filenamev([expandPath(home.accountHome), 'settings.json']);
-        // eslint-disable-next-line no-await-in-loop
-        const settings = await readOrNull(() => readCredentialJson(path, cancellable));
-        if (!settings || !deepSeekKeyFromClaudeSettings(settings))
-            continue;
-        const added = configured.some(item => item.app === 'claude-settings' && sameHome(item.accountHome, home.accountHome));
-        candidates.push({
-            kind: 'deepseek',
-            app: 'claude-settings',
-            accountHome: home.accountHome,
-            label: providerMetadata('deepseek').label,
-            status: added ? 'already-added' : 'ready',
-            duplicateOf: null,
-        });
-    }
-    return candidates;
+    const homes = await Promise.all(cliHomes('claude').map(async home => {
+        const settings = await readOrNull(() => readCredentialJson(GLib.build_filenamev([expandPath(home.accountHome), 'settings.json']), cancellable));
+        return settings && deepSeekKeyFromClaudeSettings(settings) ? [home] : [];
+    }));
+    return homes.flat().map((home): Candidate => ({
+        kind: 'deepseek',
+        app: 'claude-settings',
+        accountHome: home.accountHome,
+        label: providerMetadata('deepseek').label,
+        status: configured.some(item => item.app === 'claude-settings' && sameHome(item.accountHome, home.accountHome)) ? 'already-added' : 'ready',
+        duplicateOf: null,
+    }));
 }
 
 async function copilotCliCandidates(configured: ProviderInstance[], cancellable: Gio.Cancellable): Promise<Candidate[]> {
@@ -119,15 +105,15 @@ const FINDERS: Record<AccountApp, (search: Search) => Promise<Candidate[]>> = {
     'codex-cli': search => homeCandidates(cliHomes('codex'), search.configured, search.identities, search.cancellable),
     'claude-code': search => homeCandidates(cliHomes('claude'), search.configured, search.identities, search.cancellable),
     'kiro-cli': search => homeCandidates(kiroHomes(), search.configured, search.identities, search.cancellable),
-    'antigravity': search => homeCandidates(antigravityHomes(), search.configured, search.identities, search.cancellable),
+    antigravity: search => homeCandidates(antigravityHomes(), search.configured, search.identities, search.cancellable),
     'kimi-cli': search => homeCandidates(kimiHomes(), search.configured, search.identities, search.cancellable),
     'github-cli': search => homeCandidates(githubCliHomes(), search.configured, search.identities, search.cancellable),
     'copilot-cli': search => copilotCliCandidates(search.configured, search.cancellable),
-    'opencode': search => Promise.resolve(openCodeCandidates(search.entries, search.configured, search.identities,
+    opencode: search => Promise.resolve(openCodeCandidates(search.entries, search.configured, search.identities,
         GLib.build_filenamev([GLib.get_user_data_dir(), 'opencode']))),
     'claude-settings': search => claudeSettingsCandidates(search.configured, search.cancellable),
     // A pasted key is typed in, not found.
-    'keyring': () => Promise.resolve([]),
+    keyring: () => Promise.resolve([]),
 };
 
 // Every account that can be added from one app, read-only and without network requests.

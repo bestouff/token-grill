@@ -57,10 +57,10 @@ const CREDENTIAL_CHECKS: Record<ProviderKind, (provider: ProviderInstance, cance
     claude: (provider, cancellable) => authFileState(loadClaudeAccessToken(provider, cancellable)),
     kiro: kiroState,
     antigravity: antigravityState,
-    'copilot': (provider, cancellable) => authFileState(loadCopilotToken(provider, cancellable)),
+    copilot: (provider, cancellable) => authFileState(loadCopilotToken(provider, cancellable)),
     'opencode-go': (_provider, cancellable) => authFileState(loadOpenCodeGoKey(cancellable)),
-    'deepseek': (provider, cancellable) => authFileState(loadDeepSeekKey(provider, cancellable)),
-    'kimi': (provider, cancellable) => authFileState(loadKimiAuth(provider, cancellable)),
+    deepseek: (provider, cancellable) => authFileState(loadDeepSeekKey(provider, cancellable)),
+    kimi: (provider, cancellable) => authFileState(loadKimiAuth(provider, cancellable)),
 };
 
 // Rejects only when cancelled or on an unexpected error.
@@ -70,12 +70,12 @@ export function credentialState(provider: ProviderInstance, cancellable: Gio.Can
 
 export function credentialLabel(state: CredentialState): string {
     const labels: Record<CredentialState, string> = {
-        'authenticated': _('Authenticated'),
-        'expired': _('Sign-in expired'),
+        authenticated: _('Authenticated'),
+        expired: _('Sign-in expired'),
         'expired-refreshable': _('Sign-in expired, renewed automatically'),
         'expired-external': _('Token expired; run any agy command to refresh'),
         'login-required': _('Sign-in required'),
-        'unreadable': _('Credential unreadable'),
+        unreadable: _('Credential unreadable'),
         'database-unreadable': _('Database unreadable'),
         'gda-missing': _('Missing Gda 5.0 dependency'),
         'keyring-unavailable': _('System keyring locked or unavailable'),

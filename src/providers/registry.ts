@@ -16,9 +16,9 @@ export function createCollectors(): Record<ProviderKind, ProviderCollector> {
         claude: new ClaudeCollector(),
         kiro: new KiroCollector(),
         antigravity: new AntigravityCollector(),
-        'copilot': new CopilotCollector(),
+        copilot: new CopilotCollector(),
         'opencode-go': new OpenCodeGoCollector(),
-        'deepseek': new DeepSeekCollector(),
-        'kimi': new KimiCollector(),
+        deepseek: new DeepSeekCollector(),
+        kimi: new KimiCollector(),
     };
 }

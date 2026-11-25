@@ -38,9 +38,9 @@ import {CheckpointStore} from './storage/checkpointStore.js';
 import {DiagnosticsStore} from './storage/diagnosticsStore.js';
 
 const SOURCE_PHASES: Record<RefreshSource, RefreshPhase> = {
-    'limits': 'fetching-limits',
+    limits: 'fetching-limits',
     'reset-credits': 'fetching-reset-credits',
-    'history': 'scanning-history',
+    history: 'scanning-history',
 };
 
 function idleState(): ProviderRuntimeState {

@@ -4,7 +4,7 @@
 // quota_reset_date_utc and access_type_sku. ghcp-spend-tray reads the same
 // credits fields for AI Credits plans.
 import {CollectorError} from '../../core/errors.js';
-import {isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
+import {clampFraction, isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
 import {windowLabel} from '../windows.js';
 
@@ -35,7 +35,7 @@ function snapshotWindow(snapshot: unknown, id: string, canonicalWindow: Canonica
     const percentRemaining = numberAt(snapshot, 'percent_remaining');
     if (percentRemaining === null)
         return null;
-    return {...base, used: null, limit: null, percent: Math.max(0, Math.min(1, 1 - percentRemaining / 100)), unit: null};
+    return {...base, used: null, limit: null, percent: clampFraction(1 - percentRemaining / 100), unit: null};
 }
 
 export function normalizeCopilotUsage(payload: unknown): CopilotUsage {

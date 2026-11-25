@@ -9,8 +9,8 @@ const USAGE_URL = 'https://api.github.com/copilot_internal/user';
 async function fetchLimits(instance: ProviderInstance, context: CollectorContext): Promise<LimitsUpdate> {
     const token = await loadCopilotToken(instance, context.cancellable);
     const payload = await context.requestJson('GET', USAGE_URL, {
-        'Accept': 'application/json',
-        'Authorization': `token ${token}`,
+        Accept: 'application/json',
+        Authorization: `token ${token}`,
     });
     const {windows, plan} = normalizeCopilotUsage(payload);
     return {windows, plan};

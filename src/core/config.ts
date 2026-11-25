@@ -7,6 +7,8 @@ import {PROVIDER_METADATA, providerMetadata} from './providerMetadata.js';
 import {orderedProviders} from './providerOrder.js';
 import type {AccountApp, ProviderInstance, ProviderKind, QuotaWindowPreference, TopBarSelection} from './types.js';
 
+export const PROVIDERS_KEY = 'provider-instances-json';
+
 // The settings layout version; the entries themselves keep format 2 so 0.3.x can still read them.
 export const CONFIGURATION_VERSION = 3;
 export const ENTRY_SCHEMA_VERSION = 2;
@@ -15,7 +17,7 @@ const QUOTA_WINDOW_PREFERENCES: QuotaWindowPreference[] = ['automatic', 'five-ho
 
 function parseStoredProviders(settings: Gio.Settings): unknown[] {
     try {
-        const parsed: unknown = JSON.parse(settings.get_string('provider-instances-json'));
+        const parsed: unknown = JSON.parse(settings.get_string(PROVIDERS_KEY));
         return Array.isArray(parsed) ? parsed : [];
     } catch {
         return [];
@@ -31,7 +33,7 @@ export function readProviders(settings: Gio.Settings): ProviderInstance[] {
 }
 
 export function writeProviders(settings: Gio.Settings, providers: ProviderInstance[]): void {
-    settings.set_string('provider-instances-json', JSON.stringify(providers));
+    settings.set_string(PROVIDERS_KEY, JSON.stringify(providers));
     settings.set_uint('configuration-version', CONFIGURATION_VERSION);
 }
 

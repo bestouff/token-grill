@@ -1,20 +1,16 @@
 // DeepSeek is prepaid: the documented GET /user/balance returns money left,
 // {is_available, balance_infos: [{currency, total_balance, granted_balance, topped_up_balance}]}.
 import {CollectorError, NO_USAGE} from '../../core/errors.js';
-import {isRecord, recordAt, stringAt} from '../../core/json.js';
+import {isRecord, numberOrNumericString, recordAt, stringAt} from '../../core/json.js';
 import type {Balance} from '../../core/types.js';
-
-function amount(value: unknown): number | null {
-    const number = typeof value === 'string' && value.trim() ? Number(value) : value;
-    return typeof number === 'number' && Number.isFinite(number) ? number : null;
-}
 
 export function normalizeDeepSeekBalance(payload: unknown): Balance {
     const infos = isRecord(payload) && Array.isArray(payload.balance_infos) ? payload.balance_infos : [];
     for (const info of infos) {
-        const total = isRecord(info) ? amount(info.total_balance) : null;
+        const total = isRecord(info) ? numberOrNumericString(info.total_balance) : null;
         const currency = isRecord(info) ? stringAt(info, 'currency') : null;
-        if (total !== null && currency)
+        // Intl.NumberFormat throws on anything that is not an ISO 4217 code.
+        if (total !== null && currency && /^[A-Z]{3}$/.test(currency))
             return {amount: total, currency};
     }
     throw new CollectorError('response-shape', NO_USAGE);

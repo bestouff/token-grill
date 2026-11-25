@@ -10,7 +10,7 @@ export interface QuotaSummaryBucket {
 
 const BUCKET_WINDOWS: Record<string, CanonicalQuotaWindow> = {
     '5h': 'five-hour',
-    'weekly': 'weekly',
+    weekly: 'weekly',
 };
 
 // The subscription tier from a loadCodeAssist response.

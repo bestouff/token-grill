@@ -1,7 +1,7 @@
 // OpenCode Go reports one pool for the whole subscription, whatever model is used.
 // Fields from the community-observed response: {rolling|weekly|monthly: {status, percent, resetsAt}},
 // optionally wrapped in `usage`.
-import {isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
+import {clampFraction, isRecord, numberAt, recordAt, stringAt, toEpochMs} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
 import {windowLabel} from '../windows.js';
 
@@ -19,7 +19,7 @@ export function normalizeOpenCodeGoUsage(payload: unknown): UsageWindow[] {
         if (!item || percent === null)
             return [];
         // A rate-limited window is closed before its percentage reaches 100.
-        const used = stringAt(item, 'status') === 'rate-limited' ? 1 : Math.max(0, Math.min(1, percent / 100));
+        const used = stringAt(item, 'status') === 'rate-limited' ? 1 : clampFraction(percent / 100);
         return [{
             id, canonicalWindow, label: windowLabel(canonicalWindow, id), used: null, limit: null,
             percent: used, resetAt: toEpochMs(item.resetsAt), unit: null,

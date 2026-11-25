@@ -10,8 +10,8 @@ const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 async function fetchLimits(instance: ProviderInstance, context: CollectorContext): Promise<LimitsUpdate> {
     const accessToken = await loadClaudeAccessToken(instance, context.cancellable);
     const payload = await context.requestJson('GET', USAGE_URL, {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
     });
     const windows = normalizeClaudeUsage(payload);
     if (!windows.length)

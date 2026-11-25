@@ -16,9 +16,9 @@ import type {
 
 const WINDOW_RANK: Record<CanonicalQuotaWindow, number> = {
     'five-hour': 0,
-    'weekly': 1,
-    'monthly': 2,
-    'other': 3,
+    weekly: 1,
+    monthly: 2,
+    other: 3,
 };
 
 type WindowsOf = Pick<ProviderSnapshot, 'windows'> | null | undefined;
