@@ -1,0 +1,1 @@
+{"schemaVersion":1,"about":{"version":"0.4.1","shell":"48.2"},"entries":[{"at":1746100000000,"account":"codex-0","kind":"codex","app":"codex-cli","step":"request","detail":"GET chatgpt.com/backend-api/wham/usage"},{"at":1746100000500,"account":"codex-0","kind":"codex","app":"codex-cli","step":"response","detail":"{plan_type: string, rate_limit: {...}}"}]}

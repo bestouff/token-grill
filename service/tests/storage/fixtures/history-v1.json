@@ -1,0 +1,1 @@
+{"schemaVersion":1,"buckets":[{"providerId":"codex-1","date":"2026-05-01","model":"gpt-5","totals":{"input":1200,"output":340,"cachedInput":800,"cacheWrite":0,"reasoning":50,"total":1590}},{"providerId":"claude-1","date":"2026-05-02","model":"unknown","totals":{"input":10,"output":20,"cachedInput":0,"cacheWrite":5,"reasoning":0,"total":35}}]}
