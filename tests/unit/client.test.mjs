@@ -102,7 +102,9 @@ test('the retry source is removed in destroy()', async () => {
     assert.match(source, /_retryId = GLib\.timeout_add_seconds\(GLib\.PRIORITY_DEFAULT, RETRY_SECONDS/);
     assert.match(source, /RETRY_SECONDS = 15/);
     assert.match(destroyBody(source), /GLib\.Source\.remove\(this\._retryId\)/);
-    assert.match(destroyBody(source), /this\._cancellable\.cancel\(\)/);
+    // The owner's cancellable is the only one: the client neither makes nor cancels its own (R-11).
+    assert.match(source, /private readonly _cancellable: Gio\.Cancellable\n {4}\) \{\}/);
+    assert.doesNotMatch(source, /new Gio\.Cancellable\(\)|_cancellable\.cancel\(\)/);
 });
 
 test('every continuation checks the cancellable and no lifecycle flag exists', async () => {

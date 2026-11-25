@@ -18,8 +18,8 @@ export interface Reply<T> {
     cancellable?: Gio.Cancellable;
 }
 
-// What the pages and dialogs of one Preferences window share: its service client, its
-// cancellable and the changes that the service announces.
+// What the pages and dialogs of one Preferences window share: its service client, its one
+// cancellable (which the client uses for every call) and the changes that the service announces.
 export class PrefsContext implements ClientHandlers {
     readonly client: ServiceClient;
     readonly cancellable = new Gio.Cancellable();
@@ -29,9 +29,9 @@ export class PrefsContext implements ClientHandlers {
         readonly window: Adw.PreferencesWindow,
         readonly extensionPath: string,
         readonly logger: PrefsLogger,
-        createClient: (handlers: ClientHandlers) => ServiceClient
+        createClient: (handlers: ClientHandlers, cancellable: Gio.Cancellable) => ServiceClient
     ) {
-        this.client = createClient(this);
+        this.client = createClient(this, this.cancellable);
     }
 
     get accounts(): ProviderInstance[] {

@@ -22,7 +22,8 @@ export default class TokenGrillPreferences extends ExtensionPreferences {
         Gtk.StyleContext.add_provider_for_display(display, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
 
         // One client per window; the service owns the accounts and the settings it uses itself.
-        const context = new PrefsContext(window, this.path, logger, handlers => new ServiceClient('prefs', handlers, logger));
+        const context = new PrefsContext(
+            window, this.path, logger, (handlers, cancellable) => new ServiceClient('prefs', handlers, logger, cancellable));
         const general = new GeneralPage(settings, context);
         const pages = [general, new AccountsPage(context), new NotificationsPage(settings, context), new DataPage(context)];
         const service = new ServicePage(() => context.client.retry());
@@ -53,8 +54,9 @@ export default class TokenGrillPreferences extends ExtensionPreferences {
         });
 
         window.connect('close-request', () => {
-            context.client.destroy();
+            // Cancels the client's calls before the client goes.
             context.destroy();
+            context.client.destroy();
             Gtk.StyleContext.remove_provider_for_display(display, css);
             return false;
         });

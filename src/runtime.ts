@@ -21,6 +21,7 @@ import {TRANSLATOR} from './shell/translator.js';
 export class Runtime implements IndicatorController {
     private readonly _extension: Extension;
     private _settings: Gio.Settings | null;
+    // The one cancellable of this enable(): every service call and every reply check uses it.
     private _cancellable: Gio.Cancellable | null = new Gio.Cancellable();
     private _client: ServiceClient | null;
     private _notifier: Notifier | null;
@@ -38,7 +39,7 @@ export class Runtime implements IndicatorController {
             onAccountsChanged: accounts => this._onAccountsChanged(accounts),
             onSettingsChanged: () => this._render(),
             onAlert: alert => this._onAlert(alert),
-        }, extension.getLogger());
+        }, extension.getLogger(), this._cancellable!);
     }
 
     start(): void {
@@ -52,7 +53,8 @@ export class Runtime implements IndicatorController {
         this._cancellable!.cancel();
         this._cancellable = null;
 
-        // Sends Goodbye: the Shell's bus connection stays open, so the service learns of the departure here.
+        // The calls in flight were cancelled above. Sends Goodbye: the Shell's bus connection stays
+        // open, so the service learns of the departure here.
         this._client!.destroy();
         this._client = null;
 

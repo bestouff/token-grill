@@ -68,7 +68,6 @@ export class ServiceClient {
     status: ClientStatus = 'connecting';
     state: ServiceState | null = null;
 
-    private readonly _cancellable = new Gio.Cancellable();
     // The interface text is a constant, so it is parsed once and not at every retry.
     private readonly _info = Gio.DBusNodeInfo.new_for_xml(INTERFACE_XML).lookup_interface(INTERFACE_NAME)!;
     private _proxy: Gio.DBusProxy | null = null;
@@ -78,10 +77,12 @@ export class ServiceClient {
     // The proxy that Hello was sent on; it is told Goodbye when it is dropped.
     private _greeted: Gio.DBusProxy | null = null;
 
+    // The owner's one cancellable goes to every call; the owner cancels it before destroy().
     constructor(
         private readonly _kind: ClientKind,
         private readonly _handlers: ClientHandlers,
-        private readonly _logger: Pick<Console, 'error'>
+        private readonly _logger: Pick<Console, 'error'>,
+        private readonly _cancellable: Gio.Cancellable
     ) {}
 
     // Reaches the service, starting it if needed. A failure of the connection or of the service's
@@ -140,7 +141,6 @@ export class ServiceClient {
     }
 
     destroy(): void {
-        this._cancellable.cancel();
         if (this._retryId !== null) {
             GLib.Source.remove(this._retryId);
             this._retryId = null;

@@ -48,7 +48,9 @@ request. A module of one process must not import the UI modules of another.
 
 - `src/client.ts`: `ServiceClient`, the D-Bus client. It builds the proxy
   asynchronously, calls `Hello`, follows the signals, and keeps the state. A
-  missing or old service is a state of the client, not an error.
+  missing or old service is a state of the client, not an error. It uses the
+  one cancellable of its owner (the runtime, or the Preferences window) for
+  every call.
 
 - `src/shell/`: the panel button and the popup (`indicator.ts`, `topBar.ts`,
   `providerCard.ts`, `serviceCard.ts`, `accountChip.ts`, `toggleGroup.ts`),

@@ -218,9 +218,11 @@ test('no source writes the old test notification request', async () => {
 // One client per window: Goodbye tells the service that Preferences closed.
 test('each Preferences window has its own service client, released on close', async () => {
     const [entry, context] = await Promise.all([read('src/prefs.ts'), read('src/prefs/context.ts')]);
-    assert.match(entry, /new ServiceClient\('prefs', handlers, logger\)/);
+    // The window's one cancellable goes to the client (R-11) and is cancelled before the client goes.
+    assert.match(entry, /\(handlers, cancellable\) => new ServiceClient\('prefs', handlers, logger, cancellable\)/);
+    assert.match(context, /this\.client = createClient\(this, this\.cancellable\);/);
     const close = entry.slice(entry.indexOf("window.connect('close-request'"));
-    assert.match(close, /^window\.connect\('close-request', \(\) => \{\s*context\.client\.destroy\(\);\s*context\.destroy\(\);/);
+    assert.match(close, /^window\.connect\('close-request', \(\) => \{\s*(\/\/[^\n]*\s*)*context\.destroy\(\);\s*context\.client\.destroy\(\);/);
     assert.match(entry, /context\.client\.connect\(\)/);
     // The banner stands in for the pages until the service answers.
     assert.match(entry, /new ServicePage\(\(\) => context\.client\.retry\(\)\)/);
@@ -350,6 +352,9 @@ test('runtime releases all lifecycle-owned references during stop', async () => 
     for (const name of ['client', 'notifier', 'settings', 'cancellable', 'indicator', 'settingsChangedId'])
         assert.match(stop, new RegExp(`this\\._${name} = null`));
     assert.match(stop, /this\._cancellable!\.cancel\(\);/);
+    // One cancellable per enable(): the runtime's own goes to the client and to every call (R-11).
+    assert.match(source, /\}, extension\.getLogger\(\), this\._cancellable!\);/);
+    assert.ok(stop.indexOf('this._cancellable!.cancel()') < stop.indexOf('this._client!.destroy()'));
     // Goodbye tells the service that this Shell client left; the Shell bus connection never closes.
     assert.match(stop, /this\._client!\.destroy\(\);\s*this\._client = null;/);
     assert.match(stop, /this\._settings!\.disconnect\(this\._settingsChangedId!?\)/);
