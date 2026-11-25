@@ -67,6 +67,7 @@ def test_registry_holds_only_ported_collectors() -> None:
         "claude",
         "codex",
         "copilot",
+        "cursor",
         "deepseek",
         "kimi",
         "kiro",

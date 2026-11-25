@@ -6,6 +6,7 @@ from tokengrill.providers.base import Collector
 from tokengrill.providers.claude.collector import ClaudeCollector
 from tokengrill.providers.codex.collector import CodexCollector
 from tokengrill.providers.copilot.collector import CopilotCollector
+from tokengrill.providers.cursor.collector import CursorCollector
 from tokengrill.providers.deepseek.collector import DeepSeekCollector
 from tokengrill.providers.kimi.collector import KimiCollector
 from tokengrill.providers.kiro.collector import KiroCollector
@@ -19,6 +20,7 @@ def create_collectors() -> dict[ProviderKind, Collector]:
         "claude": ClaudeCollector(),
         "codex": CodexCollector(),
         "copilot": CopilotCollector(),
+        "cursor": CursorCollector(),
         "deepseek": DeepSeekCollector(),
         "kimi": KimiCollector(),
         "kiro": KiroCollector(),
