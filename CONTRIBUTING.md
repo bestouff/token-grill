@@ -193,12 +193,6 @@ The service has three runtime dependencies: `dbus-fast`, `httpx`, and
 `secretstorage`. Each has a lower and an upper major bound. Do not add a
 dependency that needs a compiler or PyGObject.
 
-The parity test (`tests/test_parity.py`) compares the normalizers of the
-service with the output of version 0.4.1 for the inputs in `tests/parity/`.
-To make the expected files again, build the unit tests of a 0.4.1 checkout and
-run `node tools/parity-dump.mjs <build/tests folder of that checkout>`. Change
-the expected files only when the 0.4.1 behavior itself was wrong.
-
 Tests that need a real credential or the network are marked `integration`.
 Do not paste their output into issues, pull requests, or chats: it shows your
 plan and your usage.
