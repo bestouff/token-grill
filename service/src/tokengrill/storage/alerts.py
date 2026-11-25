@@ -1,47 +1,10 @@
 """Milestone and low-balance alert state (notifications-v1.json)."""
 
 from pathlib import Path
-from typing import Any, TypedDict
 
-from tokengrill.core.json_util import is_record, to_number
+from tokengrill.core.alerts import WindowState, migrate_notification_state
+from tokengrill.core.json_util import is_record
 from tokengrill.storage.atomic_json import Persisted, dumps, state_path
-
-_MINUTE_MS = 60_000
-_LEGACY_SUFFIX = ":selected-limit"
-
-
-class WindowState(TypedDict):
-    providerId: str
-    resetIdentity: str
-    lastNotifiedBucket: int
-    configuredStep: int
-
-
-def _rounded_reset(reset_at: float) -> int:
-    """Math.round: halves go up."""
-    return int((reset_at / _MINUTE_MS + 0.5) // 1) * _MINUTE_MS
-
-
-def migrate_notification_state(windows: dict[str, Any]) -> dict[str, WindowState]:
-    """0.3.x kept one alert state per account; it moves to the key of the limit it followed.
-
-    The file is our own but may be damaged; one bad entry must not stop the start.
-    """
-    migrated: dict[str, Any] = {}
-    for key, state in windows.items():
-        if not is_record(state) or not isinstance(state.get("resetIdentity"), str):
-            continue
-        if not key.endswith(_LEGACY_SUFFIX):
-            migrated[key] = state
-            continue
-        identity: str = state["resetIdentity"]
-        limit, _, rest = identity.partition(":")
-        reset = rest.partition(":")[0]
-        reset_at = to_number(reset) if reset != "" else None
-        reset_identity = f"{limit}:{_rounded_reset(reset_at)}" if reset_at is not None else identity
-        if limit:
-            migrated.setdefault(f"{key[: -len(_LEGACY_SUFFIX)]}:{limit}", {**state, "resetIdentity": reset_identity})
-    return migrated
 
 
 class AlertStateStore(Persisted):

@@ -167,3 +167,22 @@ async def test_import_twice_imports_once(env: dict[str, str], service: subproces
         await iface.call_import_accounts("[]")  # type: ignore[attr-defined]
     assert bad.value.type == f"{NAME}.Error.InvalidArgs"
     bus.disconnect()
+
+
+async def test_send_test_alert_emits_the_alert_signal(
+    env: dict[str, str], service: subprocess.Popen[str], tmp_path: Path
+) -> None:
+    bus = await connect(env)
+    iface = await proxy(bus)
+    alerts: asyncio.Queue[dict[str, object]] = asyncio.Queue()
+    iface.on_alert(lambda text: alerts.put_nowait(json.loads(text)))  # type: ignore[attr-defined]
+    account = await add_codex(iface, tmp_path / "one")
+    await iface.call_send_test_alert(account)  # type: ignore[attr-defined]
+    alert = await next_signal(alerts)
+    assert alert["kind"] == "test"
+    assert alert["accountId"] == account
+    assert alert["window"] is None
+    with pytest.raises(DBusError) as unknown:
+        await iface.call_send_test_alert("nope")  # type: ignore[attr-defined]
+    assert unknown.value.type == f"{NAME}.Error.InvalidArgs"
+    bus.disconnect()

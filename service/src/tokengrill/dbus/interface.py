@@ -229,8 +229,9 @@ class TokenGrillInterface(ServiceInterface):
         raise _not_supported("SignInCommand")
 
     @method()
-    def SendTestAlert(self, account_id: "s") -> None:
-        raise _not_supported("SendTestAlert")
+    async def SendTestAlert(self, account_id: "s") -> None:
+        async with self._call() as runtime:
+            _checked_sync(lambda: runtime.send_test_alert(account_id))
 
     @method()
     def DiagnosticsReport(self) -> "s":

@@ -13,6 +13,7 @@ from tokengrill.core.account_edits import (
     with_new_accounts,
     with_updated_account,
 )
+from tokengrill.core.alerts import check_milestone, notification_key, should_notify_low_balance
 from tokengrill.core.config import (
     Config,
     ConfigStore,
@@ -29,9 +30,12 @@ from tokengrill.core.paths import provider_paths
 from tokengrill.core.readings import restored_snapshot, snapshot_fingerprint
 from tokengrill.core.scheduler import Scheduler, SchedulerJob
 from tokengrill.core.timemath import now_ms
-from tokengrill.core.topbar import set_automatic, toggle_limit
+from tokengrill.core.topbar import is_shown, limit_key, set_automatic, shown_limits, toggle_limit
 from tokengrill.core.types import (
+    BALANCE_KEY,
     Alert,
+    AlertKind,
+    Balance,
     ProviderInstance,
     ProviderKind,
     ProviderRuntimeState,
@@ -42,6 +46,7 @@ from tokengrill.core.types import (
     ServiceState,
     Settings,
     SourceResult,
+    UsageWindow,
     empty_snapshot,
 )
 from tokengrill.core.validation import ProviderValidationErrors
@@ -50,6 +55,7 @@ from tokengrill.providers.base import Collector, CollectorContext
 from tokengrill.providers.keyring import clear_api_key
 from tokengrill.providers.pricing import PricingCatalog, load_catalog
 from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.alerts import AlertStateStore
 from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 from tokengrill.storage.diagnostics import DiagnosticEntry, DiagnosticsStore
@@ -59,6 +65,12 @@ ACCOUNT_LIMIT_MS = 30_000
 ALL_ACCOUNTS_LIMIT_MS = 60_000
 
 _LOG = logging.getLogger("tokengrill.runtime")
+
+
+class _Store(Protocol):
+    async def load(self) -> None: ...
+
+    async def flush(self) -> None: ...
 
 
 class Emitter(Protocol):
@@ -106,6 +118,7 @@ class Runtime:
         self._checkpoints = CheckpointStore()
         self._balances = BalanceStore()
         self._readings = ReadingStore()
+        self._alerts = AlertStateStore()
         self._diagnostics = DiagnosticsStore(None, str(Path.home()), {"version": tokengrill.__version__, "shell": ""})
         self._scheduler = Scheduler(self._collect, 300, clock=lambda: clock() / 1000, rng=random.Random())
         self._shell_connected = False
@@ -124,7 +137,7 @@ class Runtime:
         """Loads the stores and shows the saved readings as stale until the first refresh."""
         self._config = self._config_store.load()
         self._catalog = await asyncio.to_thread(load_catalog)
-        for store in (self._aggregates, self._checkpoints, self._balances, self._readings, self._diagnostics):
+        for store in self._stores():
             await store.load()
         self._scheduler.set_interval(self._config["refreshIntervalSeconds"])
         self._scheduler.set_providers(self._config["accounts"])
@@ -329,6 +342,7 @@ class Runtime:
                 await self._checkpoints.remove_provider(account_id)
                 await self._balances.remove_provider(account_id)
                 await self._readings.remove_provider(account_id)
+                await self._alerts.remove_provider(account_id)
         except OSError:
             _LOG.warning("could not remove the stored data of a removed account", exc_info=True)
 
@@ -476,7 +490,7 @@ class Runtime:
         if snapshot["errorInfo"]:
             # Sign-in problems end a refresh before any request, so they are recorded here.
             self._record(instance, "error", f"refresh: {snapshot['errorInfo']['code']}")
-        # Alert decisions (milestones, low balance) run here once alerts exist, only while a shell client is connected.
+        self._decide_alerts(instance, snapshot)
         if snapshot["errorInfo"]:
             self._finish(account_id, "failed")
         elif "failed" in state["sources"].values():
@@ -494,6 +508,70 @@ class Runtime:
         self._runtime_states.pop(account_id, None)
         await self._forget_stored([account_id])
         return True
+
+    def _decide_alerts(self, instance: ProviderInstance, snapshot: ProviderSnapshot) -> None:
+        """Only while a shell client can show the alert: without one no checkpoint advances, so the
+        alert is decided when the shell is back. Only the limits shown in the top bar alert."""
+        settings = self._settings()
+        if (
+            not self._shell_connected
+            or not settings["alertsEnabled"]
+            or snapshot["state"] in ("error", "disabled")
+            or not is_shown(instance)
+        ):
+            return
+        limits = shown_limits(instance, snapshot["windows"])
+        for window in limits:
+            if window["percent"] is None:
+                continue
+            key = notification_key(instance["id"], window)
+            previous = self._alerts.window(key)
+            check = check_milestone(previous, window, settings["alertStepPercent"])
+            self._alerts.set_window(key, {"providerId": instance["id"], **check.checkpoint})
+            if check.notify:
+                self._emitter.alert(self._alert("milestone", instance["id"], window=window, fraction=check.consumed))
+        if any(limit_key(window) == BALANCE_KEY for window in limits):
+            self._decide_low_balance(instance, snapshot)
+
+    def _decide_low_balance(self, instance: ProviderInstance, snapshot: ProviderSnapshot) -> None:
+        balance = snapshot["balance"]
+        threshold = instance["lowBalance"]
+        if balance is None or threshold is None:
+            return
+        low = balance["amount"] < threshold
+        previous = self._alerts.low_balance(instance["id"])
+        self._alerts.set_low_balance(instance["id"], low)
+        if should_notify_low_balance(previous, low):
+            self._emitter.alert(self._alert("low-balance", instance["id"], balance=balance, low_balance=threshold))
+
+    def _alert(
+        self,
+        kind: AlertKind,
+        account_id: str,
+        window: UsageWindow | None = None,
+        fraction: float | None = None,
+        balance: Balance | None = None,
+        low_balance: float | None = None,
+    ) -> Alert:
+        return {
+            "schema": 1,
+            "kind": kind,
+            "accountId": account_id,
+            "window": window,
+            "fraction": fraction,
+            "balance": balance,
+            "lowBalance": low_balance,
+            "at": self._clock(),
+        }
+
+    def send_test_alert(self, account_id: str) -> None:
+        """As the 0.4.1 test notification: the account's first shown limit as it reads now, or none."""
+        account = self._account(account_id)
+        snapshot = self._snapshots.get(account_id)
+        window = next(iter(shown_limits(account, snapshot["windows"] if snapshot else [])), None)
+        self._emitter.alert(
+            self._alert("test", account_id, window=window, fraction=window["percent"] if window else None)
+        )
 
     def _configured(self, account_id: str) -> bool:
         return any(account["id"] == account_id for account in self._accounts())
@@ -540,12 +618,23 @@ class Runtime:
             _LOG.info("%s (%s) %s: %s", kept["account"], kept["app"], kept["step"], kept["detail"])
 
     async def _flush(self) -> None:
-        for store in (self._aggregates, self._checkpoints, self._balances, self._readings, self._diagnostics):
+        for store in self._stores():
             await store.flush()
+
+    def _stores(self) -> tuple[_Store, ...]:
+        return (
+            self._aggregates,
+            self._checkpoints,
+            self._balances,
+            self._readings,
+            self._alerts,
+            self._diagnostics,
+        )
 
     async def _flush_quietly(self) -> None:
         try:
             await self._readings.flush()
+            await self._alerts.flush()
             await self._diagnostics.flush()
         except OSError:
             _LOG.warning("could not write the state files", exc_info=True)

@@ -5,9 +5,10 @@ from pathlib import Path
 
 import pytest
 
+from tokengrill.core.alerts import WindowState
 from tokengrill.core.types import ProviderSnapshot, TokenTotals, UsageWindow
 from tokengrill.storage.aggregate import AggregateStore
-from tokengrill.storage.alerts import AlertStateStore, WindowState
+from tokengrill.storage.alerts import AlertStateStore
 from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore, FileCheckpoint
 from tokengrill.storage.diagnostics import DiagnosticEntry, DiagnosticsStore, read_diagnostics
