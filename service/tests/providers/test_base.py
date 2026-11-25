@@ -62,7 +62,7 @@ def make_context(tmp_path: Path, recorder: Recorder) -> CollectorContext:
 
 
 def test_registry_holds_only_ported_collectors() -> None:
-    assert set(create_collectors()) == {"claude", "codex"}
+    assert set(create_collectors()) == {"claude", "codex", "kiro"}
 
 
 async def test_limits_success_merges_the_update(tmp_path: Path) -> None:
