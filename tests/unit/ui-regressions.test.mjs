@@ -338,6 +338,15 @@ test('keyring reads search without unlocking, and locked items count as unavaila
     assert.match(source, /items\.find\(item => !item\.get_locked\(\)\)/);
 });
 
+// EGO review of 0.3.2: Secret is always present, so it is a static import with its version (I-7).
+test('Secret is imported at the top of the file, never on demand', async () => {
+    const [keyring, keyStore] = await Promise.all([read('src/providers/keyring.ts'), read('src/prefs/keyStore.ts')]);
+    for (const source of [keyring, keyStore]) {
+        assert.match(source, /^import Secret from 'gi:\/\/Secret\?version=1';$/m);
+        assert.doesNotMatch(source, /import\('gi:\/\/Secret/);
+    }
+});
+
 test('settings changes refresh only the accounts whose reading changed, and rings stop at three', async () => {
     const [runtime, topBar] = await Promise.all([read('src/runtime.ts'), read('src/shell/topBar.ts')]);
     assert.match(runtime, /provider\.enabled && needsRefresh\(before\.get\(provider\.id\), provider\)/);

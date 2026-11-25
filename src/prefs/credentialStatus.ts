@@ -21,7 +21,7 @@ export type CredentialState =
     | 'unreadable'
     | 'database-unreadable'
     | 'gda-missing'
-    | 'libsecret-missing';
+    | 'keyring-unavailable';
 
 async function authFileState(load: Promise<unknown>): Promise<CredentialState> {
     try {
@@ -35,7 +35,7 @@ async function authFileState(load: Promise<unknown>): Promise<CredentialState> {
         if (error.code === 'auth-invalid' || error.code === 'permission')
             return 'unreadable';
         if (error.code === 'dependency')
-            return 'libsecret-missing';
+            return 'keyring-unavailable';
         return 'login-required';
     }
 }
@@ -48,7 +48,7 @@ async function kiroState(provider: ProviderInstance, cancellable: Gio.Cancellabl
 async function antigravityState(provider: ProviderInstance, cancellable: Gio.Cancellable): Promise<CredentialState> {
     const status = await antigravityCredentialStatus(provider, cancellable);
     if (status === 'dependency-missing')
-        return 'libsecret-missing';
+        return 'keyring-unavailable';
     return status === 'database-unreadable' ? 'unreadable' : status;
 }
 
@@ -78,7 +78,7 @@ export function credentialLabel(state: CredentialState): string {
         'unreadable': _('Credential unreadable'),
         'database-unreadable': _('Database unreadable'),
         'gda-missing': _('Missing Gda 5.0 dependency'),
-        'libsecret-missing': _('System keyring or libsecret 1 unavailable'),
+        'keyring-unavailable': _('System keyring locked or unavailable'),
     };
     return labels[state];
 }

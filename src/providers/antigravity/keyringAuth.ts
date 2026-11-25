@@ -1,16 +1,13 @@
 import type Gio from 'gi://Gio';
 
-import {CollectorError} from '../../core/errors.js';
-import {lookupSecret, type KeyringTexts} from '../keyring.js';
+import {CollectorError, type ErrorText} from '../../core/errors.js';
+import {lookupSecret} from '../keyring.js';
 import {AGY_KEYRING_ATTRIBUTES, AGY_KEYRING_SCHEMA, parseAgyKeyringPayload, type AgyKeyringToken} from './keyringPayload.js';
 
-const AGY_KEYRING_TEXTS: KeyringTexts = {
-    missingLibrary: ({_}) => _('Antigravity CLI accounts need the libsecret library (gir1.2-secret-1).'),
-    unavailable: ({_}) => _('The system keyring is not available, so the agy sign-in cannot be read.'),
-};
+const KEYRING_UNAVAILABLE: ErrorText = ({_}) => _('The system keyring is locked or not available, so the agy sign-in cannot be read.');
 
 export async function lookupAgyKeyringToken(cancellable: Gio.Cancellable): Promise<AgyKeyringToken | null> {
-    const raw = await lookupSecret(AGY_KEYRING_SCHEMA, AGY_KEYRING_ATTRIBUTES, cancellable, AGY_KEYRING_TEXTS);
+    const raw = await lookupSecret(AGY_KEYRING_SCHEMA, AGY_KEYRING_ATTRIBUTES, cancellable, KEYRING_UNAVAILABLE);
     if (!raw)
         return null;
     const token = parseAgyKeyringPayload(raw);

@@ -89,19 +89,15 @@ account on the **Accounts** page.
 
 ## Optional system libraries
 
-Some services must have a GObject introspection library from your Linux
-distribution:
+Kiro accounts need the Gda 5.0 GObject introspection library with the SQLite
+provider. On Debian or Ubuntu, the package is `gir1.2-gda-5.0`. Token Grill
+loads Gda with a dynamic `import()` only when an account uses it. If Gda is
+missing, only the Kiro accounts show an error. All other accounts continue to
+operate.
 
-| Service                                       | Library                          | Debian or Ubuntu package |
-| --------------------------------------------- | -------------------------------- | ------------------------ |
-| Kiro                                          | Gda 5.0 with the SQLite provider | `gir1.2-gda-5.0`         |
-| Antigravity CLI (keyring sign-in)             | libsecret 1                      | `gir1.2-secret-1`        |
-| GitHub Copilot (keyring sign-in)              | libsecret 1                      | `gir1.2-secret-1`        |
-| DeepSeek (a key that you paste)               | libsecret 1                      | `gir1.2-secret-1`        |
-
-Token Grill loads a library with a dynamic `import()` only when an account
-uses it. If a library is missing, only that account shows an error. All other
-accounts continue to operate.
+The keyring sign-ins of the Antigravity CLI, GitHub Copilot, and DeepSeek use
+libsecret 1, which GNOME includes. On Debian or Ubuntu, its introspection
+package is `gir1.2-secret-1`.
 
 ## Privacy and network access
 
@@ -294,8 +290,8 @@ and explaining the code.
 - **Sign-in required:** Open the CLI of the service and sign in again.
 - **Kiro database unreadable:** Install the Gda 5.0 SQLite library. Then close
   the preferences window and open it again.
-- **System keyring or libsecret 1 unavailable:** Install the libsecret 1
-  library. Then unlock the keyring. Token Grill does not unlock the keyring.
+- **System keyring locked or unavailable:** Unlock the keyring. Token Grill
+  does not unlock the keyring.
 - **OpenCode sign-in expired:** Open OpenCode and sign in again.
 - **Antigravity CLI sign-in expired:** Run an `agy` command. The Antigravity CLI
   then gets a new token.
