@@ -56,6 +56,7 @@ async function usesWriteAheadLog(path: string, cancellable: Gio.Cancellable | nu
         const header = await stream.read_bytes_async(HEADER_BYTES, GLib.PRIORITY_DEFAULT, cancellable);
         return header.get_data()?.[18] === WAL_FORMAT;
     } finally {
+        // Without a cancellable, so the stream also closes after a cancel.
         await stream.close_async(GLib.PRIORITY_DEFAULT, null);
     }
 }
@@ -84,6 +85,7 @@ async function privateCopyPath(cancellable: Gio.Cancellable | null): Promise<str
 async function removePrivateCopy(path: string): Promise<void> {
     await Promise.all(['', '-wal', '-shm'].map(async suffix => {
         try {
+            // Without a cancellable, so the private copy is also removed after a cancel.
             await Gio.File.new_for_path(`${path}${suffix}`).delete_async(GLib.PRIORITY_DEFAULT, null);
         } catch (error) {
             if (!isIoError(error, Gio.IOErrorEnum.NOT_FOUND))

@@ -4,7 +4,7 @@ import GLib from 'gi://GLib';
 import {newProvider} from '../core/config.js';
 import {authFileCandidates, cursorAgentHome, defaultHome, pathExists, providerPaths} from '../core/paths.js';
 import {providerMetadata} from '../core/providerMetadata.js';
-import type {ProviderInstance} from '../core/types.js';
+import type {ProviderInstance, ProviderKind} from '../core/types.js';
 
 function hasCredentials(provider: ProviderInstance): boolean {
     return authFileCandidates(provider).some(pathExists);
@@ -24,7 +24,13 @@ function prefixedDirectories(prefix: string): string[] {
 }
 
 // A second Codex or Claude account lives in its own home such as ~/.codex-work,
-// so the suffix is the only name it has.
+// so the suffix is the only name it has. Other folders keep the service name.
+export function homeName(kind: ProviderKind, folder: string): string {
+    const label = providerMetadata(kind).label;
+    const prefix = `.${kind}`;
+    return folder.startsWith(prefix) && folder !== prefix ? `${label}${folder.slice(prefix.length)}` : label;
+}
+
 export function cliHomes(kind: 'codex' | 'claude'): ProviderInstance[] {
     const prefix = `.${kind}`;
     const providers: ProviderInstance[] = [];
@@ -32,7 +38,7 @@ export function cliHomes(kind: 'codex' | 'claude'): ProviderInstance[] {
         const provider = newProvider(kind, providerMetadata(kind).apps[0], `~/${name}`);
         if (!hasCredentials(provider) && !providerPaths(provider).historyDirectories.some(pathExists))
             continue;
-        provider.displayName = `${providerMetadata(kind).label}${name.slice(prefix.length)}`;
+        provider.displayName = homeName(kind, name);
         providers.push(provider);
     }
     return providers;

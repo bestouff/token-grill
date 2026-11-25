@@ -11,7 +11,7 @@ export interface StoredReading {
     fetchedAt: number;
 }
 
-const CANONICAL_WINDOWS: CanonicalQuotaWindow[] = ['five-hour', 'weekly', 'monthly', 'other'];
+const CANONICAL_WINDOWS: ReadonlySet<unknown> = new Set<CanonicalQuotaWindow>(['five-hour', 'weekly', 'monthly', 'other']);
 
 function nullableNumber(value: unknown): value is number | null {
     return value === null || (typeof value === 'number' && Number.isFinite(value));
@@ -19,7 +19,7 @@ function nullableNumber(value: unknown): value is number | null {
 
 function isWindow(value: unknown): value is UsageWindow {
     return isRecord(value) && typeof value.id === 'string' && typeof value.label === 'string' &&
-        CANONICAL_WINDOWS.includes(value.canonicalWindow as CanonicalQuotaWindow) &&
+        CANONICAL_WINDOWS.has(value.canonicalWindow) &&
         nullableNumber(value.used) && nullableNumber(value.limit) && nullableNumber(value.percent) &&
         nullableNumber(value.resetAt) && nullableNumber(value.durationSeconds) &&
         (value.unit === null || value.unit === 'credits');

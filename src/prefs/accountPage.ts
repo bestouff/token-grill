@@ -36,7 +36,7 @@ const APP_NAMES: Record<AccountApp, string> = {
     keyring: 'GNOME Keyring',
     'claude-settings': 'Claude Code',
     'kimi-cli': 'Kimi CLI',
-    'cursor': 'Cursor',
+    cursor: 'Cursor',
     'cursor-agent': 'Cursor CLI',
 };
 

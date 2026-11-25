@@ -31,9 +31,9 @@ const TRACK_ALPHA = 0.25;
 
 // The pace icon is only visible, so its meaning is spoken too.
 const PACE_NAMES: Record<PaceState, () => string> = {
-    'high': () => _('using it fast'),
+    high: () => _('using it fast'),
     'on-track': () => _('on pace'),
-    'low': () => _('using it slowly'),
+    low: () => _('using it slowly'),
 };
 
 type Rgb = [number, number, number];

@@ -192,7 +192,7 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
         });
         this._caption = wrappingLabel('tokengrill-caption');
         this._pace = new St.BoxLayout({style_class: 'tokengrill-pace', visible: false});
-        this._paceIcon = new St.Icon({icon_size: 16, style_class: 'tokengrill-pace-icon', y_align: Clutter.ActorAlign.START});
+        this._paceIcon = new St.Icon({icon_size: 16, y_align: Clutter.ActorAlign.START});
         this._paceText = wrappingLabel('tokengrill-caption', {x_expand: true});
         this._pace.add_child(this._paceIcon);
         this._pace.add_child(this._paceText);

@@ -13,8 +13,8 @@ import {isCancellation} from './core/gio.js';
 import {parseTestNotificationRequest} from './core/notificationPolicy.js';
 import {providerPaths} from './core/paths.js';
 import {Scheduler, type SchedulerJob} from './core/scheduler.js';
-import {snapshotFingerprint} from './core/snapshotFingerprint.js';
 import {signInCommand} from './core/signIn.js';
+import {snapshotFingerprint} from './core/snapshotFingerprint.js';
 import {restoredSnapshot} from './core/storedReading.js';
 import {isShown, setAutomatic, toggleLimit} from './core/topBar.js';
 import {

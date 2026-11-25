@@ -21,7 +21,7 @@ function requestHeaders(accessToken: string): Record<string, string> {
 
 export class CursorCollector extends BaseCollector {
     // Stored app sign-ins, re-read only when Cursor's database changes on disk.
-    private readonly _stored = new Map<string, {stamp: string; auth: CursorAuth}>();
+    private readonly _stored = new Map<string, {stamp: string; result: CursorAuth | CollectorError}>();
     // The plan rarely changes, so it is asked for again only for a new sign-in or billing cycle.
     private readonly _plans = new Map<string, {key: string; plan: string | null}>();
     // The account each configured account last read, so a switch never shows the previous numbers.
@@ -53,11 +53,22 @@ export class CursorCollector extends BaseCollector {
     private async _storedAuth(path: string, context: CollectorContext): Promise<CursorAuth> {
         const stamp = await cursorDatabaseStamp(path, context.cancellable);
         const cached = this._stored.get(path);
-        if (cached?.stamp === stamp)
-            return cached.auth;
-        const auth = await readCursorAuth(path, context.cancellable);
-        this._stored.set(path, {stamp, auth});
-        return auth;
+        // A failed read is kept too: an encrypted or signed-out sign-in would
+        // otherwise reopen the database on every refresh.
+        let result = cached?.stamp === stamp ? cached.result : null;
+        if (!result) {
+            try {
+                result = await readCursorAuth(path, context.cancellable);
+            } catch (error) {
+                if (!(error instanceof CollectorError))
+                    throw error;
+                result = error;
+            }
+            this._stored.set(path, {stamp, result});
+        }
+        if (result instanceof CollectorError)
+            throw result;
+        return result;
     }
 
     private async _fetchLimits(instance: ProviderInstance, context: CollectorContext, auth: CursorAuth): Promise<LimitsUpdate> {

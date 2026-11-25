@@ -93,7 +93,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         apps: ['kimi-cli', 'opencode'],
         measure: 'limits',
     },
-    'cursor': {
+    cursor: {
         label: 'Cursor',
         defaultAccent: 'slate',
         iconFile: 'cursor-symbolic.svg',

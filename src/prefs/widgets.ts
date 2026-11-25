@@ -35,7 +35,7 @@ export function accentName(color: AccentColor): string {
 
 function validationMessage(code: ProviderValidationCode): string {
     const messages: Record<ProviderValidationCode, string> = {
-        'required': _('This field is required'),
+        required: _('This field is required'),
         'not-absolute': _('Use an absolute path or one that starts with ~/'),
         'duplicate-home': _('Another account already uses this home'),
     };

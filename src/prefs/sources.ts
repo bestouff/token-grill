@@ -107,7 +107,7 @@ const FINDERS: Record<AccountApp, (search: Search) => Promise<Candidate[]>> = {
     'kiro-cli': search => homeCandidates(kiroHomes(), search.configured, search.identities, search.cancellable),
     antigravity: search => homeCandidates(antigravityHomes(), search.configured, search.identities, search.cancellable),
     'kimi-cli': search => homeCandidates(kimiHomes(), search.configured, search.identities, search.cancellable),
-    'cursor': search => homeCandidates(cursorHomes(), search.configured, search.identities, search.cancellable),
+    cursor: search => homeCandidates(cursorHomes(), search.configured, search.identities, search.cancellable),
     'cursor-agent': search => homeCandidates(cursorAgentHomes(), search.configured, search.identities, search.cancellable),
     'github-cli': search => homeCandidates(githubCliHomes(), search.configured, search.identities, search.cancellable),
     'copilot-cli': search => copilotCliCandidates(search.configured, search.cancellable),

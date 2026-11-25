@@ -16,7 +16,7 @@ const COMMANDS: Partial<Record<AccountApp, LoginCommand>> = {
     'github-cli': {argv: ['gh', 'auth', 'login'], homeVariable: 'GH_CONFIG_DIR', defaultHome: () => defaultHome('copilot')},
     'kiro-cli': {argv: ['kiro-cli', 'login'], homeVariable: null, defaultHome: () => defaultHome('kiro')},
     'cursor-agent': {argv: ['agent', 'login'], homeVariable: null, defaultHome: cursorAgentHome},
-    'opencode': {argv: ['opencode', 'auth', 'login'], homeVariable: null, defaultHome: null},
+    opencode: {argv: ['opencode', 'auth', 'login'], homeVariable: null, defaultHome: null},
 };
 
 export interface SignInCommand {

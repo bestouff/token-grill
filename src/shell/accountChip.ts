@@ -3,8 +3,8 @@ import Gio from 'gi://Gio';
 import St from 'gi://St';
 
 import {accentRgb} from '../core/accent.js';
-import {providerIconFile} from '../core/providerMetadata.js';
 import type {PaceState} from '../core/pace.js';
+import {providerIconFile} from '../core/providerMetadata.js';
 import type {ProviderInstance, ProviderKind} from '../core/types.js';
 
 const MARK_DOT_SIZE = 6;

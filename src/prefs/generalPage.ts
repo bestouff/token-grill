@@ -57,6 +57,8 @@ export class GeneralPage extends Adw.PreferencesPage {
             key: 'panel-position',
             title: _('Position'),
             subtitle: _('The side of the top bar that Token Grill sits on'),
+            // Translators: the top bar is mirrored in right-to-left languages, so
+            // these name the start and the end side of the bar.
             choices: [['left', _('Left')], ['right', _('Right')]],
         }));
         this.add(appearance);

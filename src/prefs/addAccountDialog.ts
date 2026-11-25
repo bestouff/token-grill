@@ -13,6 +13,7 @@ import {providerMetadata} from '../core/providerMetadata.js';
 import type {AccountApp, ProviderInstance, ProviderKind} from '../core/types.js';
 import type {Candidate} from '../providers/candidates.js';
 import {CandidateList} from './candidateList.js';
+import {homeName} from './discovery.js';
 import {presentKeyError, storeApiKey} from './keyStore.js';
 import {validateProviderDraft} from './providerValidation.js';
 import {findCandidates} from './sources.js';
@@ -36,20 +37,12 @@ const HOME_APPS: Partial<Record<AccountApp, ProviderKind>> = {
     'codex-cli': 'codex',
     'claude-code': 'claude',
     'kiro-cli': 'kiro',
-    'antigravity': 'antigravity',
+    antigravity: 'antigravity',
     'github-cli': 'copilot',
     'kimi-cli': 'kimi',
-    'cursor': 'cursor',
+    cursor: 'cursor',
     'cursor-agent': 'cursor',
 };
-
-// Named like Discover names ~/.codex2: "Codex2". Other folders keep the service name.
-function homeName(kind: ProviderKind, home: string): string {
-    const label = providerMetadata(kind).label;
-    const folder = GLib.path_get_basename(expandPath(home));
-    const prefix = `.${kind}`;
-    return folder.startsWith(prefix) && folder !== prefix ? `${label}${folder.slice(prefix.length)}` : label;
-}
 
 function emptyHint(app: AccountApp): string {
     const command = SIGN_IN_COMMANDS[app];
@@ -165,12 +158,12 @@ export class AddAccountDialog extends Adw.Dialog {
             description: _('For an account in a folder that was not found, or one that is not signed in yet'),
         });
         const row = new Adw.EntryRow({title: _('Home Folder'), show_apply_button: true});
-        const browse = new Gtk.Button({icon_name: 'folder-open-symbolic', css_classes: ['flat'], valign: Gtk.Align.CENTER});
+        const browse = new Gtk.Button({icon_name: 'folder-open-symbolic', tooltip_text: _('Choose a Folder'), css_classes: ['flat'], valign: Gtk.Align.CENTER});
         setAccessibleLabel(browse, _('Choose a Folder'));
         browse.connect('clicked', () => {
             const dialog = new Gtk.FileDialog({title: _('Choose the Home Folder of the Account'), initial_folder: Gio.File.new_for_path(GLib.get_home_dir())});
             dialog.select_folder(this.get_root() as Gtk.Window, this._cancellable).then(folder => {
-                const path = folder?.get_path();
+                const path = folder.get_path();
                 if (path)
                     row.text = displayPath(path);
             }).catch(error => {
@@ -187,7 +180,7 @@ export class AddAccountDialog extends Adw.Dialog {
             if (errors.accountHome)
                 return;
             const provider = newProvider(kind, app, text);
-            provider.displayName = homeName(kind, text);
+            provider.displayName = homeName(kind, GLib.path_get_basename(expandPath(text)));
             this._onAdd([provider]);
             this.close();
         });
