@@ -61,8 +61,8 @@ def make_context(tmp_path: Path, recorder: Recorder) -> CollectorContext:
     )
 
 
-def test_registry_is_empty_until_collectors_register() -> None:
-    assert create_collectors() == {}
+def test_registry_holds_only_ported_collectors() -> None:
+    assert set(create_collectors()) == {"codex"}
 
 
 async def test_limits_success_merges_the_update(tmp_path: Path) -> None:
