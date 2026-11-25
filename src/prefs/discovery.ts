@@ -23,7 +23,8 @@ function prefixedDirectories(prefix: string): string[] {
     return names.sort();
 }
 
-// Codex and Claude homes named ~/.codex* and ~/.claude*, named after their suffix.
+// A second Codex or Claude account lives in its own home such as ~/.codex-work,
+// so the suffix is the only name it has.
 export function cliHomes(kind: 'codex' | 'claude'): ProviderInstance[] {
     const prefix = `.${kind}`;
     const providers: ProviderInstance[] = [];

@@ -4,13 +4,11 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import {readProviders} from '../core/config.js';
+import {PROVIDERS_KEY, readProviders} from '../core/config.js';
 import {formatText} from '../core/i18n.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import {isShown, topBarSummary} from '../core/topBar.js';
 import {TRANSLATOR} from './translator.js';
-
-const PROVIDERS_KEY = 'provider-instances-json';
 
 interface ToggleRowOptions {
     key: string;

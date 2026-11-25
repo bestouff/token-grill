@@ -22,10 +22,7 @@
   does. If the Cursor app encrypts its sign-in, Token Grill does not read it;
   use the Cursor CLI sign-in.
 
-## 0.4.0 alpha 1
-
-This is a test release. It is available only on GitHub. Token Grill 0.4.0 goes
-to GNOME Shell Extensions after testers confirm each new service.
+## 0.4.0
 
 New services:
 
@@ -91,19 +88,25 @@ Changes in behavior:
 
 Bug fixes:
 
-- Token Grill does not ask you to unlock the keyring. Before this fix, a locked
-  keyring could show an unlock prompt during the refresh of an Antigravity
-  account.
 - Claude alerts operate again. Before this fix, each refresh started the alert
   steps of a Claude limit again.
-- Claude accounts show the weekly limit of each model, for example
-  "Weekly · Fable". Before this fix, Token Grill did not show this limit when
-  the account also had a weekly limit for all models.
-- The Claude sign-in hint names the correct command: `claude auth login`.
-- The **Local History** switch is near the top of the account page.
 
 If you go back to 0.3, Token Grill 0.3 removes the accounts of the new
 services. All the other accounts show in the top bar again.
+
+## 0.3.2
+
+Bug fixes:
+
+- Claude accounts show their model-scoped weekly limit, such as the Fable
+  limit, as a limit of its own.
+- The Claude sign-in hint names `claude auth login`.
+- The Live Quota and Local History switches are directly below the identity
+  fields of the account dialog.
+- The Antigravity keyring check never asks to unlock a locked keyring. A
+  locked keyring counts as unavailable.
+- The popup no longer keeps the replaced account mark in memory after each
+  refresh.
 
 ## 0.3.1
 

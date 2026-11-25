@@ -25,7 +25,7 @@ const SIGN_IN_COMMANDS: Partial<Record<AccountApp, string>> = {
     'codex-cli': 'codex login',
     'claude-code': 'claude auth login',
     'kiro-cli': 'kiro-cli login',
-    'opencode': 'opencode auth login',
+    opencode: 'opencode auth login',
     'github-cli': 'gh auth login',
     'copilot-cli': 'copilot',
     'cursor-agent': 'agent login',
@@ -121,7 +121,8 @@ export class AddAccountDialog extends Adw.Dialog {
             title: _('Where Are You Signed In to GitHub?'),
             description: _('VS Code keeps its Copilot sign-in private, so sign in once with one of these apps'),
         });
-        group.add(this._linkRow('Copilot CLI', 'copilot → /login', 'copilot', () => this._view.push(this._candidatesPage('Copilot CLI', 'copilot-cli'))));
+        // Translators: a command to run, then the command to type inside it.
+        group.add(this._linkRow('Copilot CLI', formatText(_('%s, then %s'), 'copilot', '/login'), 'copilot', () => this._view.push(this._candidatesPage('Copilot CLI', 'copilot-cli'))));
         group.add(this._linkRow('GitHub CLI', 'gh auth login', 'copilot', () => this._view.push(this._candidatesPage('GitHub CLI', 'github-cli'))));
         const page = new Adw.PreferencesPage();
         page.add(group);
@@ -236,7 +237,6 @@ export class AddAccountDialog extends Adw.Dialog {
         });
         const entry = new Adw.PasswordEntryRow({title: _('API Key')});
         const save = new Gtk.Button({label: _('Save to Keyring'), css_classes: ['suggested-action'], valign: Gtk.Align.CENTER, sensitive: false});
-        setAccessibleLabel(save, _('Save the API key to the keyring'));
         entry.connect('changed', () => {
             save.sensitive = entry.text.trim().length > 0;
         });

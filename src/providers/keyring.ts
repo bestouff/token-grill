@@ -1,9 +1,11 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import type Secret from 'gi://Secret?version=1';
+import Secret from 'gi://Secret?version=1';
 
 import {CollectorError, type ErrorText} from '../core/errors.js';
 import {isCancellation} from '../core/gio.js';
+
+Gio._promisify(Secret.Service.prototype, 'search', 'search_finish');
 
 // A running Secret Service answers in milliseconds, but when none is running
 // D-Bus activation waits about 25 seconds, which would stall every refresh.
@@ -12,31 +14,12 @@ const LOOKUP_TIMEOUT_MS = 3000;
 // Token Grill's own items: an API key the user pasted, keyed by account id.
 export const TOKEN_GRILL_KEY_SCHEMA = 'org.gnome.shell.extensions.tokengrill.ApiKey';
 
-export interface KeyringTexts {
-    // libsecret is not installed.
-    missingLibrary: ErrorText;
-    // No Secret Service answered in time, or the keyring is locked.
-    unavailable: ErrorText;
-}
-
-// libsecret is optional, so a missing library becomes a message instead of a failed import.
-export async function importSecret(texts: KeyringTexts): Promise<typeof Secret> {
-    let module: {default: typeof Secret};
-    try {
-        module = await import('gi://Secret?version=1');
-    } catch {
-        throw new CollectorError('dependency', texts.missingLibrary);
-    }
-    Gio._promisify(module.default.Service.prototype, 'search', 'search_finish');
-    return module.default;
-}
-
 // The typings give Service.get no promise form.
-function secretService(library: typeof Secret, cancellable: Gio.Cancellable): Promise<Secret.Service> {
+function secretService(cancellable: Gio.Cancellable): Promise<Secret.Service> {
     return new Promise((resolve, reject) => {
-        library.Service.get(library.ServiceFlags.NONE, cancellable, (_source, result) => {
+        Secret.Service.get(Secret.ServiceFlags.NONE, cancellable, (_source, result) => {
             try {
-                resolve(library.Service.get_finish(result));
+                resolve(Secret.Service.get_finish(result));
             } catch (error) {
                 reject(error);
             }
@@ -52,9 +35,8 @@ export async function lookupSecret(
     schemaName: string,
     attributes: Record<string, string>,
     cancellable: Gio.Cancellable,
-    texts: KeyringTexts
+    unavailable: ErrorText
 ): Promise<string | null> {
-    const Secret = await importSecret(texts);
     const attributeTypes = Object.fromEntries(Object.keys(attributes).map(name => [name, Secret.SchemaAttributeType.STRING]));
     const schema = Secret.Schema.new(schemaName, Secret.SchemaFlags.NONE, attributeTypes);
     const lookup = new Gio.Cancellable();
@@ -79,18 +61,18 @@ export async function lookupSecret(
     });
     let items: Secret.Item[];
     try {
-        const service = await secretService(Secret, lookup);
+        const service = await secretService(lookup);
         items = await service.search(schema, attributes, Secret.SearchFlags.LOAD_SECRETS, lookup);
     } catch (error) {
-        if (!timedOut && (isCancellation(error) || !(error instanceof GLib.Error)))
+        if (!(error instanceof GLib.Error) || (!timedOut && isCancellation(error)))
             throw error;
-        throw new CollectorError('dependency', texts.unavailable);
+        throw new CollectorError('dependency', unavailable);
     } finally {
         removeTimeout();
         cancellable.disconnect(parentId);
     }
     const unlocked = items.find(item => !item.get_locked());
     if (!unlocked && items.length)
-        throw new CollectorError('dependency', texts.unavailable);
+        throw new CollectorError('dependency', unavailable);
     return unlocked?.get_secret()?.get_text() ?? null;
 }

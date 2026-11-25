@@ -1,17 +1,14 @@
 import type Gio from 'gi://Gio';
 
-import {CollectorError} from '../../core/errors.js';
+import {CollectorError, type ErrorText} from '../../core/errors.js';
 import {providerPaths} from '../../core/paths.js';
 import type {ProviderInstance} from '../../core/types.js';
 import {readCredentialJson} from '../credentials.js';
-import {lookupSecret, TOKEN_GRILL_KEY_SCHEMA, type KeyringTexts} from '../keyring.js';
+import {lookupSecret, TOKEN_GRILL_KEY_SCHEMA} from '../keyring.js';
 import {readOpenCodeEntries} from '../opencode/authFile.js';
 import {deepSeekKeyFromClaudeSettings} from './normalize.js';
 
-const KEYRING_TEXTS: KeyringTexts = {
-    missingLibrary: ({_}) => _('DeepSeek accounts need the libsecret library (gir1.2-secret-1).'),
-    unavailable: ({_}) => _('The system keyring is not available, so the DeepSeek API key cannot be read.'),
-};
+const KEYRING_UNAVAILABLE: ErrorText = ({_}) => _('The system keyring is locked or not available, so the DeepSeek API key cannot be read.');
 
 const NO_KEY = () => new CollectorError('auth-missing', ({_}) => _('No DeepSeek API key was found.'));
 
@@ -20,7 +17,7 @@ const NO_KEY = () => new CollectorError('auth-missing', ({_}) => _('No DeepSeek 
 export async function loadDeepSeekKey(instance: ProviderInstance, cancellable: Gio.Cancellable): Promise<string> {
     let key: string | null = null;
     if (instance.app === 'keyring') {
-        key = await lookupSecret(TOKEN_GRILL_KEY_SCHEMA, {account: instance.id}, cancellable, KEYRING_TEXTS);
+        key = await lookupSecret(TOKEN_GRILL_KEY_SCHEMA, {account: instance.id}, cancellable, KEYRING_UNAVAILABLE);
     } else if (instance.app === 'opencode') {
         const entry = (await readOpenCodeEntries(cancellable)).get('deepseek');
         key = entry?.type === 'api' ? entry.key : null;

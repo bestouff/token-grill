@@ -8,11 +8,11 @@ const DEFAULT_HOMES: Record<ProviderKind, string[]> = {
     claude: ['.claude'],
     kiro: [],
     antigravity: ['.gemini', 'antigravity-cli'],
-    'copilot': ['.config', 'gh'],
+    copilot: [],
     'opencode-go': [],
-    'deepseek': ['.claude'],
-    'kimi': ['.kimi-code'],
-    'cursor': [],
+    deepseek: ['.claude'],
+    kimi: ['.kimi-code'],
+    cursor: [],
 };
 
 // Antigravity tools have written their OAuth credentials under each of these names.
@@ -23,11 +23,11 @@ const AUTH_FILES: Record<ProviderKind, string> = {
     claude: '.credentials.json',
     kiro: 'data.sqlite3',
     antigravity: 'acp_token.json',
-    'copilot': 'hosts.yml',
+    copilot: 'hosts.yml',
     'opencode-go': 'auth.json',
-    'deepseek': 'settings.json',
-    'kimi': 'credentials/kimi-code.json',
-    'cursor': 'User/globalStorage/state.vscdb',
+    deepseek: 'settings.json',
+    kimi: 'credentials/kimi-code.json',
+    cursor: 'User/globalStorage/state.vscdb',
 };
 
 const HISTORY_DIRECTORIES: Record<ProviderKind, string[]> = {
@@ -35,11 +35,11 @@ const HISTORY_DIRECTORIES: Record<ProviderKind, string[]> = {
     claude: ['projects'],
     kiro: [],
     antigravity: [],
-    'copilot': [],
+    copilot: [],
     'opencode-go': [],
-    'deepseek': [],
-    'kimi': [],
-    'cursor': [],
+    deepseek: [],
+    kimi: [],
+    cursor: [],
 };
 
 export function expandPath(value: string): string {
@@ -69,6 +69,9 @@ export function defaultHome(kind: ProviderKind): string {
         return GLib.build_filenamev([GLib.get_user_data_dir(), 'opencode']);
     if (kind === 'cursor')
         return GLib.build_filenamev([GLib.get_user_config_dir(), 'Cursor']);
+    // The GitHub CLI follows XDG_CONFIG_HOME.
+    if (kind === 'copilot')
+        return GLib.build_filenamev([GLib.get_user_config_dir(), 'gh']);
     return GLib.build_filenamev([GLib.get_home_dir(), ...DEFAULT_HOMES[kind]]);
 }
 

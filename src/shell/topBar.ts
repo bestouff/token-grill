@@ -179,8 +179,10 @@ function accountDescription(account: TopBarAccount, mode: PanelPercentageMode): 
     // The warning icon is only visible, so the low state is also spoken.
     const low = account.low ? [_('balance low')] : [];
     if (account.balance && !account.limits.length)
+        // Translators: screen reader text; the account name, then the balance left.
         return [formatText(_('%s, %s left'), account.name, formatMoney(account.balance, 2)), ...low].join(', ');
     if (account.missing)
+        // Translators: screen reader text; %s is the account name.
         return formatText(_('%s, no reading yet'), account.name);
     const limits = account.limits.map(window => {
         // Translators: a limit name and its reading, such as "Weekly 40% left".

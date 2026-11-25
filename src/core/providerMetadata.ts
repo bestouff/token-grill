@@ -73,7 +73,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         apps: ['opencode'],
         measure: 'limits',
     },
-    'deepseek': {
+    deepseek: {
         label: 'DeepSeek',
         defaultAccent: 'blue',
         iconFile: 'deepseek-symbolic.svg',
@@ -83,7 +83,7 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         apps: ['keyring', 'opencode', 'claude-settings'],
         measure: 'balance',
     },
-    'kimi': {
+    kimi: {
         label: 'Kimi Code',
         defaultAccent: 'pink',
         iconFile: 'kimi-symbolic.svg',

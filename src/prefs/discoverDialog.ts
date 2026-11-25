@@ -10,8 +10,8 @@ import type {ProviderInstance} from '../core/types.js';
 import {CandidateList} from './candidateList.js';
 import {findAllCandidates} from './sources.js';
 
-// Every supported app at once, ending with "Show in top bar?": ticked accounts
-// are added and shown, unticked ones are not added at all.
+// Ticked accounts are added and shown in the top bar. Unticked ones are not
+// added, so a found sign-in never becomes an account without the user's choice.
 export class DiscoverDialog extends Adw.Dialog {
     static {
         GObject.registerClass({GTypeName: 'TokenGrillDiscoverDialog'}, this);

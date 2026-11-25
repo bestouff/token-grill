@@ -45,8 +45,9 @@ function modelOf(scope: string): string {
 }
 
 // Model-scoped limits in the `limits` array are separate limits that Claude
-// shows to the user, so each one is kept. Unscoped limits only fill the
-// windows the legacy keys left out, because otherwise they repeat them.
+// shows to the user, so each one is kept unless a legacy model key such as
+// seven_day_opus already reports it. Unscoped limits only fill the windows the
+// legacy keys left out, because otherwise they repeat them.
 function limitWindows(limits: unknown, legacyKeys: Set<string>, present: Set<CanonicalQuotaWindow>): UsageWindow[] {
     if (!Array.isArray(limits))
         return [];
@@ -78,7 +79,7 @@ function limitWindows(limits: unknown, legacyKeys: Set<string>, present: Set<Can
     const used = new Set(fills.values());
     const scoped = entries
         .filter(entry => entry.scope && !used.has(entry))
-        .map(entry => ({...entry.window, canonicalWindow: 'other' as const}));
+        .map((entry): UsageWindow => ({...entry.window, canonicalWindow: 'other'}));
     return [...[...fills.values()].map(entry => entry.window), ...scoped];
 }
 

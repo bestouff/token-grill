@@ -77,8 +77,8 @@ export class KiroCollector extends BaseCollector {
         let payload: unknown;
         try {
             payload = await context.requestJson('POST', kiroUsageUrl(auth.serviceRegion), {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${auth.accessToken}`,
+                Accept: 'application/json',
+                Authorization: `Bearer ${auth.accessToken}`,
                 'Content-Type': 'application/x-amz-json-1.0',
                 'X-Amz-Target': 'AmazonCodeWhispererService.GetUsageLimits',
             }, kiroUsageRequestBody(auth.profileArn));

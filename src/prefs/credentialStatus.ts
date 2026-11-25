@@ -23,7 +23,7 @@ export type CredentialState =
     | 'unreadable'
     | 'database-unreadable'
     | 'gda-missing'
-    | 'libsecret-missing';
+    | 'keyring-unavailable';
 
 async function authFileState(load: Promise<unknown>): Promise<CredentialState> {
     try {
@@ -37,7 +37,7 @@ async function authFileState(load: Promise<unknown>): Promise<CredentialState> {
         if (error.code === 'auth-invalid' || error.code === 'permission')
             return 'unreadable';
         if (error.code === 'dependency')
-            return 'libsecret-missing';
+            return 'keyring-unavailable';
         return 'login-required';
     }
 }
@@ -50,7 +50,7 @@ async function databaseState(check: Promise<CredentialStatus>): Promise<Credenti
 async function antigravityState(provider: ProviderInstance, cancellable: Gio.Cancellable): Promise<CredentialState> {
     const status = await antigravityCredentialStatus(provider, cancellable);
     if (status === 'dependency-missing')
-        return 'libsecret-missing';
+        return 'keyring-unavailable';
     return status === 'database-unreadable' ? 'unreadable' : status;
 }
 
@@ -59,11 +59,11 @@ const CREDENTIAL_CHECKS: Record<ProviderKind, (provider: ProviderInstance, cance
     claude: (provider, cancellable) => authFileState(loadClaudeAccessToken(provider, cancellable)),
     kiro: (provider, cancellable) => databaseState(kiroCredentialStatus(provider, cancellable)),
     antigravity: antigravityState,
-    'copilot': (provider, cancellable) => authFileState(loadCopilotToken(provider, cancellable)),
+    copilot: (provider, cancellable) => authFileState(loadCopilotToken(provider, cancellable)),
     'opencode-go': (_provider, cancellable) => authFileState(loadOpenCodeGoKey(cancellable)),
-    'deepseek': (provider, cancellable) => authFileState(loadDeepSeekKey(provider, cancellable)),
-    'kimi': (provider, cancellable) => authFileState(loadKimiAuth(provider, cancellable)),
-    'cursor': (provider, cancellable) => databaseState(cursorCredentialStatus(provider, cancellable)),
+    deepseek: (provider, cancellable) => authFileState(loadDeepSeekKey(provider, cancellable)),
+    kimi: (provider, cancellable) => authFileState(loadKimiAuth(provider, cancellable)),
+    cursor: (provider, cancellable) => databaseState(cursorCredentialStatus(provider, cancellable)),
 };
 
 // Rejects only when cancelled or on an unexpected error.
@@ -73,15 +73,15 @@ export function credentialState(provider: ProviderInstance, cancellable: Gio.Can
 
 export function credentialLabel(state: CredentialState): string {
     const labels: Record<CredentialState, string> = {
-        'authenticated': _('Authenticated'),
-        'expired': _('Sign-in expired'),
+        authenticated: _('Authenticated'),
+        expired: _('Sign-in expired'),
         'expired-refreshable': _('Sign-in expired, renewed automatically'),
         'expired-external': _('Token expired; run any agy command to refresh'),
         'login-required': _('Sign-in required'),
-        'unreadable': _('Credential unreadable'),
+        unreadable: _('Credential unreadable'),
         'database-unreadable': _('Database unreadable'),
         'gda-missing': _('Missing Gda 5.0 dependency'),
-        'libsecret-missing': _('System keyring or libsecret 1 unavailable'),
+        'keyring-unavailable': _('System keyring locked or unavailable'),
     };
     return labels[state];
 }

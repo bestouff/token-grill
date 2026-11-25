@@ -1,10 +1,10 @@
 import type Gio from 'gi://Gio';
 
-import {CollectorError} from '../../core/errors.js';
+import {CollectorError, type ErrorText} from '../../core/errors.js';
 import {providerPaths} from '../../core/paths.js';
 import type {ProviderInstance} from '../../core/types.js';
 import {readCredentialText} from '../credentials.js';
-import {lookupSecret, type KeyringTexts} from '../keyring.js';
+import {lookupSecret} from '../keyring.js';
 import {readOpenCodeEntries} from '../opencode/authFile.js';
 import {openCodeGitHubToken} from '../opencode/entries.js';
 import {parseGhHosts} from './ghHosts.js';
@@ -12,23 +12,20 @@ import {parseGhHosts} from './ghHosts.js';
 // Both CLIs store their token as a generic secret, keyed by service (gh adds the user).
 const GENERIC_SCHEMA = 'org.freedesktop.Secret.Generic';
 
-const KEYRING_TEXTS: KeyringTexts = {
-    missingLibrary: ({_}) => _('Copilot accounts need the libsecret library (gir1.2-secret-1).'),
-    unavailable: ({_}) => _('The system keyring is not available, so the GitHub sign-in cannot be read.'),
-};
+const KEYRING_UNAVAILABLE: ErrorText = ({_}) => _('The system keyring is locked or not available, so the GitHub sign-in cannot be read.');
 
 async function githubCliToken(instance: ProviderInstance, cancellable: Gio.Cancellable): Promise<string> {
     const hosts = parseGhHosts(await readCredentialText(providerPaths(instance).authFile, cancellable));
     if (hosts.token)
         return hosts.token;
-    const token = hosts.user ? await lookupSecret(GENERIC_SCHEMA, {service: 'gh:github.com', username: hosts.user}, cancellable, KEYRING_TEXTS) : null;
+    const token = hosts.user ? await lookupSecret(GENERIC_SCHEMA, {service: 'gh:github.com', username: hosts.user}, cancellable, KEYRING_UNAVAILABLE) : null;
     if (!token)
         throw new CollectorError('auth-missing', ({_}) => _('The GitHub CLI is not signed in.'));
     return token;
 }
 
 export async function copilotCliToken(cancellable: Gio.Cancellable): Promise<string> {
-    const token = await lookupSecret(GENERIC_SCHEMA, {service: 'copilot-cli'}, cancellable, KEYRING_TEXTS);
+    const token = await lookupSecret(GENERIC_SCHEMA, {service: 'copilot-cli'}, cancellable, KEYRING_UNAVAILABLE);
     if (!token)
         throw new CollectorError('auth-missing', ({_}) => _('The Copilot CLI is not signed in.'));
     return token;

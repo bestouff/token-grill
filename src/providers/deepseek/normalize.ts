@@ -9,7 +9,8 @@ export function normalizeDeepSeekBalance(payload: unknown): Balance {
     for (const info of infos) {
         const total = isRecord(info) ? toNumber(info.total_balance) : null;
         const currency = isRecord(info) ? stringAt(info, 'currency') : null;
-        if (total !== null && currency)
+        // Intl.NumberFormat throws on anything that is not an ISO 4217 code.
+        if (total !== null && currency && /^[A-Z]{3}$/.test(currency))
             return {amount: total, currency};
     }
     throw new CollectorError('response-shape', NO_USAGE);

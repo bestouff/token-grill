@@ -4,7 +4,7 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import {readProviders, writeProviders} from '../core/config.js';
+import {PROVIDERS_KEY, readProviders, writeProviders} from '../core/config.js';
 import {isCancellation} from '../core/gio.js';
 import {formatText} from '../core/i18n.js';
 import {providerMetadata} from '../core/providerMetadata.js';
@@ -19,9 +19,7 @@ import {ReorderDialog} from './reorderDialog.js';
 import {TRANSLATOR} from './translator.js';
 import {providerIcon, setAccessibleLabel} from './widgets.js';
 
-const PROVIDERS_KEY = 'provider-instances-json';
-
-// Services in the order of their first account, each with its accounts in order.
+// Accounts of one service stay together even when the saved order interleaves them.
 function byService(providers: ProviderInstance[]): Array<[ProviderKind, ProviderInstance[]]> {
     const groups = new Map<ProviderKind, ProviderInstance[]>();
     for (const provider of providers) {
@@ -36,7 +34,7 @@ function accountSubtitle(provider: ProviderInstance, status: string): string {
     const parts = [topBarSummary(TRANSLATOR, provider.topBar), status];
     if (provider.app === 'opencode')
         parts.unshift(_('via OpenCode'));
-    return parts.join(' · ');
+    return parts.reduce((left, right) => formatText(_('%s · %s'), left, right));
 }
 
 export class AccountsPage extends Adw.PreferencesPage {
@@ -103,7 +101,7 @@ export class AccountsPage extends Adw.PreferencesPage {
     private _buildHeaderActions(providers: ProviderInstance[]): Gtk.Box {
         const box = new Gtk.Box({spacing: 6, valign: Gtk.Align.CENTER});
         const reorder = new Gtk.Button({label: _('Reorder…'), css_classes: ['flat'], sensitive: providers.length >= 2});
-        reorder.connect('clicked', () => this._reorder(providers));
+        reorder.connect('clicked', () => this._reorder());
         box.append(reorder);
         const discover = new Gtk.Button({
             label: _('Discover…'),
@@ -174,8 +172,12 @@ export class AccountsPage extends Adw.PreferencesPage {
         }));
     }
 
-    private _reorder(providers: ProviderInstance[]): void {
-        new ReorderDialog(providers, this._extensionPath, ordered => this._persist(ordered)).present(this._window);
+    // The switches change the setting without a redraw, so the dialog starts from
+    // the saved accounts and only their order is taken back from it.
+    private _reorder(): void {
+        const save = (ordered: ProviderInstance[]) =>
+            this._persist(reorderProviders(readProviders(this._settings), ordered.map(provider => provider.id)));
+        new ReorderDialog(readProviders(this._settings), this._extensionPath, save).present(this._window);
     }
 
     private _discover(): void {

@@ -19,8 +19,8 @@ const OPENCODE_SERVICES: Record<string, {kind: ProviderKind; entry: OpenCodeEntr
     anthropic: {kind: 'claude', entry: 'oauth'},
     'github-copilot': {kind: 'copilot', entry: 'oauth'},
     'opencode-go': {kind: 'opencode-go', entry: 'api'},
-    'opencode': {kind: 'opencode-go', entry: 'api'},
-    'deepseek': {kind: 'deepseek', entry: 'api'},
+    opencode: {kind: 'opencode-go', entry: 'api'},
+    deepseek: {kind: 'deepseek', entry: 'api'},
     'kimi-for-coding': {kind: 'kimi', entry: 'api'},
 };
 

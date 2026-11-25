@@ -42,9 +42,9 @@ import {DiagnosticsStore} from './storage/diagnosticsStore.js';
 import {SnapshotStore} from './storage/snapshotStore.js';
 
 const SOURCE_PHASES: Record<RefreshSource, RefreshPhase> = {
-    'limits': 'fetching-limits',
+    limits: 'fetching-limits',
     'reset-credits': 'fetching-reset-credits',
-    'history': 'scanning-history',
+    history: 'scanning-history',
 };
 
 function idleState(): ProviderRuntimeState {

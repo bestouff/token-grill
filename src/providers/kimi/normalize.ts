@@ -1,7 +1,7 @@
 // Kimi Code's usage endpoint is undocumented and public descriptions of it
 // disagree, so both layouts are read: `usages.limit_*` with used ratios, and a
 // `usage` block plus `limits[]` with counts (numbers may be strings).
-import {isRecord, recordAt, stringAt, toEpochMs, toNumber} from '../../core/json.js';
+import {clampFraction, isRecord, recordAt, stringAt, toEpochMs, toNumber} from '../../core/json.js';
 import type {CanonicalQuotaWindow, UsageWindow} from '../../core/types.js';
 import {claimType, monthBefore, namedLength, windowLabel} from '../windows.js';
 
@@ -18,7 +18,7 @@ const UNIT_SECONDS: Record<string, number> = {MINUTE: 60, HOUR: 3600, DAY: 86400
 function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: string, percent: number, reset: unknown, durationSeconds: number | null): UsageWindow {
     return {
         id, canonicalWindow, label: windowLabel(canonicalWindow, label), used: null, limit: null,
-        percent: Math.max(0, Math.min(1, percent)), resetAt: toEpochMs(reset), durationSeconds, unit: null,
+        percent: clampFraction(percent), resetAt: toEpochMs(reset), durationSeconds, unit: null,
     };
 }
 

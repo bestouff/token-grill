@@ -225,7 +225,6 @@ export class TokenGrillIndicator extends PanelMenu.Button {
 
         const chooser = new ChooserItem(extensionPath, id => controller.selectProvider(id));
         menu.addMenuItem(chooser);
-        // The account list as a submenu, when the account picker is set to a dropdown.
         const accountMenu = new PopupMenu.PopupSubMenuMenuItem('', false);
         menu.addMenuItem(accountMenu);
         const chooserSeparator = new PopupMenu.PopupSeparatorMenuItem();
@@ -250,7 +249,8 @@ export class TokenGrillIndicator extends PanelMenu.Button {
             menu.addAction(_('Preferences…'), () => controller.openPreferences());
         this._ui = {panelBox, menuBox, chooser, accountMenu, chooserSeparator, detail, empty, refreshAll, automatic};
         this._controller = controller;
-        // Opening the menu from a service's entry shows that service.
+        // Each service has its own top-bar entry but they share one menu, so the
+        // entry under the pointer picks the service to show.
         this._openStateId = menu.connect('open-state-changed', (_menu, open) => {
             const hovered = [...this._entries].find(([, entry]) => entry.hover);
             if (open && hovered)

@@ -25,8 +25,8 @@ export class AntigravityCollector extends BaseCollector {
     private async _fetchLimits(instance: ProviderInstance, context: CollectorContext): Promise<LimitsUpdate> {
         const auth = await this._freshAuth(instance, context);
         const headers = {
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${auth.accessToken}`,
+            Accept: 'application/json',
+            Authorization: `Bearer ${auth.accessToken}`,
             'Content-Type': 'application/json',
         };
         // The tier only names the plan; the usage limits must not depend on it.
