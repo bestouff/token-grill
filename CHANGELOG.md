@@ -21,7 +21,17 @@
   the service, but they do not change the 0.4 settings. After the login, the
   Shell empties the 0.4 account list.
 - If you go back to 0.4.1, it shows no accounts, because the accounts are in
-  the new file. Restore them from the backup, or add them again.
+  the new file. Add them again, or run this command to restore the accounts
+  that the service imported:
+
+  ```sh
+  gsettings --schemadir ~/.local/share/gnome-shell/extensions/tokengrill@sh02sahil.github.io/schemas \
+      set org.gnome.shell.extensions.tokengrill provider-instances-json \
+      "$(python3 -c 'import json, pathlib; print(json.loads((pathlib.Path.home() / ".config/token-grill/imported-0.4.json").read_text())["providerInstancesJson"])')"
+  ```
+
+  The service imports only once. If you change the accounts in 0.4.1 and
+  update again, add the changes again in 0.5. The 0.4 settings keep them.
 - The journal diagnostics switch is no longer in the extension. The setting
   (`journalDiagnostics`) now belongs to the service. The README shows the
   command that sets it.
