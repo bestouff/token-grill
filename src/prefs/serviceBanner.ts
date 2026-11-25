@@ -21,7 +21,8 @@ function textLabel(text: string, cssClasses: string[]): Gtk.Label {
     return new Gtk.Label({label: text, wrap: true, justify: Gtk.Justification.CENTER, css_classes: cssClasses});
 }
 
-export class ServiceBanner extends Adw.StatusPage {
+// Adw.StatusPage is a final type, so the banner holds one instead of extending it.
+export class ServiceBanner extends Adw.Bin {
     static {
         GObject.registerClass({GTypeName: 'TokenGrillServiceBanner'}, this);
     }
@@ -29,10 +30,12 @@ export class ServiceBanner extends Adw.StatusPage {
     private readonly _onCheckAgain: () => void;
     private _failure: ServiceFailure | null = null;
     private _checkAgain: Gtk.Button | null = null;
+    private readonly _page = new Adw.StatusPage();
 
     constructor(onCheckAgain: () => void) {
         super({visible: false});
         this._onCheckAgain = onCheckAgain;
+        this.set_child(this._page);
     }
 
     // The failure the banner shows. While the client tries again, the banner keeps the last one.
@@ -55,15 +58,15 @@ export class ServiceBanner extends Adw.StatusPage {
     // Replacing the child releases the previous parts with their buttons.
     private _rebuild(failure: ServiceFailure): void {
         this._checkAgain = null;
-        this.icon_name = ICONS[failure];
+        this._page.icon_name = ICONS[failure];
         const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 12});
         for (const part of serviceStatusContent(TRANSLATOR, failure)) {
             if (part.kind === 'title')
-                this.title = part.text;
+                this._page.title = part.text;
             else
                 box.append(this._part(part));
         }
-        this.set_child(box);
+        this._page.set_child(box);
     }
 
     private _part(part: ServiceCardPart): Gtk.Widget {
