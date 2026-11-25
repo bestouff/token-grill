@@ -45,3 +45,7 @@ def http_error(status: int, reason: str | None) -> ServiceError:
     if reason:
         return ServiceError(code, "net.http-status", status=str(status), reason=reason)
     return ServiceError(code, "net.http-status-bare", status=str(status))
+
+
+class InvalidRequest(ValueError):
+    """A request from a client that cannot be carried out; the D-Bus layer reports it as InvalidArgs."""

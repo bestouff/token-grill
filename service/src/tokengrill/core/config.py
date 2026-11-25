@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final, Literal, TypedDict
 
+from tokengrill.core.errors import InvalidRequest
 from tokengrill.core.json_util import is_record
 from tokengrill.core.order import ordered_providers
 from tokengrill.core.paths import expand_path
@@ -196,6 +197,29 @@ def normalize_provider(entry: object) -> list[ProviderInstance]:
     ]
 
 
+def provider_kind(value: object) -> ProviderKind | None:
+    return _kind_of(value)
+
+
+def default_app(kind: ProviderKind) -> AccountApp:
+    return _METADATA[kind].apps[0]
+
+
+def draft_provider(entry: object) -> ProviderInstance | None:
+    """A new account from the draft of a client: kind and home are required, other fields are optional."""
+    if not is_record(entry):
+        return None
+    kind = _kind_of(entry.get("kind"))
+    home = entry.get("accountHome")
+    app = entry.get("app")
+    if kind is None or not isinstance(home, str):
+        return None
+    fields = {key: value for key, value in entry.items() if key in EDITABLE_FIELDS}
+    base = new_provider(kind, default_app(kind), home)
+    created = normalize_provider({**base, **fields, "app": app})
+    return created[0] if created else None
+
+
 def new_provider(kind: ProviderKind, app: AccountApp, home: str) -> ProviderInstance:
     metadata = _METADATA[kind]
     return {
@@ -217,6 +241,21 @@ def new_provider(kind: ProviderKind, app: AccountApp, home: str) -> ProviderInst
         "showPace": False,
     }
 
+
+# What a client may change on an existing account; the kind, the app, the id and the order are not among them.
+EDITABLE_FIELDS = (
+    "displayName",
+    "accent",
+    "enabled",
+    "accountHome",
+    "authFileOverride",
+    "sessionsDirectoryOverride",
+    "liveUsageEnabled",
+    "localHistoryEnabled",
+    "topBar",
+    "lowBalance",
+    "showPace",
+)
 
 _READ_FIELDS = (
     "kind",
@@ -332,6 +371,44 @@ def _settings_from(source: dict[str, Any]) -> Settings:
     }
 
 
+def apply_settings_patch(current: Settings, patch: object) -> Settings:
+    """The settings after a change; a value outside the 0.4.1 schema range rejects the whole change."""
+    if not is_record(patch):
+        raise InvalidRequest("the settings must be an object")
+    merged: dict[str, Any] = {**current}
+    for key, value in patch.items():
+        if key not in current:
+            raise InvalidRequest(f"unknown setting {key}")
+        merged[key] = value
+    for key, bounds in (("refreshIntervalSeconds", _REFRESH_RANGE), ("alertStepPercent", _STEP_RANGE)):
+        value = merged[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and bounds[0] <= value <= bounds[1]):
+            raise InvalidRequest(f"{key} must be a whole number from {bounds[0]} to {bounds[1]}")
+    for key in ("alertsEnabled", "journalDiagnostics"):
+        if not isinstance(merged[key], bool):
+            raise InvalidRequest(f"{key} must be true or false")
+    return _settings_from(merged)
+
+
+def parse_legacy(value: object) -> LegacySettings:
+    if not is_record(value):
+        raise InvalidRequest("the legacy settings must be an object")
+    checks: dict[str, type] = {
+        "providerInstancesJson": str,
+        "configurationVersion": int,
+        "activeProviderId": str,
+        "refreshIntervalSeconds": int,
+        "notificationsEnabled": bool,
+        "notificationStepPercent": int,
+        "diagnosticsJournal": bool,
+    }
+    for key, expected in checks.items():
+        item = value.get(key)
+        if not isinstance(item, expected) or (expected is int and isinstance(item, bool)):
+            raise InvalidRequest(f"{key} is missing or has the wrong type")
+    return {key: value[key] for key in checks}  # type: ignore[return-value]
+
+
 class ConfigStore:
     """config.json: the accounts and settings, private to the user."""
 
@@ -368,10 +445,10 @@ class ConfigStore:
 
 async def import_legacy(store: ConfigStore, legacy: LegacySettings) -> int:
     """Takes over the 0.4.x GSettings once; the raw values stay beside config.json for recovery."""
-    if store.load()["accounts"]:
+    backup_path = store.path.with_name("imported-0.4.json")
+    # The backup is the only copy of the GSettings values, so a second import must never replace it.
+    if store.load()["accounts"] or backup_path.exists():
         return 0
-    backup = SerialWriter(store.path.with_name("imported-0.4.json"))
-    await backup.write(legacy)
     accounts = migrate_provider_settings(legacy)
     settings = _settings_from(
         {
@@ -381,5 +458,7 @@ async def import_legacy(store: ConfigStore, legacy: LegacySettings) -> int:
             "journalDiagnostics": legacy["diagnosticsJournal"],
         }
     )
+    # The accounts go first: a backup beside a config that failed to save would block every retry.
     await store.save({"schema": 1, "accounts": accounts, **settings})
+    await SerialWriter(backup_path).write(legacy)
     return len(accounts)

@@ -2,24 +2,53 @@
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Final
+from typing import Final, TypeVar
 
 from dbus_fast import DBusError, PropertyAccess
 from dbus_fast.service import ServiceInterface, dbus_property, method, signal
 
 import tokengrill
+from tokengrill.core.errors import InvalidRequest
 from tokengrill.core.runtime import Runtime
 from tokengrill.core.types import Alert, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, Settings
 from tokengrill.dbus.clients import CLIENT_KINDS
-from tokengrill.dbus.payloads import INVALID_ARGS, NOT_SUPPORTED, SHUTTING_DOWN, account_json, alert_json, state_json
+from tokengrill.dbus.payloads import (
+    INVALID_ARGS,
+    NOT_SUPPORTED,
+    SHUTTING_DOWN,
+    account_json,
+    alert_json,
+    parse_json_arg,
+    state_json,
+)
 
 INTERFACE_NAME: Final = "io.github.sh02sahil.TokenGrill1"
+_T = TypeVar("_T")
 
 
 def _not_supported(name: str) -> DBusError:
     return DBusError(NOT_SUPPORTED, f"{name} is not available in this version of the service")
+
+
+def _result(value: dict[str, object]) -> str:
+    return json.dumps({"schema": 1, **value}, separators=(",", ":"))
+
+
+async def _checked(work: Awaitable[_T]) -> _T:
+    """A request the service cannot carry out is a D-Bus error of the caller, not a bug."""
+    try:
+        return await work
+    except InvalidRequest as error:
+        raise DBusError(INVALID_ARGS, str(error)) from error
+
+
+def _checked_sync(work: Callable[[], _T]) -> _T:
+    try:
+        return work()
+    except InvalidRequest as error:
+        raise DBusError(INVALID_ARGS, str(error)) from error
 
 
 class TokenGrillInterface(ServiceInterface):
@@ -134,31 +163,39 @@ class TokenGrillInterface(ServiceInterface):
         async with self._call() as runtime:
             runtime.set_paused(paused)
 
+    @method()
+    async def ImportAccounts(self, legacy: "s") -> "s":
+        async with self._call() as runtime:
+            imported = await _checked(runtime.import_accounts(parse_json_arg(legacy)))
+            return _result({"imported": imported})
+
+    @method()
+    async def AddAccounts(self, accounts: "s") -> "s":
+        async with self._call() as runtime:
+            ids, errors = await _checked(runtime.add_accounts(parse_json_arg(accounts)))
+            return _result({"errors": errors} if errors else {"ids": ids})
+
+    @method()
+    async def UpdateAccount(self, account: "s") -> "s":
+        async with self._call() as runtime:
+            return _result({"errors": await _checked(runtime.update_account(parse_json_arg(account)))})
+
+    @method()
+    async def RemoveAccount(self, id: "s", remove_key: "b") -> None:
+        async with self._call() as runtime:
+            await runtime.remove_account(id, remove_key)
+
+    @method()
+    async def ReorderAccounts(self, ids: "as") -> None:
+        async with self._call() as runtime:
+            await runtime.reorder_accounts(ids)
+
+    @method()
+    async def ValidateAccount(self, draft: "s") -> "s":
+        async with self._call() as runtime:
+            return _result({"errors": _checked_sync(lambda: runtime.validate_account(parse_json_arg(draft)))})
+
     # Declared now, implemented by later tasks
-
-    @method()
-    def ImportAccounts(self, legacy: "s") -> "s":
-        raise _not_supported("ImportAccounts")
-
-    @method()
-    def AddAccounts(self, accounts: "s") -> "s":
-        raise _not_supported("AddAccounts")
-
-    @method()
-    def UpdateAccount(self, account: "s") -> "s":
-        raise _not_supported("UpdateAccount")
-
-    @method()
-    def RemoveAccount(self, id: "s", remove_key: "b") -> None:
-        raise _not_supported("RemoveAccount")
-
-    @method()
-    def ReorderAccounts(self, ids: "as") -> None:
-        raise _not_supported("ReorderAccounts")
-
-    @method()
-    def ValidateAccount(self, draft: "s") -> "s":
-        raise _not_supported("ValidateAccount")
 
     @method()
     def Discover(self, app: "s") -> "s":
@@ -173,16 +210,19 @@ class TokenGrillInterface(ServiceInterface):
         raise _not_supported("SaveApiKey")
 
     @method()
-    def ToggleLimit(self, account_id: "s", limit_key: "s") -> None:
-        raise _not_supported("ToggleLimit")
+    async def ToggleLimit(self, account_id: "s", limit_key: "s") -> None:
+        async with self._call() as runtime:
+            await _checked(runtime.toggle_limit(account_id, limit_key))
 
     @method()
-    def SetAutomatic(self, account_id: "s", automatic: "b") -> None:
-        raise _not_supported("SetAutomatic")
+    async def SetAutomatic(self, account_id: "s", automatic: "b") -> None:
+        async with self._call() as runtime:
+            await _checked(runtime.set_automatic(account_id, automatic))
 
     @method()
-    def SetSettings(self, settings: "s") -> None:
-        raise _not_supported("SetSettings")
+    async def SetSettings(self, settings: "s") -> None:
+        async with self._call() as runtime:
+            await _checked(runtime.set_settings(parse_json_arg(settings)))
 
     @method()
     def SignInCommand(self, account_id: "s") -> "asa{ss}":

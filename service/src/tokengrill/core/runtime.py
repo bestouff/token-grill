@@ -8,12 +8,28 @@ from pathlib import Path
 from typing import Protocol
 
 import tokengrill
-from tokengrill.core.config import Config, ConfigStore
+from tokengrill.core.account_edits import (
+    validate_draft,
+    with_new_accounts,
+    with_updated_account,
+)
+from tokengrill.core.config import (
+    Config,
+    ConfigStore,
+    LegacySettings,
+    apply_settings_patch,
+    import_legacy,
+    needs_refresh,
+    parse_legacy,
+)
+from tokengrill.core.errors import InvalidRequest, ServiceError
+from tokengrill.core.order import reorder_providers
 from tokengrill.core.pace import with_pace
 from tokengrill.core.paths import provider_paths
 from tokengrill.core.readings import restored_snapshot, snapshot_fingerprint
 from tokengrill.core.scheduler import Scheduler, SchedulerJob
 from tokengrill.core.timemath import now_ms
+from tokengrill.core.topbar import set_automatic, toggle_limit
 from tokengrill.core.types import (
     Alert,
     ProviderInstance,
@@ -28,8 +44,10 @@ from tokengrill.core.types import (
     SourceResult,
     empty_snapshot,
 )
+from tokengrill.core.validation import ProviderValidationErrors
 from tokengrill.net.http import HttpClient
 from tokengrill.providers.base import Collector, CollectorContext
+from tokengrill.providers.keyring import clear_api_key
 from tokengrill.providers.pricing import PricingCatalog, load_catalog
 from tokengrill.storage.aggregate import AggregateStore
 from tokengrill.storage.balances import BalanceStore
@@ -99,6 +117,8 @@ class Runtime:
         # One collection at a time, so progress shows per account and requests are not bursty.
         self._collecting = asyncio.Lock()
         self._tasks: set[asyncio.Task[None]] = set()
+        # Edits read the list, wait for the file to be written and then replace the list.
+        self._edits = asyncio.Lock()
 
     async def start(self) -> None:
         """Loads the stores and shows the saved readings as stale until the first refresh."""
@@ -166,6 +186,168 @@ class Runtime:
         self._paused = paused
         self._scheduler.set_paused(paused)
 
+    # Account and settings edits
+
+    async def import_accounts(self, legacy: object) -> int:
+        """The one-time takeover of the 0.4.x GSettings; refused once there are accounts or a backup."""
+        values: LegacySettings = parse_legacy(legacy)
+        async with self._edits:
+            if self._config is None:
+                raise InvalidRequest("the service has not started")
+            try:
+                imported = await import_legacy(self._config_store, values)
+            except OSError:
+                # The accounts are saved before the backup is written; a failed backup must not leave this stale.
+                saved = self._config_store.load()
+                if saved["accounts"]:
+                    await self._adopt(saved)
+                raise
+            if imported:
+                await self._adopt(self._config_store.load())
+            return imported
+
+    async def add_accounts(self, entries: object) -> tuple[list[str], dict[str, ProviderValidationErrors]]:
+        async with self._edits:
+            before = self._accounts()
+            after, errors = with_new_accounts(before, entries)
+            if errors:
+                return [], errors
+            await self._apply_accounts(after)
+            known = {account["id"] for account in before}
+            return [account["id"] for account in after if account["id"] not in known], {}
+
+    async def update_account(self, entry: object) -> ProviderValidationErrors:
+        async with self._edits:
+            after, errors = with_updated_account(self._accounts(), entry)
+            if not errors:
+                await self._apply_accounts(after)
+            return errors
+
+    async def remove_account(self, account_id: str, remove_key: bool) -> None:
+        async with self._edits:
+            before = self._accounts()
+            removed = next((account for account in before if account["id"] == account_id), None)
+            if removed is None:
+                return
+            after = reorder_providers(
+                [account for account in before if account["id"] != account_id],
+                [account["id"] for account in before if account["id"] != account_id],
+            )
+            await self._apply_accounts(after)
+        if remove_key:
+            try:
+                await clear_api_key(account_id)
+            except ServiceError:
+                _LOG.warning("could not remove the API key of a removed account", exc_info=True)
+
+    async def reorder_accounts(self, ids: list[str]) -> None:
+        async with self._edits:
+            await self._apply_accounts(reorder_providers(self._accounts(), ids))
+
+    def validate_account(self, draft: object) -> ProviderValidationErrors:
+        return validate_draft(self._accounts(), draft)
+
+    async def toggle_limit(self, account_id: str, limit_key: str) -> None:
+        async with self._edits:
+            account = self._account(account_id)
+            windows = self._snapshots[account_id]["windows"] if account_id in self._snapshots else []
+            await self._replace(toggle_limit(account, limit_key, windows))
+
+    async def set_automatic(self, account_id: str, automatic: bool) -> None:
+        async with self._edits:
+            await self._replace(set_automatic(self._account(account_id), automatic))
+
+    async def set_settings(self, patch: object) -> None:
+        async with self._edits:
+            config = self._loaded()
+            settings = apply_settings_patch(self._settings(), patch)
+            if settings == self._settings():
+                return
+            updated: Config = {**config, **settings}
+            await self._config_store.save(updated)
+            self._config = updated
+            self._scheduler.set_interval(settings["refreshIntervalSeconds"])
+            self._emitter.settings_changed(settings)
+
+    def _loaded(self) -> Config:
+        if self._config is None:
+            raise InvalidRequest("the service has not started")
+        return self._config
+
+    def _account(self, account_id: str) -> ProviderInstance:
+        found = next((account for account in self._accounts() if account["id"] == account_id), None)
+        if found is None:
+            raise InvalidRequest("unknown account")
+        return found
+
+    async def _replace(self, account: ProviderInstance) -> None:
+        await self._apply_accounts([account if item["id"] == account["id"] else item for item in self._accounts()])
+
+    async def _adopt(self, config: Config) -> None:
+        """Takes a config that is already saved: the import writes it itself."""
+        before = self._accounts()
+        self._config = config
+        self._scheduler.set_interval(config["refreshIntervalSeconds"])
+        await self._accounts_changed(before, config["accounts"])
+        self._emitter.settings_changed(self._settings())
+
+    async def _apply_accounts(self, accounts: list[ProviderInstance]) -> None:
+        config = self._loaded()
+        if accounts == config["accounts"]:
+            return
+        before = config["accounts"]
+        await self._config_store.save({**config, "accounts": accounts})
+        self._config = {**config, "accounts": accounts}
+        await self._accounts_changed(before, accounts)
+
+    async def _accounts_changed(self, before: list[ProviderInstance], after: list[ProviderInstance]) -> None:
+        previous = {account["id"]: account for account in before}
+        kept = {account["id"] for account in after}
+        removed = [account_id for account_id in previous if account_id not in kept]
+        for account_id in removed:
+            self._snapshots.pop(account_id, None)
+            self._runtime_states.pop(account_id, None)
+            self._last_account_request.pop(account_id, None)
+        self._scheduler.set_providers(after)
+        self._emitter.accounts_changed(after)
+        if removed:
+            await self._forget_stored(removed)
+        # A rename or a colour needs no new reading.
+        self._refresh_after_edit(
+            [
+                account["id"]
+                for account in after
+                if account["enabled"] and needs_refresh(previous.get(account["id"]), account)
+            ]
+        )
+
+    async def _forget_stored(self, ids: list[str]) -> None:
+        """As 0.4.1: totals, read offsets, balances and the last readings of a removed account go with it."""
+        try:
+            for account_id in ids:
+                await self._aggregates.remove_provider(account_id)
+                await self._checkpoints.remove_provider(account_id)
+                await self._balances.remove_provider(account_id)
+                await self._readings.remove_provider(account_id)
+        except OSError:
+            _LOG.warning("could not remove the stored data of a removed account", exc_info=True)
+
+    def _refresh_after_edit(self, ids: list[str]) -> None:
+        """Silent, as 0.4.1: a paused session is not shown as failed, and the caller does not wait for the reading."""
+        if not ids or self._paused:
+            return
+        for account_id in ids:
+            self._runtime_states[account_id] = {**_idle_state(), "phase": "queued"}
+            self._emit(account_id)
+        if self._shell_connected:
+            self._scheduler.request(ids)
+            return
+        accounts = {account["id"]: account for account in self._accounts()}
+        jobs: list[SchedulerJob] = [{"provider": accounts[id_], "manual": True} for id_ in ids]
+        task = asyncio.get_running_loop().create_task(self._collect(jobs))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
     def state(self) -> ServiceState:
         now = self._clock()
         accounts = self._accounts()
@@ -180,7 +362,7 @@ class Runtime:
             "snapshots": {
                 id_: with_pace(snapshot, by_id[id_], now) for id_, snapshot in self._snapshots.items() if id_ in by_id
             },
-            "runtime": {id_: _copy_state(state) for id_, state in self._runtime_states.items()},
+            "runtime": {id_: _copy_state(state) for id_, state in self._runtime_states.items() if id_ in by_id},
         }
 
     def _accounts(self) -> list[ProviderInstance]:
@@ -283,9 +465,12 @@ class Runtime:
             )
         except Exception:  # noqa: BLE001 - an expected failure comes back in the snapshot; anything raised is a bug
             _LOG.exception("collector for %s failed", instance["kind"])
-            self._finish(account_id, "failed")
+            if not await self._drop_if_removed(account_id):
+                self._finish(account_id, "failed")
             return
 
+        if await self._drop_if_removed(account_id):
+            return
         self._snapshots[account_id] = snapshot
         self._readings.set(snapshot)
         if snapshot["errorInfo"]:
@@ -301,7 +486,22 @@ class Runtime:
         else:
             self._finish(account_id, "changed")
 
+    async def _drop_if_removed(self, account_id: str) -> bool:
+        """An account removed while its collection ran: the collector may have written its totals, offsets
+        and balance after the removal cleaned them, so they go again."""
+        if self._configured(account_id):
+            return False
+        self._runtime_states.pop(account_id, None)
+        await self._forget_stored([account_id])
+        return True
+
+    def _configured(self, account_id: str) -> bool:
+        return any(account["id"] == account_id for account in self._accounts())
+
     def _finish(self, account_id: str, outcome: RefreshOutcome) -> None:
+        if not self._configured(account_id):
+            self._runtime_states.pop(account_id, None)
+            return
         state = self._runtime_states.get(account_id) or _idle_state()
         self._runtime_states[account_id] = {
             **state,
