@@ -68,7 +68,7 @@ const forbidden = [
     new RegExp(['component', 'scope:'].join('-'), 'i'),
     new RegExp(["'\\.t3'", "'userdata'"].join(',\\s*')),
 ];
-const textExtensions = new Set(['.md', '.json', '.mjs', '.js', '.ts', '.xml', '.sh', '.css', '.svg', '.txt']);
+const textExtensions = new Set(['.md', '.json', '.mjs', '.js', '.ts', '.xml', '.sh', '.css', '.svg', '.txt', '.py', '.toml', '.yml']);
 const scanned = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {cwd: root, encoding: 'utf8'})
     .split('\0').filter(Boolean).map(file => path.join(root, file));
 const tracked = new Set(execFileSync('git', ['ls-files', '-z'], {cwd: root, encoding: 'utf8'}).split('\0').filter(Boolean));
@@ -117,6 +117,9 @@ try {
             errors.push(`Required release file is missing: ${required}`);
     }
     for (const file of packaged) {
+        // The Python service ships on PyPI, never inside the extension.
+        if (file.startsWith('service/') || file.endsWith('.py'))
+            errors.push(`The Python service is packaged: ${file}`);
         if (/\.map$|\.d\.ts$|\.ts$|node_modules|tests?\/|MANIFEST|NOTICE/.test(file))
             errors.push(`Development-only file is packaged: ${file}`);
         if (file.startsWith('icons/') && !file.endsWith('-symbolic.svg'))
@@ -150,6 +153,10 @@ const releaseZip = path.join(root, 'build', 'releases', `${metadata.uuid}.shell-
 try {
     await stat(releaseZip);
     const entries = execFileSync('unzip', ['-Z1', releaseZip], {encoding: 'utf8'}).split('\n').filter(Boolean);
+    for (const entry of entries) {
+        if (entry.startsWith('service/') || entry.endsWith('.py'))
+            errors.push(`The Python service is in the release ZIP: ${entry}`);
+    }
     if (entries.includes('schemas/gschemas.compiled'))
         errors.push('Compiled settings schemas must not be present in the release ZIP.');
 } catch (error) {

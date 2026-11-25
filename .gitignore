@@ -6,3 +6,9 @@ build/
 coverage/
 .DS_Store
 venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+service/.venv/
+service/dist/

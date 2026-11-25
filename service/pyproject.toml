@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tokengrill"
+dynamic = ["version"]
+description = "Usage limits of AI coding services, served over D-Bus to the Token Grill GNOME Shell extension"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "ruff", "mypy", "build"]
+
+[project.scripts]
+tokengrill = "tokengrill.cli:main"
+
+[tool.hatch.version]
+path = "src/tokengrill/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tokengrill"]
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests"]
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: tests that need a real session bus or the network"]
