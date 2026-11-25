@@ -30,7 +30,8 @@ export interface SignInCommand {
 // The command that signs this account in again in a terminal, or null when
 // Token Grill cannot start the right one.
 export function signInCommand(instance: Pick<ProviderInstance, 'app' | 'accountHome'>): SignInCommand | null {
-    const command = COMMANDS[instance.app];
+    // The app comes from the bus, so only the table's own keys count.
+    const command = Object.hasOwn(COMMANDS, instance.app) ? COMMANDS[instance.app] : undefined;
     if (!command)
         return null;
     const login = command.argv.join(' ');

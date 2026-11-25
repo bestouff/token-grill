@@ -35,3 +35,8 @@ test('the hint names the variable for an account in another home', () => {
     assert.equal(errorText(UNTRANSLATED, snapshot, {kind: 'codex', app: 'codex-cli', accountHome: '~/.codex'}),
         'Codex is not signed in. Run codex login.');
 });
+
+test('an app name from the bus that is a member of every object gets no button', () => {
+    for (const app of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
+        assert.equal(signInCommand({app, accountHome: '~/.codex'}), null, app);
+});
