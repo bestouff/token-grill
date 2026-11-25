@@ -87,7 +87,7 @@ test('the service cards have the setup copy', () => {
     assert.deepEqual(serviceStatusContent(UNTRANSLATED, 'not-responding'), [
         {kind: 'title', text: 'The Service Is Not Responding'},
         {kind: 'check-again', text: 'Check Again'},
-        {kind: 'command', text: 'journalctl --user -t tokengrill'},
+        {kind: 'command', text: 'journalctl --user -t io.github.sh02sahil.TokenGrill -t tokengrill'},
     ]);
 });
 

@@ -23,7 +23,8 @@
 - If you go back to 0.4.1, it shows no accounts, because the accounts are in
   the new file. Restore them from the backup, or add them again.
 - The journal diagnostics switch is no longer in the extension. The setting
-  (`journalDiagnostics`) now belongs to the service.
+  (`journalDiagnostics`) now belongs to the service. The README shows the
+  command that sets it.
 - Kiro and Cursor no longer need the Gda library. The extension no longer
   needs libsecret.
 - A history scan that stops in the middle of a file, for example at a screen

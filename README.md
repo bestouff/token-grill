@@ -309,6 +309,22 @@ To save a report for a bug report, open the **Data** page in the preferences
 and select **Save Diagnostics Report...**. The report does not contain tokens,
 keys, e-mail addresses, account names, or your home folder.
 
+The service writes its messages to the journal. To see them, run this command:
+
+```sh
+journalctl --user -t io.github.sh02sahil.TokenGrill -t tokengrill
+```
+
+To also see each refresh step there, set the `journalDiagnostics` setting of
+the service:
+
+```sh
+busctl --user call io.github.sh02sahil.TokenGrill /io/github/sh02sahil/TokenGrill \
+    io.github.sh02sahil.TokenGrill1 SetSettings s '{"journalDiagnostics":true}'
+```
+
+To stop the refresh steps, set the setting to `false`.
+
 ## Test a development build
 
 Use a nested GNOME Shell with a separate data directory and a separate state

@@ -111,7 +111,9 @@ export interface ServiceCardPart {
 const INSTALL_WITH_PIPX = 'pipx install tokengrill && ~/.local/bin/tokengrill setup';
 const INSTALL_WITH_UV = 'uv tool install tokengrill && ~/.local/bin/tokengrill setup';
 const UPGRADE_WITH_PIPX = 'pipx upgrade tokengrill';
-const SHOW_THE_LOG = 'journalctl --user -t tokengrill';
+// dbus-daemon logs an activated service under its bus name; dbus-broker under the name of the program,
+// which `tokengrill setup` makes the tokengrill script.
+const SHOW_THE_LOG = 'journalctl --user -t io.github.sh02sahil.TokenGrill -t tokengrill';
 
 // The card that the popup and Preferences show while the service cannot be used, in reading order.
 export function serviceStatusContent({_}: Translator, failure: ServiceFailure): ServiceCardPart[] {
