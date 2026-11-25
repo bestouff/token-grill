@@ -268,6 +268,7 @@ class Runtime:
             pricing=self._catalog,
             aggregates=self._aggregates,
             checkpoints=self._checkpoints,
+            balances=self._balances,
             on_phase=on_phase,
             on_source=on_source,
             on_record=lambda step, detail: self._record(instance, step, detail),

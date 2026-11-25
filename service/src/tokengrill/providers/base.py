@@ -21,6 +21,7 @@ from tokengrill.net.http import HttpClient
 from tokengrill.providers.history import scan_history
 from tokengrill.providers.pricing import PricingCatalog
 from tokengrill.storage.aggregate import AggregateStore
+from tokengrill.storage.balances import BalanceStore
 from tokengrill.storage.checkpoints import CheckpointStore
 
 MONTH_MS = 30 * 24 * 60 * 60 * 1000
@@ -59,11 +60,14 @@ class CollectorContext:
         on_record: Callable[[str, str], None] = _ignore_record,
         manual: bool = False,
         history_enabled: bool = True,
+        balances: BalanceStore | None = None,
     ) -> None:
         self.http = http
         self.pricing = pricing
         self.aggregates = aggregates
         self.checkpoints = checkpoints
+        # The full amount of each prepaid account; only balance collectors use it.
+        self.balances = balances if balances is not None else BalanceStore()
         # True when the user explicitly asked for this refresh.
         self.manual = manual
         # History scans run only while a shell client is connected.
