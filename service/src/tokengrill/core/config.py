@@ -201,6 +201,10 @@ def provider_kind(value: object) -> ProviderKind | None:
     return _kind_of(value)
 
 
+def provider_label(kind: ProviderKind) -> str:
+    return _METADATA[kind].label
+
+
 def default_app(kind: ProviderKind) -> AccountApp:
     return _METADATA[kind].apps[0]
 

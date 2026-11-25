@@ -52,7 +52,10 @@ from tokengrill.core.types import (
 from tokengrill.core.validation import ProviderValidationErrors
 from tokengrill.net.http import HttpClient
 from tokengrill.providers.base import Collector, CollectorContext
-from tokengrill.providers.keyring import clear_api_key
+from tokengrill.providers.candidates import Candidate
+from tokengrill.providers.credential_state import CredentialState, credential_state
+from tokengrill.providers.discovery import ALL_APPS, find_all_candidates, find_candidates
+from tokengrill.providers.keyring import clear_api_key, store_api_key
 from tokengrill.providers.pricing import PricingCatalog, load_catalog
 from tokengrill.storage.aggregate import AggregateStore
 from tokengrill.storage.alerts import AlertStateStore
@@ -256,6 +259,27 @@ class Runtime:
     async def reorder_accounts(self, ids: list[str]) -> None:
         async with self._edits:
             await self._apply_accounts(reorder_providers(self._accounts(), ids))
+
+    async def discover(self, app: str) -> list[Candidate]:
+        """An empty app means every app. Nothing is written and no keyring is unlocked."""
+        accounts = self._accounts()
+        if app == "":
+            return await find_all_candidates(accounts)
+        if app not in ALL_APPS:
+            raise InvalidRequest("unknown app")
+        return await find_candidates(app, accounts)
+
+    async def credential_state(self, account_id: str) -> CredentialState:
+        return await credential_state(self._account(account_id))
+
+    async def save_api_key(self, account_id: str, key: str) -> None:
+        """Write-only: the key goes to Token Grill's own keyring item and is neither logged nor returned."""
+        account = self._account(account_id)
+        if account["kind"] != "deepseek" or account["app"] != "keyring":
+            raise InvalidRequest("this account does not keep its key in the keyring")
+        if not key.strip():
+            raise InvalidRequest("the key is empty")
+        await store_api_key(account_id, key.strip())
 
     def validate_account(self, draft: object) -> ProviderValidationErrors:
         return validate_draft(self._accounts(), draft)

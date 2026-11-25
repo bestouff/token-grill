@@ -186,3 +186,37 @@ async def test_send_test_alert_emits_the_alert_signal(
         await iface.call_send_test_alert("nope")  # type: ignore[attr-defined]
     assert unknown.value.type == f"{NAME}.Error.InvalidArgs"
     bus.disconnect()
+
+
+async def test_discover_and_credential_state_over_the_bus(
+    env: dict[str, str], service: subprocess.Popen[str], tmp_path: Path
+) -> None:
+    home = Path(env["HOME"])
+    (home / ".codex-work").mkdir(parents=True)
+    (home / ".codex-work" / "auth.json").write_text(
+        json.dumps({"tokens": {"access_token": "tok-secret-1", "account_id": "acct-9"}}), encoding="utf-8"
+    )
+    bus = await connect(env)
+    iface = await proxy(bus)
+    found = json.loads(await iface.call_discover("codex-cli"))  # type: ignore[attr-defined]
+    assert found["schema"] == 1
+    assert [(item["app"], item["accountHome"], item["status"]) for item in found["candidates"]] == [
+        ("codex-cli", "~/.codex-work", "ready")
+    ]
+    assert "tok-secret-1" not in json.dumps(found) and "acct-9" not in json.dumps(found)
+    everything = json.loads(await iface.call_discover(""))  # type: ignore[attr-defined]
+    assert any(item["app"] == "codex-cli" for item in everything["candidates"])
+    with pytest.raises(DBusError) as unknown_app:
+        await iface.call_discover("nonsense")  # type: ignore[attr-defined]
+    assert unknown_app.value.type == f"{NAME}.Error.InvalidArgs"
+    account_id = await add_codex(iface, home / ".codex-work")
+    state = json.loads(await iface.call_credential_state(account_id))  # type: ignore[attr-defined]
+    assert state == {"schema": 1, "state": "authenticated"}
+    with pytest.raises(DBusError) as unknown_account:
+        await iface.call_credential_state("missing")  # type: ignore[attr-defined]
+    assert unknown_account.value.type == f"{NAME}.Error.InvalidArgs"
+    with pytest.raises(DBusError) as wrong_account:
+        await iface.call_save_api_key(account_id, "sk-secret")  # type: ignore[attr-defined]
+    assert wrong_account.value.type == f"{NAME}.Error.InvalidArgs"
+    assert "sk-secret" not in wrong_account.value.text
+    bus.disconnect()

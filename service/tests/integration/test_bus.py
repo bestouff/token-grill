@@ -58,7 +58,7 @@ async def test_bad_arguments_and_unfinished_methods_raise_dbus_errors(
         await iface.call_hello("browser")  # type: ignore[attr-defined]
     assert bad_kind.value.type == f"{NAME}.Error.InvalidArgs"
     with pytest.raises(DBusError) as unfinished:
-        await iface.call_discover("")  # type: ignore[attr-defined]
+        await iface.call_sign_in_command("x")  # type: ignore[attr-defined]
     assert unfinished.value.type == f"{NAME}.Error.NotSupported"
     bus.disconnect()
 

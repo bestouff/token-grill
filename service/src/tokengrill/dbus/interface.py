@@ -10,12 +10,13 @@ from dbus_fast import DBusError, PropertyAccess
 from dbus_fast.service import ServiceInterface, dbus_property, method, signal
 
 import tokengrill
-from tokengrill.core.errors import InvalidRequest
+from tokengrill.core.errors import InvalidRequest, ServiceError
 from tokengrill.core.runtime import Runtime
 from tokengrill.core.types import Alert, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, Settings
 from tokengrill.dbus.clients import CLIENT_KINDS
 from tokengrill.dbus.payloads import (
     INVALID_ARGS,
+    KEYRING_UNAVAILABLE,
     NOT_SUPPORTED,
     SHUTTING_DOWN,
     account_json,
@@ -198,16 +199,23 @@ class TokenGrillInterface(ServiceInterface):
     # Declared now, implemented by later tasks
 
     @method()
-    def Discover(self, app: "s") -> "s":
-        raise _not_supported("Discover")
+    async def Discover(self, app: "s") -> "s":
+        async with self._call() as runtime:
+            return _result({"candidates": await _checked(runtime.discover(app))})
 
     @method()
-    def CredentialState(self, account_id: "s") -> "s":
-        raise _not_supported("CredentialState")
+    async def CredentialState(self, account_id: "s") -> "s":
+        async with self._call() as runtime:
+            return _result({"state": await _checked(runtime.credential_state(account_id))})
 
     @method()
-    def SaveApiKey(self, account_id: "s", key: "s") -> None:
-        raise _not_supported("SaveApiKey")
+    async def SaveApiKey(self, account_id: "s", key: "s") -> None:
+        async with self._call() as runtime:
+            try:
+                await _checked(runtime.save_api_key(account_id, key))
+            except ServiceError as error:
+                # The message is an id such as deepseek.keyring-unavailable, never the key.
+                raise DBusError(KEYRING_UNAVAILABLE, error.message_id) from error
 
     @method()
     async def ToggleLimit(self, account_id: "s", limit_key: "s") -> None:
