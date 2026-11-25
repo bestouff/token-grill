@@ -67,7 +67,7 @@ export class ReorderDialog extends Adw.Dialog {
             const {label} = providerMetadata(provider.kind);
             const row = new Adw.ActionRow({
                 title: provider.displayName,
-                subtitle: provider.enabled ? label : formatText(_('%s · Disabled'), label),
+                subtitle: provider.enabled ? label : formatText(_('%s - Disabled'), label),
             });
             row.add_prefix(new Gtk.Image({icon_name: 'list-drag-handle-symbolic'}));
             row.add_prefix(providerIcon(this._extensionPath, provider.kind));

@@ -43,7 +43,7 @@ export function claimType(claimed: Set<CanonicalQuotaWindow>, canonicalWindow: C
         claimed.add(canonicalWindow);
         return {canonicalWindow, label: LABELS[canonicalWindow]};
     }
-    return {canonicalWindow: 'other', label: `${name} · ${LABELS[canonicalWindow]}`};
+    return {canonicalWindow: 'other', label: `${name} - ${LABELS[canonicalWindow]}`};
 }
 
 export function windowLabel(canonicalWindow: CanonicalQuotaWindow, fallback: string): string {

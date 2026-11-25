@@ -25,7 +25,7 @@ function where(candidate: Addable): string {
     if (candidate.app === 'opencode')
         return _('via OpenCode');
     // Translators: a service name, then where the sign-in was found.
-    return formatText(_('%s · %s'), providerMetadata(candidate.kind).label, displayPath(candidate.accountHome));
+    return formatText(_('%s - %s'), providerMetadata(candidate.kind).label, displayPath(candidate.accountHome));
 }
 
 // Found sign-ins as check rows: new ones ticked, the same plan as an existing
@@ -71,7 +71,7 @@ export class CandidateList {
         row.add_prefix(providerIcon(this._extensionPath, candidate.kind));
         row.add_prefix(check);
         if (duplicate) {
-            const name = formatText(_('%s · %s'), providerMetadata(duplicate.kind).label, duplicate.displayName);
+            const name = formatText(_('%s - %s'), providerMetadata(duplicate.kind).label, duplicate.displayName);
             row.subtitle = formatText(_('Looks like %s, which you already added'), name);
             row.add_suffix(new Gtk.Image({icon_name: 'dialog-warning-symbolic', css_classes: ['warning']}));
             const choice = new Gtk.Button({label: _('Add Anyway'), valign: Gtk.Align.CENTER});
@@ -88,12 +88,12 @@ export class CandidateList {
     }
 
     private _inactiveRow(candidate: Candidate): Adw.ActionRow {
-        let subtitle = _('API key · nothing to track');
+        let subtitle = _('API key - nothing to track');
         if (candidate.status === 'already-added')
             subtitle = _('Already added');
         else if (candidate.status === 'uses-other-app')
             // Translators: %s is a service name, such as Kiro.
-            subtitle = formatText(_('Uses the %s app’s own sign-in; add it from there'), candidate.label);
+            subtitle = formatText(_("Uses the %s app's own sign-in; add it from there"), candidate.label);
         const row = new Adw.ActionRow({title: candidate.label, subtitle, sensitive: false});
         if (candidate.kind)
             row.add_prefix(providerIcon(this._extensionPath, candidate.kind));

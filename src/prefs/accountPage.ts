@@ -153,7 +153,7 @@ export class AccountPage extends Adw.NavigationPage {
 
     private _topBarText(): string {
         // Translators: the account's top-bar choice, then a hint.
-        return formatText(_('%s · Change this in the popup'), topBarSummary(TRANSLATOR, this._provider.topBar));
+        return formatText(_('%s - Change this in the popup'), topBarSummary(TRANSLATOR, this._provider.topBar));
     }
 
     private _apply(change: Partial<ProviderInstance>): void {
@@ -210,12 +210,12 @@ export class AccountPage extends Adw.NavigationPage {
         const where = FILE_APPS.includes(provider.app) && provider.accountHome ? displayPath(provider.accountHome) : null;
         const app = APP_NAMES[provider.app];
         // Translators: an app name, then where its sign-in is read.
-        const source = where ? formatText(_('%s · %s'), app, where) : app;
+        const source = where ? formatText(_('%s - %s'), app, where) : app;
         const row = new Adw.ActionRow({title: _('Signed In With'), subtitle: source});
         const cancellable = this._cancellable;
         credentialState(provider, cancellable).then(state => {
             if (!cancellable.is_cancelled())
-                row.subtitle = formatText(_('%s · %s'), source, credentialLabel(state));
+                row.subtitle = formatText(_('%s - %s'), source, credentialLabel(state));
         }).catch(error => {
             if (!isCancellation(error))
                 logError(error, 'Token Grill');
@@ -305,7 +305,7 @@ export class AccountPage extends Adw.NavigationPage {
             heading: _('Remove Account?'),
             body: this._provider.app === 'keyring'
                 ? _('This removes the account, its collected totals and its API key from the keyring.')
-                : _('This removes the account and its collected totals from Token Grill. The app’s sign-in is untouched.'),
+                : _("This removes the account and its collected totals from Token Grill. The app's sign-in is untouched."),
             close_response: 'cancel',
         });
         alert.add_response('cancel', _('Cancel'));

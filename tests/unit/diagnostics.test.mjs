@@ -9,8 +9,8 @@ test('shapes never contain values', () => {
 });
 
 test('shapes stop at three levels and six keys', () => {
-    assert.equal(shapeOf({a: {b: {c: {d: 1}}}}), '{a: {b: {c: {…}}}}');
-    assert.equal(shapeOf({a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1}), '{a: number, b: number, c: number, d: number, e: number, f: number, …2 more}');
+    assert.equal(shapeOf({a: {b: {c: {d: 1}}}}), '{a: {b: {c: {...}}}}');
+    assert.equal(shapeOf({a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1}), '{a: number, b: number, c: number, d: number, e: number, f: number, ...2 more}');
 });
 
 test('redaction removes tokens, e-mails, UUIDs and the home path', () => {
@@ -25,9 +25,9 @@ test('long field names are not mistaken for tokens', () => {
 test('reports name accounts by service and number', () => {
     assert.equal(accountLabel('copilot', 1), 'copilot-1');
     const report = formatReport([
-        {at: Date.UTC(2026, 10, 10, 9, 30), account: 'copilot-1', kind: 'copilot', app: 'github-cli', step: 'response', detail: 'HTTP 200 {quota_snapshots: {…}}'},
+        {at: Date.UTC(2026, 10, 10, 9, 30), account: 'copilot-1', kind: 'copilot', app: 'github-cli', step: 'response', detail: 'HTTP 200 {quota_snapshots: {...}}'},
     ], {version: '0.4.0 alpha.1', shell: '50.1', date: '2026-11-10'});
-    assert.equal(report, 'Token Grill 0.4.0 alpha.1 · GNOME Shell 50.1 · 2026-11-10\n2026-11-10T09:30:00.000Z copilot-1 (copilot, github-cli) response: HTTP 200 {quota_snapshots: {…}}\n');
+    assert.equal(report, 'Token Grill 0.4.0 alpha.1 - GNOME Shell 50.1 - 2026-11-10\n2026-11-10T09:30:00.000Z copilot-1 (copilot, github-cli) response: HTTP 200 {quota_snapshots: {...}}\n');
 });
 
 test('a request is recorded as its method, host and path, never the query', () => {

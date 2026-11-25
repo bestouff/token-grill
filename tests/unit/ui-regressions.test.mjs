@@ -22,9 +22,9 @@ test('the popup is built from native shell menu items and theme styles', async (
         read('src/shell/providerCard.ts'),
     ]);
     assert.match(indicator, /new PopupMenu\.PopupSwitchMenuItem\(_\('Automatic Updates'\)/);
-    assert.match(indicator, /if \(Main\.sessionMode\.allowSettings\)\s*menu\.addAction\(_\('Preferences…'\)/);
+    assert.match(indicator, /if \(Main\.sessionMode\.allowSettings\)\s*menu\.addAction\(_\('Preferences...'\)/);
     assert.match(indicator, /new PopupMenu\.PopupSeparatorMenuItem\(\)/);
-    assert.match(indicator, /ngettext\('Refreshing %d Account…', 'Refreshing %d Accounts…', busy\)/);
+    assert.match(indicator, /ngettext\('Refreshing %d Account...', 'Refreshing %d Accounts...', busy\)/);
     assert.match(indicator, /this\._addRow\(groups\.map/);
     assert.doesNotMatch(indicator, /add_style_class_name\('default'\)/, 'only one level may use a strong selected style');
     assert.doesNotMatch(indicator, /tokengrill-boxpointer|set_clip_to_allocation|Safely|try \{/);
@@ -158,7 +158,7 @@ test('notifications use per-account sources with symbolic icons and lifecycle cl
     assert.doesNotMatch(notification, /EmblemedIcon|BytesIcon|<svg|accentColor|catch\(\(\) => \{\}\)/);
     assert.match(notification, /notifyTest\(instance:[\s\S]*testNotificationText/);
     assert.match(notification, /this\._sourceFor\(instance, text\.source\)/);
-    assert.doesNotMatch(notification, /— Token Grill/);
+    assert.doesNotMatch(notification, / - Token Grill/);
     assert.match(notification, /private readonly _sources = new Map<string, MessageTray\.Source>\(\)/);
     assert.match(notification, /source\.connect\('destroy', \(\) => this\._sources\.delete\(instance\.id\)\)/);
     assert.match(notification, /source\.destroy\(MessageTray\.NotificationDestroyedReason\.SOURCE_CLOSED\)/);
@@ -180,7 +180,7 @@ test('provider preferences use direct editing, confirmed deletion, and normalize
     assert.match(page, /icon_name: 'go-next-symbolic'/);
     assert.match(page, /setAccessibleLabel\(enabled, enabledLabel\)/);
     assert.doesNotMatch(page, /Gtk\.MenuButton|view-more-symbolic|_overflow\(/);
-    assert.match(page, /label: _\('Add Account…'\)/);
+    assert.match(page, /label: _\('Add Account...'\)/);
     assert.match(page, /new AddAccountDialog\(/);
     assert.match(page, /reorderProviders\(providers, providers\.map/);
     // The account page applies each change at once, so there is nothing to discard.
@@ -203,7 +203,7 @@ test('local history shows real figures or its scan state, and nothing when unsup
     assert.match(model, /at API prices/);
     assert.match(model, /case 'unsupported':\s*case 'off':\s*return null;/);
     assert.match(metrics, /export type HistoryState = 'unsupported' \| 'off' \| 'waiting' \| 'updating' \| 'failed' \| 'ready'/);
-    assert.doesNotMatch(metrics, /TOKENS|USD|Waiting…/);
+    assert.doesNotMatch(metrics, /TOKENS|USD|Waiting.../);
 });
 
 test('notification preferences write scoped test requests handled without milestone writes', async () => {

@@ -20,7 +20,7 @@ function scopeName(scope: Record<string, unknown> | null): string | null {
         return null;
     const model = recordAt(scope, 'model');
     const name = model ? stringAt(model, 'display_name') ?? stringAt(model, 'id') : null;
-    return [name, stringAt(scope, 'surface')].filter(Boolean).join(' · ') || null;
+    return [name, stringAt(scope, 'surface')].filter(Boolean).join(' - ') || null;
 }
 
 // Claude reports utilization in percentage points (0-100), including
@@ -40,7 +40,7 @@ function makeWindow(id: string, canonicalWindow: CanonicalQuotaWindow, label: st
 }
 
 function modelOf(scope: string): string {
-    const [model = ''] = scope.split(' · ');
+    const [model = ''] = scope.split(' - ');
     return model.toLowerCase();
 }
 
@@ -66,7 +66,7 @@ function limitWindows(limits: unknown, legacyKeys: Set<string>, present: Set<Can
         const kind = stringAt(item, 'kind') ?? group;
         const base = windowLabel(canonicalWindow, kind);
         const id = scope ? `limits:${kind}:${scope}` : `limits:${kind}`;
-        const window = makeWindow(id, canonicalWindow, scope ? `${base} · ${scope}` : base, percent, item.resets_at, seconds);
+        const window = makeWindow(id, canonicalWindow, scope ? `${base} - ${scope}` : base, percent, item.resets_at, seconds);
         entries.push({canonicalWindow, scope, window});
     }
     const fills = new Map<CanonicalQuotaWindow, Entry>();

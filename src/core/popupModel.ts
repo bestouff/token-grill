@@ -28,11 +28,11 @@ export interface ChooserGroup {
 
 type SnapshotLookup = Pick<Map<string, Pick<ProviderSnapshot, 'error'> | null>, 'get'>;
 
-// Drops a leading provider name ("Codex - Work" → "Work") so account
+// Drops a leading provider name ("Codex - Work" becomes "Work") so account
 // buttons stay short; names that merely contain the provider are kept.
 export function shortAccountName(displayName: string, providerLabel: string): string {
     const escaped = providerLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const match = displayName.match(new RegExp(`^${escaped}\\s*[-–—·:/|]\\s*(.+)$`, 'i'));
+    const match = displayName.match(new RegExp(`^${escaped}\\s*[-:/|]\\s*(.+)$`, 'i'));
     return match ? match[1]!.trim() : displayName;
 }
 
@@ -72,7 +72,7 @@ function quotaValueLabel(tr: Translator, window: Partial<UsageWindow>): string {
         return '';
     const used = formatQuotaNumber(window.used);
     if (window.limit == null || !Number.isFinite(window.limit) || window.limit <= 0)
-        return formatText(_('%s credits used · pooled or unlimited'), used);
+        return formatText(_('%s credits used - pooled or unlimited'), used);
     return formatText(_('%s of %s credits'), used, formatQuotaNumber(window.limit));
 }
 
@@ -85,10 +85,10 @@ export function windowCaption(tr: Translator, window: Partial<UsageWindow> | nul
     const resetsNow = parts !== null && (parts.expired || parts.totalMinutes < 1);
     if (quota) {
         if (!parts)
-            return formatText(_('%s · reset time unknown'), quota);
+            return formatText(_('%s - reset time unknown'), quota);
         if (resetsNow)
-            return formatText(_('%s · resets now'), quota);
-        return formatText(_('%s · resets in %s'), quota, formatDuration(tr, parts, true));
+            return formatText(_('%s - resets now'), quota);
+        return formatText(_('%s - resets in %s'), quota, formatDuration(tr, parts, true));
     }
     if (!parts)
         return _('Reset time unknown');
@@ -101,11 +101,11 @@ function updatedText(tr: Translator, clockText: string, fetchedAt: number, now: 
     const {_, ngettext} = tr;
     const minutes = Math.max(0, Math.floor((now - fetchedAt) / 60000));
     if (minutes < 1)
-        return formatText(_('Updated %s · just now'), clockText);
+        return formatText(_('Updated %s - just now'), clockText);
     if (minutes < 60)
-        return formatText(ngettext('Updated %s · %d min ago', 'Updated %s · %d min ago', minutes), clockText, minutes);
+        return formatText(ngettext('Updated %s - %d min ago', 'Updated %s - %d min ago', minutes), clockText, minutes);
     const hours = Math.floor(minutes / 60);
-    return formatText(ngettext('Updated %s · %d h ago', 'Updated %s · %d h ago', hours), clockText, hours);
+    return formatText(ngettext('Updated %s - %d h ago', 'Updated %s - %d h ago', hours), clockText, hours);
 }
 
 export function refreshStatusText(
@@ -118,23 +118,23 @@ export function refreshStatusText(
     const {_} = tr;
     switch (runtime?.phase) {
     case 'queued':
-        return _('Waiting to refresh…');
+        return _('Waiting to refresh...');
     case 'fetching-limits':
-        return _('Refreshing limits…');
+        return _('Refreshing limits...');
     case 'fetching-reset-credits':
-        return _('Limits updated, checking reset credits…');
+        return _('Limits updated, checking reset credits...');
     case 'scanning-history':
-        return _('Limits updated, scanning history…');
+        return _('Limits updated, scanning history...');
     }
     const fetchedAt = snapshot?.quotaFetchedAt ?? null;
     if (runtime?.outcome === 'failed' && fetchedAt)
-        return formatText(_('Refresh failed · showing data from %s'), clock(fetchedAt));
+        return formatText(_('Refresh failed - showing data from %s'), clock(fetchedAt));
     if (runtime?.outcome === 'failed')
         return _('Refresh failed');
     if (runtime?.outcome === 'partial')
-        return _('Limits updated · some sources unavailable');
+        return _('Limits updated - some sources unavailable');
     if (runtime?.outcome === 'unchanged' && runtime.completedAt)
-        return formatText(_('Checked %s · no change'), clock(runtime.completedAt));
+        return formatText(_('Checked %s - no change'), clock(runtime.completedAt));
     if (fetchedAt)
         return updatedText(tr, clock(fetchedAt), fetchedAt, now);
     return _('Not refreshed yet');
@@ -150,15 +150,15 @@ export function historySummary(tr: Translator, metrics: HistoryMetrics): string 
     case 'waiting':
         return _('Local history: waiting for the first scan');
     case 'updating':
-        return _('Local history: updating…');
+        return _('Local history: updating...');
     case 'failed':
         return _('Local history: scan failed');
     }
     const today = formatTokenCount(metrics.todayTokens);
     const month = formatTokenCount(metrics.monthTokens);
     if (metrics.monthCost === null)
-        return formatText(_('Today %s tokens · 30 days %s tokens'), today, month);
-    return formatText(_('Today %s tokens · 30 days %s tokens · ≈ $%s at API prices'), today, month, metrics.monthCost.toFixed(2));
+        return formatText(_('Today %s tokens - 30 days %s tokens'), today, month);
+    return formatText(_('Today %s tokens - 30 days %s tokens - about $%s at API prices'), today, month, metrics.monthCost.toFixed(2));
 }
 
 type HintInstance = Pick<ProviderInstance, 'kind' | 'app' | 'accountHome'>;

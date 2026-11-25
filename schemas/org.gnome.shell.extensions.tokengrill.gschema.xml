@@ -20,7 +20,7 @@
         <key name="notifications-enabled" type="b">
             <default>true</default>
             <summary>Usage notifications</summary>
-            <description>Whether to notify when an account’s selected limit crosses a usage step.</description>
+            <description>Whether to notify when an account's selected limit crosses a usage step.</description>
         </key>
         <key name="notification-step-percent" type="u">
             <range min="5" max="50"/>

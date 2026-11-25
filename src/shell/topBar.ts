@@ -137,8 +137,8 @@ function attention(): St.Icon {
 
 function numbers(account: TopBarAccount, mode: PanelPercentageMode): St.Label {
     const values = account.limits.map(window => Math.round((displayPercent(window, mode) ?? 0) * 100));
-    // Translators: compact top-bar reading; %s is one or more numbers joined by "·".
-    const text = formatText(_('%s%%'), values.join('·'));
+    // Translators: compact top-bar reading; %s is one or more numbers joined by "/".
+    const text = formatText(_('%s%%'), values.join('/'));
     const pressures = account.limits.map(pressureClass);
     const label = new St.Label({text, style_class: 'tokengrill-panel-value', y_align: Clutter.ActorAlign.CENTER});
     if (pressures.includes('critical'))

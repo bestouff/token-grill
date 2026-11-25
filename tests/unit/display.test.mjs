@@ -19,7 +19,7 @@ test('remaining mode is the inverse of consumed pressure', () => {
 test('missing quota readings remain unavailable', () => {
     assert.equal(displayPercent(null, 'remaining'), null);
     assert.equal(displayPercent({percent: null}, 'used'), null);
-    assert.equal(displayLabel(UNTRANSLATED, null, 'used'), '—');
+    assert.equal(displayLabel(UNTRANSLATED, null, 'used'), '-');
 });
 
 test('window selection honours the preference, label patterns, then the most used window', () => {
@@ -37,7 +37,7 @@ test('pressure thresholds and active account fallback', () => {
 });
 
 test('the balance limit is named through the translator', () => {
-    const tr = {_: text => `«${text}»`, ngettext: text => text};
-    assert.equal(limitName(tr, {id: 'balance', canonicalWindow: 'other', label: 'Balance'}), '«Balance»');
-    assert.equal(limitName(tr, {id: 'Spark:weekly', canonicalWindow: 'other', label: 'Spark · Weekly'}), 'Spark · Weekly');
+    const tr = {_: text => `[${text}]`, ngettext: text => text};
+    assert.equal(limitName(tr, {id: 'balance', canonicalWindow: 'other', label: 'Balance'}), '[Balance]');
+    assert.equal(limitName(tr, {id: 'Spark:weekly', canonicalWindow: 'other', label: 'Spark - Weekly'}), 'Spark - Weekly');
 });

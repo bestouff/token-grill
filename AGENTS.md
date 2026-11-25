@@ -155,6 +155,10 @@ Rules for the code:
 
 Rules for text:
 
+- Use ASCII only, in every file (PRACTICES Q-17): `...`, `'` and ` - `
+  instead of an ellipsis, a curly apostrophe or a middle dot. Do not use
+  escapes such as `\u00B7` either.
+
 - Each text for the user goes through `_()` or `ngettext()` with a literal
   msgid. Use `formatText()` or `.format()` for placeholders. Do not use template
   literals in `_()`.
@@ -162,7 +166,7 @@ Rules for text:
 - Service names ("Codex", "Claude", "Kiro", "Antigravity") stay as plain text
   (PRACTICES LE-3a).
 
-- Errors of a service are `CollectorError(code, ({_}) => _('…'))`. The message
+- Errors of a service are `CollectorError(code, ({_}) => _('...'))`. The message
   tells only the problem. `errorText()` in `core/popupModel.ts` adds the
   correction for each service.
 

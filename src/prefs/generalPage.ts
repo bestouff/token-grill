@@ -85,7 +85,7 @@ export class GeneralPage extends Adw.PreferencesPage {
         more.add_row(toggleRow(settings, {
             key: 'popup-account-picker',
             title: _('Account Picker in the Popup'),
-            subtitle: _('Show a service’s accounts as buttons or as a list'),
+            subtitle: _("Show a service's accounts as buttons or as a list"),
             choices: [['buttons', _('Buttons')], ['dropdown', _('List')]],
         }));
         updates.add(more);
@@ -99,7 +99,7 @@ export class GeneralPage extends Adw.PreferencesPage {
         const shown = readProviders(this._settings).filter(provider => provider.enabled && isShown(provider));
         this._rows = shown.map(provider => new Adw.ActionRow({
             // Translators: a service name, then the account name.
-            title: formatText(_('%s · %s'), providerMetadata(provider.kind).label, provider.displayName),
+            title: formatText(_('%s - %s'), providerMetadata(provider.kind).label, provider.displayName),
             subtitle: topBarSummary(TRANSLATOR, provider.topBar),
         }));
         if (!this._rows.length)

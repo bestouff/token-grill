@@ -49,7 +49,7 @@ test('a Kimi Code key in OpenCode belongs to Kimi Code', () => {
 test('a second Kimi window of the same type stays a limit of its own', () => {
     const limit = (name, duration, timeUnit) => ({name, window: {duration, timeUnit}, detail: {limit: 100, used: 10}});
     const windows = normalizeKimiUsage({limits: [limit('Chat', 300, 'MINUTE'), limit('Agent', 5, 'HOUR')]});
-    assert.deepEqual(windows.map(item => [item.canonicalWindow, item.label]), [['five-hour', 'Five-hour'], ['other', 'Agent · Five-hour']]);
+    assert.deepEqual(windows.map(item => [item.canonicalWindow, item.label]), [['five-hour', 'Five-hour'], ['other', 'Agent - Five-hour']]);
 });
 
 

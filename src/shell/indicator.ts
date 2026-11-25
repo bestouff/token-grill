@@ -246,7 +246,7 @@ export class TokenGrillIndicator extends PanelMenu.Button {
         automatic.connectObject('toggled', (_item: PopupMenu.PopupSwitchMenuItem, state: boolean) => controller.setPaused(!state), automatic);
         menu.addMenuItem(automatic);
         if (Main.sessionMode.allowSettings)
-            menu.addAction(_('Preferences…'), () => controller.openPreferences());
+            menu.addAction(_('Preferences...'), () => controller.openPreferences());
         this._ui = {panelBox, menuBox, chooser, accountMenu, chooserSeparator, detail, empty, refreshAll, automatic};
         this._controller = controller;
         // Each service has its own top-bar entry but they share one menu, so the
@@ -329,7 +329,7 @@ export class TokenGrillIndicator extends PanelMenu.Button {
         const busy = [...state.runtimeStates.values()].filter(runtimeState => runtimeState.phase !== 'idle').length;
         refreshAll.visible = hasProviders;
         refreshAll.label.set_text(busy
-            ? ngettext('Refreshing %d Account…', 'Refreshing %d Accounts…', busy).format(busy)
+            ? ngettext('Refreshing %d Account...', 'Refreshing %d Accounts...', busy).format(busy)
             : _('Refresh All Accounts'));
         refreshAll.setSensitive(busy === 0);
         automatic.visible = hasProviders;

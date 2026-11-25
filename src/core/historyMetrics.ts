@@ -17,7 +17,7 @@ function status(state: HistoryState): HistoryMetrics {
 
 export function formatTokenCount(value: number): string {
     if (!Number.isFinite(value))
-        return '—';
+        return '-';
     if (value >= 1e9)
         return `${(value / 1e9).toFixed(1)}B`;
     if (value >= 1e6)

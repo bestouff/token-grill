@@ -53,7 +53,7 @@ export class DataPage extends Adw.PreferencesPage {
             description: _('Recent refresh steps for a bug report, without tokens, keys, e-mail addresses, account names or your home folder; ' +
                 'responses keep only their field names and types'),
         });
-        const save = new Adw.ButtonRow({title: _('Save Diagnostics Report…'), start_icon_name: 'document-save-symbolic'});
+        const save = new Adw.ButtonRow({title: _('Save Diagnostics Report...'), start_icon_name: 'document-save-symbolic'});
         save.connect('activated', () => {
             this._saveReport().catch(error => {
                 if (isDismissal(error))

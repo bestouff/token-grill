@@ -93,7 +93,7 @@ script deletes the test settings and the test keyring.
    sign in for you.
 2. Open the preferences of Token Grill.
 3. Go to the **Accounts** page.
-4. Select **Add Account…**, and then select the app that you sign in with.
+4. Select **Add Account...**, and then select the app that you sign in with.
    Token Grill shows the signed-in accounts of that app.
 5. Check the accounts to add, and then select **Add**.
 
@@ -102,7 +102,7 @@ in yet, type or choose its home folder under **Another Home Folder**. For
 example, `~/.codex-work` adds a Codex account there. If it is not signed in,
 the popup shows **Sign In Again in a Terminal**.
 
-To find the accounts of all the supported apps, select **Discover…**. Token
+To find the accounts of all the supported apps, select **Discover...**. Token
 Grill adds the accounts that you check and shows them in the top bar.
 
 These are the apps that Token Grill reads:
@@ -205,7 +205,7 @@ For Kiro and Antigravity accounts, Token Grill reads these files:
   changes.
 - Antigravity: the first of `acp_token.json`, `oauth_creds.json`, and
   `credentials.json` in the home. The default home is
-  `~/.gemini/antigravity-cli`. **Discover…** also finds `~/.gemini/antigravity`,
+  `~/.gemini/antigravity-cli`. **Discover...** also finds `~/.gemini/antigravity`,
   `~/.antigravity`, and `~/.config/Antigravity`.
 
 If Token Grill cannot use an Antigravity credential file, it reads the Secret
@@ -262,7 +262,7 @@ responses.
 ### Diagnostics for testers
 
 To save a report for a bug report, open the **Data** page in the preferences
-and select **Save Diagnostics Report…**. The report does not contain tokens,
+and select **Save Diagnostics Report...**. The report does not contain tokens,
 keys, e-mail addresses, account names, or your home folder.
 
 To see each refresh step in the system journal, set the `diagnostics-journal`

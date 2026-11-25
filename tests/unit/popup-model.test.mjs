@@ -21,7 +21,7 @@ test('account accents use the GNOME accent palette and migrate the previous cust
 
 test('account names drop the provider prefix only when it is a separate leading word', () => {
     assert.equal(shortAccountName('Codex - Personal', 'Codex'), 'Personal');
-    assert.equal(shortAccountName('Claude – Sahil', 'Claude'), 'Sahil');
+    assert.equal(shortAccountName('Claude - Sahil', 'Claude'), 'Sahil');
     assert.equal(shortAccountName('codex: work', 'Codex'), 'work');
     assert.equal(shortAccountName('Kiro', 'Kiro'), 'Kiro');
     assert.equal(shortAccountName('Codexical', 'Codex'), 'Codexical');
@@ -60,10 +60,10 @@ const number = value => value.toLocaleString(undefined, {maximumFractionDigits: 
 test('window captions show exact credits and the reset countdown', () => {
     const now = Date.UTC(2026, 9, 13, 10, 0);
     const kiro = {unit: 'credits', used: 4042.73, limit: 5000, resetAt: now + (18 * 24 + 13) * 3600000};
-    assert.equal(windowCaption(tr, kiro, now), `${number(4042.73)} of ${number(5000)} credits · resets in 18d 13h`);
+    assert.equal(windowCaption(tr, kiro, now), `${number(4042.73)} of ${number(5000)} credits - resets in 18d 13h`);
     assert.equal(windowCaption(tr, {resetAt: now + 2 * 3600000 + 10 * 60000}, now), 'Resets in 2h 10m');
     assert.equal(windowCaption(tr, {resetAt: now - 1000}, now), 'Resets now');
-    assert.equal(windowCaption(tr, {unit: 'credits', used: 12.5, limit: 0, resetAt: null}, now), `${number(12.5)} credits used · pooled or unlimited · reset time unknown`);
+    assert.equal(windowCaption(tr, {unit: 'credits', used: 12.5, limit: 0, resetAt: null}, now), `${number(12.5)} credits used - pooled or unlimited - reset time unknown`);
     assert.equal(windowCaption(tr, null, now), 'No data yet');
 });
 
@@ -72,15 +72,15 @@ test('refresh status reads as a sentence and reflects each refresh phase', () =>
     const now = Date.UTC(2026, 9, 13, 10, 0);
     const fetched = {quotaFetchedAt: now - 3 * 60000};
     const state = (phase, outcome = null) => ({phase, outcome, completedAt: now});
-    assert.equal(refreshStatusText(tr, fetched, state('fetching-limits'), clock, now), 'Refreshing limits…');
-    assert.equal(refreshStatusText(tr, fetched, state('queued'), clock, now), 'Waiting to refresh…');
-    assert.equal(refreshStatusText(tr, fetched, state('scanning-history'), clock, now), 'Limits updated, scanning history…');
-    assert.equal(refreshStatusText(tr, fetched, state('idle', 'failed'), clock, now), 'Refresh failed · showing data from 14:52');
+    assert.equal(refreshStatusText(tr, fetched, state('fetching-limits'), clock, now), 'Refreshing limits...');
+    assert.equal(refreshStatusText(tr, fetched, state('queued'), clock, now), 'Waiting to refresh...');
+    assert.equal(refreshStatusText(tr, fetched, state('scanning-history'), clock, now), 'Limits updated, scanning history...');
+    assert.equal(refreshStatusText(tr, fetched, state('idle', 'failed'), clock, now), 'Refresh failed - showing data from 14:52');
     assert.equal(refreshStatusText(tr, null, state('idle', 'failed'), clock, now), 'Refresh failed');
-    assert.equal(refreshStatusText(tr, fetched, state('idle', 'unchanged'), clock, now), 'Checked 14:52 · no change');
-    assert.equal(refreshStatusText(tr, fetched, null, clock, now), 'Updated 14:52 · 3 min ago');
-    assert.equal(refreshStatusText(tr, {quotaFetchedAt: now - 2 * 3600000}, null, clock, now), 'Updated 14:52 · 2 h ago');
-    assert.equal(refreshStatusText(tr, {quotaFetchedAt: now}, null, clock, now), 'Updated 14:52 · just now');
+    assert.equal(refreshStatusText(tr, fetched, state('idle', 'unchanged'), clock, now), 'Checked 14:52 - no change');
+    assert.equal(refreshStatusText(tr, fetched, null, clock, now), 'Updated 14:52 - 3 min ago');
+    assert.equal(refreshStatusText(tr, {quotaFetchedAt: now - 2 * 3600000}, null, clock, now), 'Updated 14:52 - 2 h ago');
+    assert.equal(refreshStatusText(tr, {quotaFetchedAt: now}, null, clock, now), 'Updated 14:52 - just now');
     assert.equal(refreshStatusText(tr, null, null, clock, now), 'Not refreshed yet');
 });
 
@@ -88,11 +88,11 @@ test('history summary appears only with real history data', () => {
     const metrics = (state, extra = {}) => ({state, todayTokens: 0, monthTokens: 0, monthCost: null, ...extra});
     assert.equal(historySummary(tr, metrics('unsupported')), null);
     assert.equal(historySummary(tr, metrics('off')), null);
-    assert.equal(historySummary(tr, metrics('updating')), 'Local history: updating…');
+    assert.equal(historySummary(tr, metrics('updating')), 'Local history: updating...');
     assert.equal(historySummary(tr, metrics('waiting')), 'Local history: waiting for the first scan');
     assert.equal(historySummary(tr, metrics('failed')), 'Local history: scan failed');
-    assert.equal(historySummary(tr, metrics('ready', {todayTokens: 1.2e6, monthTokens: 41e6, monthCost: 12.4})), 'Today 1.2M tokens · 30 days 41.0M tokens · ≈ $12.40 at API prices');
-    assert.equal(historySummary(tr, metrics('ready', {todayTokens: 1.2e6, monthTokens: 41e6})), 'Today 1.2M tokens · 30 days 41.0M tokens');
+    assert.equal(historySummary(tr, metrics('ready', {todayTokens: 1.2e6, monthTokens: 41e6, monthCost: 12.4})), 'Today 1.2M tokens - 30 days 41.0M tokens - about $12.40 at API prices');
+    assert.equal(historySummary(tr, metrics('ready', {todayTokens: 1.2e6, monthTokens: 41e6})), 'Today 1.2M tokens - 30 days 41.0M tokens');
 });
 
 test('error text adds the service-specific fix once', () => {

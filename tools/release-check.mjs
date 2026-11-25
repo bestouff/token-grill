@@ -71,11 +71,15 @@ const forbidden = [
 const textExtensions = new Set(['.md', '.json', '.mjs', '.js', '.ts', '.xml', '.sh', '.css', '.svg', '.txt']);
 const scanned = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {cwd: root, encoding: 'utf8'})
     .split('\0').filter(Boolean).map(file => path.join(root, file));
+const tracked = new Set(execFileSync('git', ['ls-files', '-z'], {cwd: root, encoding: 'utf8'}).split('\0').filter(Boolean));
+// The EGO file viewer can guess the wrong encoding, so the project uses ASCII only.
+function firstNonAscii(text) {
+    const index = text.split('\n').findIndex(line => /[^\t\n\r\x20-\x7E]/.test(line));
+    return index < 0 ? null : index + 1;
+}
 // The checker and the rulebook name the patterns in order to ban them.
 const traceRules = new Set(['tools/release-check.mjs', 'PRACTICES.md']);
 for (const file of scanned.filter(name => textExtensions.has(path.extname(name)))) {
-    if (traceRules.has(path.relative(root, file)))
-        continue;
     let text;
     try {
         text = await readFile(file, 'utf8');
@@ -84,6 +88,12 @@ for (const file of scanned.filter(name => textExtensions.has(path.extname(name))
             continue;
         throw error;
     }
+    const relative = path.relative(root, file);
+    const nonAscii = tracked.has(relative) ? firstNonAscii(text) : null;
+    if (nonAscii)
+        errors.push(`${relative}:${nonAscii} has a non-ASCII character.`);
+    if (traceRules.has(relative))
+        continue;
     for (const pattern of forbidden) {
         if (pattern.test(text))
             errors.push(`Private-development trace in ${path.relative(root, file)}: ${pattern}`);
@@ -111,9 +121,15 @@ try {
             errors.push(`Development-only file is packaged: ${file}`);
         if (file.startsWith('icons/') && !file.endsWith('-symbolic.svg'))
             errors.push(`Packaged icons must be symbolic SVGs: ${file}`);
+        if (!textExtensions.has(path.extname(file)))
+            continue;
+        const contents = await readFile(path.join(dist, file), 'utf8');
+        const nonAscii = firstNonAscii(contents);
+        if (nonAscii)
+            errors.push(`${file}:${nonAscii} has a non-ASCII character.`);
         if (!file.endsWith('.js'))
             continue;
-        const lines = (await readFile(path.join(dist, file), 'utf8')).split('\n');
+        const lines = contents.split('\n');
         lines.forEach((line, index) => {
             if (line.length > 200)
                 errors.push(`${file}:${index + 1} is longer than 200 characters.`);

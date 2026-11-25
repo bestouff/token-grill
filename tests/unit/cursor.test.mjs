@@ -23,8 +23,8 @@ test('the total and both pools reset at the end of the monthly billing cycle', (
     const windows = normalizeCursorUsage(usage);
     assert.deepEqual(windows.map(window => [window.id, window.canonicalWindow, window.label, window.percent, window.resetAt]), [
         ['total', 'monthly', 'Monthly', 0.3, 1795436935685],
-        ['cursor-models', 'other', 'Cursor Models · Monthly', 0.4, 1795436935685],
-        ['other-models', 'other', 'Other Models · Monthly', 0.125, 1795436935685],
+        ['cursor-models', 'other', 'Cursor Models - Monthly', 0.4, 1795436935685],
+        ['other-models', 'other', 'Other Models - Monthly', 0.125, 1795436935685],
     ]);
 });
 

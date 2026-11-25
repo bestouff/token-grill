@@ -250,7 +250,7 @@ export class AddAccountDialog extends Adw.Dialog {
         const provider = newProvider('deepseek', 'keyring', '');
         // With no keyring running, D-Bus can take about 25 seconds to give up.
         save.sensitive = false;
-        save.label = _('Saving…');
+        save.label = _('Saving...');
         storeApiKey(provider.id, entry.text.trim(), this._cancellable).then(() => {
             this._onAdd([provider]);
             this.close();

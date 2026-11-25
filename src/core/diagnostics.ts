@@ -35,11 +35,11 @@ export function shapeOf(value: unknown, depth = SHAPE_DEPTH): string {
     if (typeof value !== 'object')
         return typeof value;
     if (depth === 0)
-        return '{…}';
+        return '{...}';
     const entries = Object.entries(value as Record<string, unknown>);
     const shown = entries.slice(0, SHAPE_KEYS).map(([key, item]) => `${key}: ${shapeOf(item, depth - 1)}`);
     if (entries.length > SHAPE_KEYS)
-        shown.push(`…${entries.length - SHAPE_KEYS} more`);
+        shown.push(`...${entries.length - SHAPE_KEYS} more`);
     return `{${shown.join(', ')}}`;
 }
 
@@ -62,7 +62,7 @@ export function accountLabel(kind: ProviderKind, index: number): string {
 }
 
 export function formatReport(entries: DiagnosticEntry[], header: ReportHeader): string {
-    const lines = [`Token Grill ${header.version} · GNOME Shell ${header.shell} · ${header.date}`];
+    const lines = [`Token Grill ${header.version} - GNOME Shell ${header.shell} - ${header.date}`];
     for (const entry of entries)
         lines.push(`${new Date(entry.at).toISOString()} ${entry.account} (${entry.kind}, ${entry.app}) ${entry.step}: ${entry.detail}`);
     return `${lines.join('\n')}\n`;

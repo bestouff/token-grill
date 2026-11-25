@@ -34,7 +34,7 @@ function accountSubtitle(provider: ProviderInstance, status: string): string {
     const parts = [topBarSummary(TRANSLATOR, provider.topBar), status];
     if (provider.app === 'opencode')
         parts.unshift(_('via OpenCode'));
-    return parts.reduce((left, right) => formatText(_('%s · %s'), left, right));
+    return parts.reduce((left, right) => formatText(_('%s - %s'), left, right));
 }
 
 export class AccountsPage extends Adw.PreferencesPage {
@@ -100,17 +100,17 @@ export class AccountsPage extends Adw.PreferencesPage {
 
     private _buildHeaderActions(providers: ProviderInstance[]): Gtk.Box {
         const box = new Gtk.Box({spacing: 6, valign: Gtk.Align.CENTER});
-        const reorder = new Gtk.Button({label: _('Reorder…'), css_classes: ['flat'], sensitive: providers.length >= 2});
+        const reorder = new Gtk.Button({label: _('Reorder...'), css_classes: ['flat'], sensitive: providers.length >= 2});
         reorder.connect('clicked', () => this._reorder());
         box.append(reorder);
         const discover = new Gtk.Button({
-            label: _('Discover…'),
+            label: _('Discover...'),
             css_classes: ['flat'],
             tooltip_text: _('Find accounts already signed in on this computer'),
         });
         discover.connect('clicked', () => this._discover());
         box.append(discover);
-        const add = new Gtk.Button({label: _('Add Account…'), css_classes: ['suggested-action']});
+        const add = new Gtk.Button({label: _('Add Account...'), css_classes: ['suggested-action']});
         add.connect('clicked', () => this._add());
         box.append(add);
         return box;
@@ -119,7 +119,7 @@ export class AccountsPage extends Adw.PreferencesPage {
     private _buildRow(provider: ProviderInstance): Adw.ActionRow {
         const row = new Adw.ActionRow({
             title: provider.displayName,
-            subtitle: accountSubtitle(provider, _('Checking credentials…')),
+            subtitle: accountSubtitle(provider, _('Checking credentials...')),
             activatable: true,
         });
         const cancellable = this._cancellable;

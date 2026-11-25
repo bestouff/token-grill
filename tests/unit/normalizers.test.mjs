@@ -69,7 +69,7 @@ test('Claude limits array fills windows missing from legacy fields', () => {
     assert.deepEqual(windows.map(window => window.canonicalWindow), ['five-hour', 'weekly']);
     assert.equal(windows[0].id, 'five_hour');
     assert.equal(windows[0].percent, 0.01);
-    assert.equal(windows[1].label, 'Weekly · Fable');
+    assert.equal(windows[1].label, 'Weekly - Fable');
     assert.equal(windows[1].percent, 0);
     assert.equal(windows[1].resetAt, Date.parse('2026-10-20T03:00:00+00:00'));
 });
@@ -86,7 +86,7 @@ test('Claude limits array fills weekly with the unscoped limit and keeps the mod
     assert.equal(windows[0].label, 'Weekly');
     assert.equal(windows[0].percent, 0.3);
     assert.equal(windows[1].canonicalWindow, 'other');
-    assert.equal(windows[1].label, 'Weekly · Fable');
+    assert.equal(windows[1].label, 'Weekly - Fable');
     assert.equal(windows[1].percent, 0.8);
 });
 
@@ -104,7 +104,7 @@ test('Claude model-scoped weekly limit is kept when the legacy keys already give
     });
     assert.deepEqual(windows.map(window => [window.canonicalWindow, window.percent]), [['five-hour', 0.29], ['weekly', 0.35], ['other', 0.29]]);
     assert.equal(windows[2].id, 'limits:weekly_scoped:Fable');
-    assert.equal(windows[2].label, 'Weekly · Fable');
+    assert.equal(windows[2].label, 'Weekly - Fable');
     assert.equal(windows[2].resetAt, Date.parse('2026-11-18T03:00:00+00:00'));
 });
 
@@ -169,8 +169,8 @@ test('Codex model limits stay separate from the plan limits, with stable ids', (
     assert.deepEqual(both.windows.map(item => [item.id, item.canonicalWindow, item.label]), [
         ['five-hour-0', 'five-hour', 'Five-hour'],
         ['weekly-1', 'weekly', 'Weekly'],
-        ['Spark:five-hour', 'other', 'Spark · Five-hour'],
-        ['Spark:weekly', 'other', 'Spark · Weekly'],
+        ['Spark:five-hour', 'other', 'Spark - Five-hour'],
+        ['Spark:weekly', 'other', 'Spark - Weekly'],
     ]);
     const reordered = normalizeCodexUsage(payload([
         {limit_name: 'Other', rate_limit: {primary_window: window(86400, 5)}},

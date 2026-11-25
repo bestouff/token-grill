@@ -111,7 +111,7 @@ export function shouldNotifyLowBalance(previousLow: boolean | null, low: boolean
 
 function sourceTitle(tr: Translator, serviceLabel: string, accountName: string): string {
     // Translators: a notification source; the service, then the account name.
-    return formatText(tr._('%s · %s'), serviceLabel, accountName);
+    return formatText(tr._('%s - %s'), serviceLabel, accountName);
 }
 
 function readingTitle(tr: Translator, window: Pick<UsageWindow, 'id' | 'canonicalWindow' | 'label'>, consumed: number, mode: PanelPercentageMode): string {
@@ -179,7 +179,7 @@ export function testNotificationText(
     return {
         source: sourceTitle(tr, serviceLabel, instance.displayName),
         title: readingTitle(tr, window ?? preview, consumed, mode),
-        body: formatText(_('Test notification · %s'), resetText(tr, window?.resetAt ?? null, now)),
+        body: formatText(_('Test notification - %s'), resetText(tr, window?.resetAt ?? null, now)),
     };
 }
 

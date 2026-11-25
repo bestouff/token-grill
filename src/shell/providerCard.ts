@@ -178,7 +178,7 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
         const head = new St.BoxLayout({x_expand: true});
         const nameLabel = label(title, 'tokengrill-window-name', {x_expand: true});
         this._warning = new St.Icon({icon_name: 'dialog-warning-symbolic', style_class: 'popup-menu-icon', visible: false});
-        this._value = label('—', 'tokengrill-value');
+        this._value = label('-', 'tokengrill-value');
         head.add_child(nameLabel);
         head.add_child(this._warning);
         head.add_child(this._value);
@@ -224,7 +224,7 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
         this._meter.value = percent ?? 0;
         this._meter.visible = percent !== null;
         const caption = windowCaption(TRANSLATOR, window);
-        this._caption.set_text(shown && automatic ? formatText(_('%s · chosen automatically'), caption) : caption);
+        this._caption.set_text(shown && automatic ? formatText(_('%s - chosen automatically'), caption) : caption);
         for (const actor of [this._meter, this._value]) {
             actor.remove_style_class_name('tokengrill-warning');
             actor.remove_style_class_name('tokengrill-critical');
@@ -276,8 +276,8 @@ export class InfoItem extends StaticMenuItem {
 
 function creditsMenuText(summary: LimitResetCreditSummary, count: number): string {
     if (summary.stale)
-        return ngettext('Reset Credits · %d Available (Cached)', 'Reset Credits · %d Available (Cached)', count).format(count);
-    return ngettext('Reset Credits · %d Available', 'Reset Credits · %d Available', count).format(count);
+        return ngettext('Reset Credits - %d Available (Cached)', 'Reset Credits - %d Available (Cached)', count).format(count);
+    return ngettext('Reset Credits - %d Available', 'Reset Credits - %d Available', count).format(count);
 }
 
 function creditsNoneText(summary: LimitResetCreditSummary | null): string | null {
@@ -391,14 +391,14 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
         }
         if (instance.app === 'opencode')
             subtitle.push(_('via OpenCode'));
-        this._identity.setText(instance.displayName, subtitle.join(' · '), refreshStatusText(TRANSLATOR, snapshot, runtime, clockLabel));
+        this._identity.setText(instance.displayName, subtitle.join(' - '), refreshStatusText(TRANSLATOR, snapshot, runtime, clockLabel));
         this._identity.setBusy(runtime !== null && runtime.phase !== 'idle');
 
         this._error.setText(errorText(TRANSLATOR, snapshot, instance));
         this._signIn.visible = snapshot?.errorInfo?.recovery === 'reauthenticate' && signInCommand(instance) !== null;
         this._updateLimits(instance, snapshot, mode);
         const balance = snapshot?.balance ?? null;
-        this._balance.setText(balance ? formatText(_('%s left · prepaid balance'), formatMoney(balance, 2)) : null);
+        this._balance.setText(balance ? formatText(_('%s left - prepaid balance'), formatMoney(balance, 2)) : null);
 
         this._updateCredits(snapshot?.resetCredits ?? null);
         this._history.setText(historySummary(TRANSLATOR, historyMetrics(instance, snapshot, runtime)));
@@ -432,9 +432,9 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
             const title = credit.title || _('Usage-limit reset');
             const row = new InfoItem();
             if (credit.expiresAt)
-                row.setText(_('%s · expires %s (in %s)').format(title, formatTime(new Date(credit.expiresAt)), countdown(credit.expiresAt)));
+                row.setText(_('%s - expires %s (in %s)').format(title, formatTime(new Date(credit.expiresAt)), countdown(credit.expiresAt)));
             else
-                row.setText(_('%s · expiry unavailable').format(title));
+                row.setText(_('%s - expiry unavailable').format(title));
             this._credits.menu.addMenuItem(row);
         }
     }

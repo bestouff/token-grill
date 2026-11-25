@@ -59,12 +59,12 @@ export function displayLabel(tr: Translator, window: UsageWindow | null, mode: P
     const {_} = tr;
     const percent = displayPercent(window, mode);
     if (percent === null)
-        return '—';
+        return '-';
     const rounded = Math.round(percent * 100);
     return mode === 'remaining' ? formatText(_('%d%% left'), rounded) : formatText(_('%d%% used'), rounded);
 }
 
-// A prepaid amount in its own currency, such as "¥42" or "$12.40".
+// A prepaid amount in its own currency, such as "$12.40".
 export function formatMoney(balance: Balance, digits: number): string {
     return new Intl.NumberFormat(undefined, {
         style: 'currency', currency: balance.currency, currencyDisplay: 'narrowSymbol', minimumFractionDigits: digits, maximumFractionDigits: digits,

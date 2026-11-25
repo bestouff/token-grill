@@ -49,7 +49,7 @@ test('notification buckets are clamped and step-normalized', () => {
 test('a limit alert reads service, account, limit and amount', () => {
     const weekly = {id: 'seven_day', canonicalWindow: 'weekly', label: 'Weekly', percent: 0.88, resetAt: NOW + 2 * DAY};
     assert.deepEqual(limitNotificationText(tr, 'Claude', {displayName: 'Main'}, weekly, 0.88, 'remaining', NOW), {
-        source: 'Claude · Main',
+        source: 'Claude - Main',
         title: 'Weekly: 12% left',
         body: 'Resets in 2d 0h',
     });
@@ -57,17 +57,17 @@ test('a limit alert reads service, account, limit and amount', () => {
 });
 
 test('model-specific limits use their label and unknown resets say so', () => {
-    const opus = {id: 'seven_day_opus', canonicalWindow: 'other', label: 'Weekly · Opus', percent: 0.4, resetAt: null};
+    const opus = {id: 'seven_day_opus', canonicalWindow: 'other', label: 'Weekly - Opus', percent: 0.4, resetAt: null};
     const text = limitNotificationText(tr, 'Claude', {displayName: 'Main'}, opus, 0.4, 'remaining', NOW);
-    assert.equal(text.title, 'Weekly · Opus: 60% left');
+    assert.equal(text.title, 'Weekly - Opus: 60% left');
     assert.equal(text.body, 'Reset time unknown');
 });
 
 test('a balance alert reads service, account and amount left', () => {
-    assert.deepEqual(balanceNotificationText(tr, 'DeepSeek', {displayName: 'API', lowBalance: 10}, {amount: 8.4, currency: 'CNY'}), {
-        source: 'DeepSeek · API',
-        title: 'Balance: ¥8.40 left',
-        body: 'Below your ¥10.00 warning',
+    assert.deepEqual(balanceNotificationText(tr, 'DeepSeek', {displayName: 'API', lowBalance: 10}, {amount: 8.4, currency: 'USD'}), {
+        source: 'DeepSeek - API',
+        title: 'Balance: $8.40 left',
+        body: 'Below your $10.00 warning',
     });
 });
 
@@ -78,7 +78,7 @@ test('each shown limit has its own state key', () => {
 
 test('test notifications use the first shown limit and its current reading', () => {
     const pinned = testNotificationText(tr, 'Codex', provider({automatic: false, limits: ['five-hour']}), snapshot, 'remaining', NOW);
-    assert.deepEqual(pinned, {source: 'Codex · Personal', title: 'Five-hour: 58% left', body: 'Test notification · Reset time unknown'});
+    assert.deepEqual(pinned, {source: 'Codex - Personal', title: 'Five-hour: 58% left', body: 'Test notification - Reset time unknown'});
     assert.equal(testNotificationText(tr, 'Codex', provider(auto), snapshot, 'remaining', NOW).title, 'Weekly: 32% left');
 });
 
