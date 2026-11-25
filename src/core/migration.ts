@@ -1,6 +1,6 @@
 import type Gio from 'gi://Gio';
 
-import type {ServiceState} from './types.js';
+import type {ImportResult, ServiceState} from './types.js';
 
 // The 0.4 GSettings values that the service takes over once, under the names its ImportAccounts reads.
 export interface LegacySettings {
@@ -17,7 +17,7 @@ export type LegacySettingsSource = Pick<Gio.Settings, 'get_string' | 'get_uint' 
 
 export interface ImportingClient {
     readonly state: Pick<ServiceState, 'accounts'> | null;
-    importAccounts(legacy: LegacySettings): Promise<number>;
+    importAccounts(legacy: LegacySettings): Promise<ImportResult>;
 }
 
 const ACCOUNTS_KEY = 'provider-instances-json';
@@ -36,7 +36,9 @@ function legacySettings(settings: LegacySettingsSource): LegacySettings {
 }
 
 // 0.4 kept the accounts in GSettings. The service takes them only while it has none, and the key is
-// emptied only after the service has them, so a failed import is tried again at the next connection.
+// emptied only after the service holds them, so a failed import is tried again at the next connection.
+// A refused import keeps the key: the service has other accounts, or it imported other 0.4 values
+// before, and the key may then be the only copy of accounts added in 0.4 after a downgrade.
 // After disable() or a closed window the key stays: the service has the accounts then, so the next connection skips this.
 export async function migrateOnce(
     settings: LegacySettingsSource, client: ImportingClient, cancellable: Pick<Gio.Cancellable, 'is_cancelled'>
@@ -46,8 +48,8 @@ export async function migrateOnce(
         return;
     if (settings.get_string(ACCOUNTS_KEY).trim() === NO_ACCOUNTS)
         return;
-    await client.importAccounts(legacySettings(settings));
-    if (cancellable.is_cancelled())
+    const result = await client.importAccounts(legacySettings(settings));
+    if (result.refused || cancellable.is_cancelled())
         return;
     settings.set_string(ACCOUNTS_KEY, NO_ACCOUNTS);
 }

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 import {
-    parseAccountChanged, parseAccounts, parseAlert, parseSettings, parseState, ServiceSchemaError, statusForError,
+    parseAccountChanged, parseAccounts, parseAlert, parseImportResult, parseSettings, parseState, ServiceSchemaError,
+    statusForError,
 } from '../../build/tests/service-state.mjs';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -58,6 +59,15 @@ test('signal payloads are checked for schema 1', () => {
     assert.equal(changed.snapshot.providerId, 'a');
     assert.equal(changed.runtime.phase, 'idle');
     assert.throws(() => parseAccountChanged('{"schema":2,"snapshot":{},"runtime":{}}'), /schema/);
+});
+
+test('an import counts as taken only when the service says it was not refused', () => {
+    assert.deepEqual(parseImportResult('{"schema":1,"imported":2,"refused":false}'), {imported: 2, refused: false});
+    assert.deepEqual(parseImportResult('{"schema":1,"imported":0,"refused":false}'), {imported: 0, refused: false});
+    assert.deepEqual(parseImportResult('{"schema":1,"imported":0,"refused":true}'), {imported: 0, refused: true});
+    // A reply without the flag cannot prove that the service holds the values.
+    assert.deepEqual(parseImportResult('{"schema":1,"imported":0}'), {imported: 0, refused: true});
+    assert.throws(() => parseImportResult('{"schema":2,"imported":1,"refused":false}'), /schema/);
 });
 
 const CLIENT = 'src/client.ts';

@@ -280,7 +280,7 @@ def legacy(home: str = "~/.codex-legacy") -> LegacySettings:
 
 async def test_import_twice_imports_once(tmp_path: Path) -> None:
     rig = await build(tmp_path, [])
-    assert await rig.runtime.import_accounts(legacy()) == 1
+    assert await rig.runtime.import_accounts(legacy()) == {"imported": 1, "refused": False}
     state = rig.runtime.state()
     assert len(state["accounts"]) == 1 and state["settings"]["refreshIntervalSeconds"] == 120
     assert len(rig.events.account_lists) == 1 and len(rig.events.settings) == 1
@@ -288,14 +288,14 @@ async def test_import_twice_imports_once(tmp_path: Path) -> None:
     kept = backup.read_text(encoding="ascii")
     # Removing every account must not reopen the import and replace the backup.
     await rig.runtime.remove_account(state["accounts"][0]["id"], False)
-    assert await rig.runtime.import_accounts(legacy("~/.other")) == 0
+    assert await rig.runtime.import_accounts(legacy("~/.other")) == {"imported": 0, "refused": True}
     assert backup.read_text(encoding="ascii") == kept
     assert rig.runtime.state()["accounts"] == []
     await rig.runtime.stop()
 
 
 async def test_import_is_refused_when_accounts_exist(rig: Rig) -> None:
-    assert await rig.runtime.import_accounts(legacy()) == 0
+    assert await rig.runtime.import_accounts(legacy()) == {"imported": 0, "refused": True}
     assert not (rig.store.path.parent / "imported-0.4.json").exists()
 
 
@@ -318,7 +318,7 @@ async def test_failed_config_save_leaves_no_backup_and_a_retry_imports(
         await rig.runtime.import_accounts(legacy())
     assert not (rig.store.path.parent / "imported-0.4.json").exists()
     monkeypatch.setattr(rig.store, "save", real_save)
-    assert await rig.runtime.import_accounts(legacy()) == 1
+    assert await rig.runtime.import_accounts(legacy()) == {"imported": 1, "refused": False}
     assert (rig.store.path.parent / "imported-0.4.json").exists()
     await rig.runtime.stop()
 

@@ -450,12 +450,24 @@ class ConfigStore:
         await self._writer.write(config)
 
 
-async def import_legacy(store: ConfigStore, legacy: LegacySettings) -> int:
+class ImportResult(TypedDict):
+    """`refused` is true when the service did not take these values and does not have them, so the
+    caller must keep its copy. An import of the values that the backup already holds is not refused."""
+
+    imported: int
+    refused: bool
+
+
+async def import_legacy(store: ConfigStore, legacy: LegacySettings) -> ImportResult:
     """Takes over the 0.4.x GSettings once; the raw values stay beside config.json for recovery."""
     backup_path = store.path.with_name("imported-0.4.json")
     # The backup is the only copy of the GSettings values, so a second import must never replace it.
-    if store.load()["accounts"] or backup_path.exists():
-        return 0
+    if backup_path.exists():
+        backup = read_json(backup_path, MAX_STATE_BYTES)
+        taken = is_record(backup) and backup.get("providerInstancesJson") == legacy["providerInstancesJson"]
+        return {"imported": 0, "refused": not taken}
+    if store.load()["accounts"]:
+        return {"imported": 0, "refused": True}
     accounts = migrate_provider_settings(legacy)
     settings = _settings_from(
         {
@@ -468,4 +480,4 @@ async def import_legacy(store: ConfigStore, legacy: LegacySettings) -> int:
     # The accounts go first: a backup beside a config that failed to save would block every retry.
     await store.save({"schema": 1, "accounts": accounts, **settings})
     await SerialWriter(backup_path).write(legacy)
-    return len(accounts)
+    return {"imported": len(accounts), "refused": False}

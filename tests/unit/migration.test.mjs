@@ -35,7 +35,9 @@ function fakeSettings(values = {}) {
     };
 }
 
-function fakeClient(accounts, reply = () => Promise.resolve(1)) {
+const TAKEN = {imported: 1, refused: false};
+
+function fakeClient(accounts, reply = () => Promise.resolve(TAKEN)) {
     const calls = [];
     return {
         calls,
@@ -78,7 +80,7 @@ test('the key is cleared only after the service has the accounts', async () => {
     await Promise.resolve();
     assert.equal(client.calls.length, 1);
     assert.deepEqual(settings.writes, [], 'nothing is cleared while the call is in flight');
-    resolve(1);
+    resolve(TAKEN);
     await migration;
     assert.deepEqual(settings.writes, [['provider-instances-json', '[]']]);
 });
@@ -121,9 +123,25 @@ test('a reply that arrives after disable() leaves the key alone', async () => {
     let cancelled = false;
     const client = fakeClient([], () => {
         cancelled = true;
-        return Promise.resolve(1);
+        return Promise.resolve(TAKEN);
     });
     await migrateOnce(settings, client, {is_cancelled: () => cancelled});
     assert.equal(client.calls.length, 1);
     assert.deepEqual(settings.writes, []);
+});
+
+test('a refused import keeps the key', async () => {
+    const settings = fakeSettings();
+    const client = fakeClient([], () => Promise.resolve({imported: 0, refused: true}));
+    await migrateOnce(settings, client, LIVE);
+    assert.equal(client.calls.length, 1);
+    assert.deepEqual(settings.writes, []);
+    assert.equal(settings.store['provider-instances-json'], LEGACY_JSON);
+});
+
+test('an import that takes nothing but is not refused empties the key', async () => {
+    const settings = fakeSettings();
+    const client = fakeClient([], () => Promise.resolve({imported: 0, refused: false}));
+    await migrateOnce(settings, client, LIVE);
+    assert.deepEqual(settings.writes, [['provider-instances-json', '[]']]);
 });

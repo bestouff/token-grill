@@ -4,10 +4,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from conftest import IFACE, NAME, PATH, WAIT, connect
 from dbus_fast import DBusError
 from dbus_fast.aio import MessageBus, ProxyInterface
 
+from conftest import IFACE, NAME, PATH, WAIT, connect
 from tokengrill.core.config import default_settings, new_provider
 
 pytestmark = pytest.mark.integration
@@ -154,10 +154,15 @@ async def test_import_twice_imports_once(env: dict[str, str], service: subproces
     bus = await connect(env)
     iface = await proxy(bus)
     signals = Signals(iface)
-    assert json.loads(await iface.call_import_accounts(legacy_json(tmp_path)))["imported"] == 1  # type: ignore[attr-defined]
+    values = legacy_json(tmp_path)
+    first = json.loads(await iface.call_import_accounts(values))  # type: ignore[attr-defined]
+    assert first == {"schema": 1, "imported": 1, "refused": False}
     assert len((await next_signal(signals.accounts))["accounts"]) == 1  # type: ignore[arg-type]
     await next_signal(signals.settings)
-    assert json.loads(await iface.call_import_accounts(legacy_json(tmp_path)))["imported"] == 0  # type: ignore[attr-defined]
+    again = json.loads(await iface.call_import_accounts(values))  # type: ignore[attr-defined]
+    assert again == {"schema": 1, "imported": 0, "refused": False}
+    other = json.loads(await iface.call_import_accounts(legacy_json(tmp_path / "other")))  # type: ignore[attr-defined]
+    assert other == {"schema": 1, "imported": 0, "refused": True}
     state = json.loads(await iface.call_get_state())  # type: ignore[attr-defined]
     assert len(state["accounts"]) == 1
     assert state["settings"]["refreshIntervalSeconds"] == 120

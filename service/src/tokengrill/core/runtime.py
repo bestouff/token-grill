@@ -19,6 +19,7 @@ from tokengrill.core.alerts import check_milestone, notification_key, should_not
 from tokengrill.core.config import (
     Config,
     ConfigStore,
+    ImportResult,
     LegacySettings,
     apply_settings_patch,
     import_legacy,
@@ -212,23 +213,23 @@ class Runtime:
 
     # Account and settings edits
 
-    async def import_accounts(self, legacy: object) -> int:
-        """The one-time takeover of the 0.4.x GSettings; refused once there are accounts or a backup."""
+    async def import_accounts(self, legacy: object) -> ImportResult:
+        """The one-time takeover of the 0.4.x GSettings; refused once there are accounts or a backup of other values."""
         values: LegacySettings = parse_legacy(legacy)
         async with self._edits:
             if self._config is None:
                 raise InvalidRequest("the service has not started")
             try:
-                imported = await import_legacy(self._config_store, values)
+                result = await import_legacy(self._config_store, values)
             except OSError:
                 # The accounts are saved before the backup is written; a failed backup must not leave this stale.
                 saved = self._config_store.load()
                 if saved["accounts"]:
                     await self._adopt(saved)
                 raise
-            if imported:
+            if result["imported"]:
                 await self._adopt(self._config_store.load())
-            return imported
+            return result
 
     async def add_accounts(self, entries: object) -> tuple[list[str], dict[str, ProviderValidationErrors]]:
         """A draft may carry a pasted `apiKey`: it is stored before its account exists, as in 0.4.1, so a key the

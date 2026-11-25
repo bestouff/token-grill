@@ -180,8 +180,7 @@ class TokenGrillInterface(ServiceInterface):
     @method()
     async def ImportAccounts(self, legacy: "s") -> "s":
         async with self._call() as runtime:
-            imported = await _checked(runtime.import_accounts(parse_json_arg(legacy)))
-            return _result({"imported": imported})
+            return _result(dict(await _checked(runtime.import_accounts(parse_json_arg(legacy)))))
 
     @method()
     async def AddAccounts(self, accounts: "s") -> "s":

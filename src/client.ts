@@ -3,12 +3,12 @@ import GLib from 'gi://GLib';
 
 import {isCancellation} from './core/gio.js';
 import {
-    parseAccountChanged, parseAccounts, parseAlert, parseResult, parseSettings, parseState, ServiceSchemaError,
-    statusForError,
+    parseAccountChanged, parseAccounts, parseAlert, parseImportResult, parseResult, parseSettings, parseState,
+    ServiceSchemaError, statusForError,
     type ClientStatus,
 } from './core/serviceState.js';
 import type {
-    AccountDraft, Alert, Candidate, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, ServiceState, Settings,
+    AccountDraft, Alert, Candidate, ImportResult, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, ServiceState, Settings,
 } from './core/types.js';
 import {INTERFACE_NAME, INTERFACE_XML, MIN_API_VERSION, OBJECT_PATH, SERVICE_NAME} from './dbus/interface.js';
 
@@ -168,9 +168,8 @@ export class ServiceClient {
             this.state.paused = paused;
     }
 
-    async importAccounts(legacy: unknown): Promise<number> {
-        const result = await this._json('ImportAccounts', legacy);
-        return result['imported'] as number;
+    async importAccounts(legacy: unknown): Promise<ImportResult> {
+        return parseImportResult(await this._invoke('ImportAccounts', new GLib.Variant('(s)', [JSON.stringify(legacy)])));
     }
 
     // Either the new ids, or the validation errors of each entry that was refused. A draft with a pasted

@@ -251,13 +251,47 @@ EXPECTED_03_TOP_BAR = [
 
 async def test_import_runs_once(tmp_path: Path) -> None:
     store = ConfigStore(tmp_path / "config.json")
-    assert await import_legacy(store, LEGACY_04) == 2
-    assert await import_legacy(store, LEGACY_04) == 0
+    assert await import_legacy(store, LEGACY_04) == {"imported": 2, "refused": False}
+    # The same values again are already in: the caller may drop its copy.
+    assert await import_legacy(store, LEGACY_04) == {"imported": 0, "refused": False}
     backup = json.loads((tmp_path / "imported-0.4.json").read_text())
     assert backup["providerInstancesJson"] == LEGACY_04["providerInstancesJson"]
     assert stat.S_IMODE((tmp_path / "imported-0.4.json").stat().st_mode) == 0o600
     assert stat.S_IMODE((tmp_path / "config.json").stat().st_mode) == 0o600
     assert [a["id"] for a in store.load()["accounts"]] == ["b", "a"]
+
+
+async def test_import_of_other_values_after_an_import_is_refused(tmp_path: Path) -> None:
+    store = ConfigStore(tmp_path / "config.json")
+    await import_legacy(store, LEGACY_04)
+    await store.save({**store.load(), "accounts": []})
+    other = copy.deepcopy(LEGACY_04)
+    other["providerInstancesJson"] = "[]"
+    assert await import_legacy(store, other) == {"imported": 0, "refused": True}
+    assert store.load()["accounts"] == []
+
+
+async def test_import_with_accounts_present_is_refused(tmp_path: Path) -> None:
+    store = ConfigStore(tmp_path / "config.json")
+    await import_legacy(store, LEGACY_04)
+    (tmp_path / "imported-0.4.json").unlink()
+    assert await import_legacy(store, LEGACY_03) == {"imported": 0, "refused": True}
+    assert not (tmp_path / "imported-0.4.json").exists()
+
+
+async def test_import_of_an_empty_list_is_not_refused(tmp_path: Path) -> None:
+    store = ConfigStore(tmp_path / "config.json")
+    empty = copy.deepcopy(LEGACY_04)
+    empty["providerInstancesJson"] = "[]"
+    assert await import_legacy(store, empty) == {"imported": 0, "refused": False}
+    assert (tmp_path / "imported-0.4.json").exists()
+
+
+async def test_an_unreadable_backup_refuses_the_import(tmp_path: Path) -> None:
+    store = ConfigStore(tmp_path / "config.json")
+    (tmp_path / "imported-0.4.json").write_text("{", encoding="ascii")
+    assert await import_legacy(store, LEGACY_04) == {"imported": 0, "refused": True}
+    assert store.load()["accounts"] == []
 
 
 async def test_import_of_03_entries_keeps_top_bar_account(tmp_path: Path) -> None:

@@ -23,6 +23,10 @@ export const INTERFACE_XML = `<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS O
   string. The service stores it in the keyring before it adds the account. If the
   keyring cannot store it, the call fails with the error
   io.github.sh02sahil.TokenGrill.Error.KeyringUnavailable and adds nothing.
+  ImportAccounts returns {"schema": 1, "imported": n, "refused": b}. "refused" is
+  true when the service did not take the values and does not hold them (it has
+  accounts, or it imported other 0.4 values before); the caller then keeps its
+  copy. A repeat of the values that it imported before is not refused.
 -->
 <node>
   <interface name="io.github.sh02sahil.TokenGrill1">

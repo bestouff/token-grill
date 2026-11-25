@@ -176,6 +176,12 @@ export interface ServiceState {
     runtime: Record<string, ProviderRuntimeState>;
 }
 
+// The reply of ImportAccounts. `refused` is true when the service neither took the values nor holds them.
+export interface ImportResult {
+    imported: number;
+    refused: boolean;
+}
+
 export interface Alert {
     schema: 1;
     kind: AlertKind;

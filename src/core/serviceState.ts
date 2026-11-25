@@ -1,5 +1,5 @@
 import type {
-    Alert, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, ServiceState, Settings,
+    Alert, ImportResult, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, ServiceState, Settings,
 } from './types.js';
 
 export type ClientStatus = 'connecting' | 'missing' | 'too-old' | 'not-responding' | 'connected';
@@ -66,4 +66,11 @@ export function parseAccountChanged(text: string): AccountUpdate {
 
 export function parseResult(text: string): Record<string, unknown> {
     return parseObject(text, 'service result');
+}
+
+// Only an explicit "not refused" lets the caller drop its own copy of the values.
+export function parseImportResult(text: string): ImportResult {
+    const result = parseResult(text);
+    const imported = result['imported'];
+    return {imported: typeof imported === 'number' ? imported : 0, refused: result['refused'] !== false};
 }
