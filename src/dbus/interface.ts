@@ -14,6 +14,15 @@ export const INTERFACE_XML = `<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS O
   AccountChanged carries (account_id, snapshot_json); the JSON is
   {"schema": 1, "snapshot": <ProviderSnapshot>, "runtime": <ProviderRuntimeState>}.
   No method or signal returns a token, a key or a file's contents.
+
+  Hello(kind) registers the caller as a "shell", "prefs" or "cli" client.
+  Goodbye() removes that registration at once, so the idle timer of the service
+  starts when the last "shell" or "prefs" client has left; a client that only
+  disconnects is noticed through the bus name.
+  AddAccounts takes a draft list in which a DeepSeek draft may carry an "apiKey"
+  string. The service stores it in the keyring before it adds the account. If the
+  keyring cannot store it, the call fails with the error
+  io.github.sh02sahil.TokenGrill.Error.KeyringUnavailable and adds nothing.
 -->
 <node>
   <interface name="io.github.sh02sahil.TokenGrill1">

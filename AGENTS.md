@@ -1,10 +1,12 @@
 # Token Grill: notes for coding agents
 
-Token Grill is a GNOME Shell extension in TypeScript. It shows the usage
+Token Grill has two parts. The GNOME Shell extension (`src/`, TypeScript) is
+the UI and a D-Bus client. The Python service (`service/`, package
+`tokengrill` on PyPI) reads the credentials of other tools, gets the usage
 limits of Codex, Claude, Kiro, Antigravity, GitHub Copilot, OpenCode Go, Kimi
-Code, and Cursor accounts and the DeepSeek balance in the top bar. It
-operates with GNOME Shell 48, 49, 50, and 51. The target is
-extensions.gnome.org.
+Code, and Cursor accounts and the DeepSeek balance, and serves them over
+D-Bus. The extension shows them in the top bar. It operates with GNOME Shell
+48, 49, 50, and 51. The target is extensions.gnome.org.
 
 [PRACTICES.md](PRACTICES.md) is the set of rules. Each rule in it is a hard
 rule. Before you change a file, read the sections that apply to that file.
@@ -12,68 +14,88 @@ rule. Before you change a file, read the sections that apply to that file.
 
 ## Architecture
 
-Two processes load this code. A module of one process must not import the UI
-modules of the other process.
+Three process kinds exist: the service, the Shell process, and the
+preferences process. The extension has no collectors and makes no network
+request. A module of one process must not import the UI modules of another.
 
-**Shell process** (`extension.js` and all the modules that it imports):
+### The D-Bus contract
 
-- `src/extension.ts`: `enable()` creates a `Runtime`, and `disable()` stops it.
-  This file contains nothing more.
+- `service/src/tokengrill/dbus/interface.xml` is the source of truth. The
+  text in `src/dbus/interface.ts` must be identical (a unit test compares
+  them). Names: bus `io.github.sh02sahil.TokenGrill`, path
+  `/io/github/sh02sahil/TokenGrill`, interface
+  `io.github.sh02sahil.TokenGrill1`.
+- Structured data crosses as JSON strings with `"schema": 1` and the 0.4.1
+  camelCase field names. No method or signal returns a token, a key, or the
+  content of a file.
+- `Hello(kind)` registers a client (`shell`, `prefs`, `cli`). `Goodbye()`
+  removes it. The service exits 60 seconds after the last `shell` or `prefs`
+  client has left.
+- The scheduler, the history scans, and the alert decisions run only while a
+  `shell` client is registered (shell-gated). The extension must call
+  `Goodbye()` in `disable()`.
+- An additive change raises `ApiVersion`. A breaking change makes a new
+  interface name. The extension states the minimum `ApiVersion`.
 
-- `src/runtime.ts`: owns all objects that `enable()` creates. These are the
-  settings, the cancellable, the Soup session, the stores (totals, checkpoints,
-  balances, last readings, diagnostics), the collectors, the scheduler, the
-  indicator, and the notification store. `stop()` releases all of them.
+### Extension: Shell process (`extension.js` and all the modules that it imports)
 
-- `src/core/scheduler.ts`: owns its one timeout. It selects the accounts for
-  the next refresh.
+- `src/extension.ts`: `enable()` creates a `Runtime`, and `disable()` stops
+  it. This file contains nothing more.
 
-- `src/providers/`: one collector for each service (`codex/`, `claude/`,
-  `kiro/`, `antigravity/`, `copilot/`, `opencode-go/`, `deepseek/`, `kimi/`,
-  `cursor/`). `opencode/` reads the OpenCode sign-in file for several services.
-  `registry.ts` creates the collectors.
+- `src/runtime.ts`: owns all objects that `enable()` creates: the settings,
+  the cancellable, the `ServiceClient`, the notification store, and the
+  indicator. `stop()` releases all of them.
 
-More modules of the Shell process:
-
-- `src/providers/base.ts`: the HTTP client and the shared snapshot and history
-  steps. The client uses a fixed list of hosts and only HTTPS. It accepts no
-  redirects, rejects responses over 1 MiB, and sends the single `USER_AGENT`.
-
-- `src/providers/credentials.ts`, `keyring.ts`, `sqlite.ts`, `jwt.ts`: read the
-  credential files, keyring items, and databases of other tools, read-only.
-
-- `src/providers/history.ts`: reads the JSONL session logs.
-
-- `src/storage/`: `atomicJson.ts` (limited reads, private atomic writes,
-  `SerialWriter`), `aggregateStore.ts` (daily token totals),
-  `checkpointStore.ts` (read offsets), `balanceStore.ts` (full prepaid
-  balances), `snapshotStore.ts` (the last reading of each account, without the
-  e-mail address), `diagnosticsStore.ts`, and `jsonl.ts` (line reader).
+- `src/client.ts`: `ServiceClient`, the D-Bus client. It builds the proxy
+  asynchronously, calls `Hello`, follows the signals, and keeps the state. A
+  missing or old service is a state of the client, not an error.
 
 - `src/shell/`: the panel button and the popup (`indicator.ts`, `topBar.ts`,
-  `providerCard.ts`, `accountChip.ts`, `toggleGroup.ts`), the notifications,
-  and `signIn.ts` (opens a CLI login in the user's terminal).
+  `providerCard.ts`, `serviceCard.ts`, `accountChip.ts`, `toggleGroup.ts`),
+  the notifications, and `signIn.ts` (opens a CLI login in the user's
+  terminal with the argv and env that the service gives).
+
+- `src/core/`: code for both processes and the unit tests. It does not import
+  Shell modules (`resource:///org/gnome/shell/...`) or GTK modules. Each
+  function that makes text for the user gets a `Translator` (`core/i18n.ts`).
+  The unit tests give `UNTRANSLATED`. The Shell gives `shell/translator.ts`.
 
 **Preferences process** (`prefs.js`): `src/prefs.ts` makes the window from the
-pages and dialogs in `src/prefs/`. To show the credential state, it also
-imports the `auth.ts` modules of the services.
+pages and dialogs in `src/prefs/`. It uses the same `ServiceClient`. It does
+not import the modules of `src/shell/`.
 
-**Code for both processes and the unit tests**: `src/core/` does not import
-Shell modules (`resource:///org/gnome/shell/...`) or GTK modules. Each
-function in `src/core/` that makes text for the user gets a `Translator`
-(`core/i18n.ts`). The unit tests give `UNTRANSLATED`. The Shell gives
-`shell/translator.ts`.
+### Service (`service/src/tokengrill/`)
+
+- `cli.py`: the commands `setup`, `uninstall [--purge]`, `status [--json]
+  [--refresh]`, `version`, and `run`.
+- `service.py` and `dbus/`: the D-Bus object, the client list, and the idle
+  exit. `core/`: the logic without I/O (scheduler, alerts, pace, config).
+- `providers/`: one collector for each service. `providers/base.py` has the
+  shared snapshot and history steps. `net/http.py` is the one HTTP client: a
+  fixed list of hosts, only HTTPS, no redirects, a response cap of 1 MiB, a
+  timeout of 30 s, and the single `USER_AGENT`.
+- `providers/credentials.py`, `keyring.py`, `sqlite.py`, `jwt.py`: read the
+  credential files, keyring items, and databases of other tools, read-only.
+  `providers/history.py` reads the JSONL session logs.
+- `storage/`: private atomic JSON files. The formats are the 0.4.1 formats.
 
 The data flow:
 
-1. The scheduler gives the due accounts to `Runtime._collect()`, one account
-   at a time.
+1. The service scheduler selects the due accounts while a `shell` client is
+   registered.
+2. Each collector returns a new `ProviderSnapshot`. A `CollectorError` becomes
+   a stale or an error snapshot.
+3. The service keeps the snapshot, decides the alerts, and emits
+   `AccountChanged` and `Alert`.
+4. The extension shows the snapshot and writes the text of each alert.
 
-2. Each collector returns a new `ProviderSnapshot`. It reports the source
-   phases and results through its `CollectorContext`.
+## Where each rule lives
 
-3. The runtime keeps the snapshot and sends the milestone notifications. Then
-   it updates the indicator.
+- The extension code (`src/`): [PRACTICES.md](PRACTICES.md) sections 3 to 18
+  and "Invariants" below.
+- The service code (`service/`): PRACTICES section "Service" (SV-1 to SV-14)
+  and "Rules for the service" below.
+- Process and text rules: PRACTICES sections 6 and 9, and "Rules for text".
 
 ## Commands
 
@@ -84,11 +106,16 @@ npm test               # bundles pure modules into build/tests/, then node --tes
 npm run build          # per-file tsc emit into dist/<uuid>/, then GNOME ESLint over dist/
 npm run release:check  # metadata, package tree, development traces, line length
 npm run review:check   # pack, then Shexli on dist/ and on the zip; must report zero findings
-npm run test:gda       # synthetic kiro-cli and Cursor databases through the real Gda code (no network)
-npm run test:live -- <codex|claude|kiro|antigravity|copilot|opencode-go|deepseek|kimi|cursor> [home] [auth-file]
-                       # one real collection with the user's credentials; prints no secrets
 npm run install:local  # replaces the user's installed copy: only after nested-shell checks
 npm run dev:shell      # nested GNOME Shell with the installed copy
+```
+
+In `service/` (after `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'`):
+
+```bash
+.venv/bin/pytest -q                 # unit tests, including the parity test
+.venv/bin/pytest -q -m integration  # a real session bus, or the network
+.venv/bin/ruff check . && .venv/bin/mypy src
 ```
 
 ## Examine a change
@@ -96,14 +123,19 @@ npm run dev:shell      # nested GNOME Shell with the installed copy
 1. Run `npm run check`, `npm test`, `npm run build`, `npm run release:check`,
    and `npm run review:check`. Each command must show 0 findings.
 
-2. If you change a service or the network code, run `npm run test:live` for
-   each service that the change touches. Keep only the response keys that you
-   saw in a real response.
+2. If you change a collector or the network code of the service, run its
+   integration test (`-m integration`) for each service that the change
+   touches. Keep only the response keys that you saw in a real response. If
+   you change `interface.xml`, copy it into `src/dbus/interface.ts`.
 
 3. If you change the Shell code or the preferences, do a test in a nested
-   shell. Do this test before you change the installed copy of the user.
+   shell. Do this test before you change the installed copy of the user. The
+   nested shell needs a service: run `tokengrill setup` from the venv of
+   `service/`.
 
-4. Do not run `npm run install:local` on the real data directory before the
+4. Run the service checks above if you change `service/`.
+
+5. Do not run `npm run install:local` on the real data directory before the
    user sees the results of the nested shell test.
 
 The nested shell test:
@@ -150,6 +182,14 @@ Rules for the code:
 - Each `src/**/*.ts` file goes into the release as its own `.js` file. If no
   module imports a file, delete the file.
 
+- The extension imports no `Secret` or `Gda`, makes no network request, and
+  starts no subprocess except the terminal of "Sign In Again in a Terminal".
+  It never reads the clipboard.
+
+- Python: ruff and mypy `strict` pass, no `# type: ignore` without a reason in
+  `pyproject.toml`, and no bare `except`. A failure in a collector is a
+  `ServiceError` or a bug. A bug is logged and becomes the `internal` error.
+
 - A comment tells why, not what. Do not write narration, step numbers,
   version hedges, TODOs, or AI or prompt text (PRACTICES section 2).
 
@@ -166,27 +206,34 @@ Rules for text:
 - Service names ("Codex", "Claude", "Kiro", "Antigravity") stay as plain text
   (PRACTICES LE-3a).
 
-- Errors of a service are `CollectorError(code, ({_}) => _('...'))`. The message
+- The service sends an error as `errorInfo = {code, messageId, params,
+  recovery}`. The English texts are in `service/src/tokengrill/core/messages.py`
+  and the translated texts are in `src/core/serviceMessages.ts`. The message
   tells only the problem. `errorText()` in `core/popupModel.ts` adds the
   correction for each service.
 
-- In a collector, a failure is a `CollectorError` or a bug. A `CollectorError`
-  becomes a stale snapshot or an error snapshot. A bug goes to the runtime,
-  and the runtime writes it to the log. Do not catch all errors.
+- In a collector, a failure is a `ServiceError` or a bug. A `ServiceError`
+  becomes a stale snapshot or an error snapshot. A bug goes to the log of the
+  service and becomes the `internal` error. Do not catch all errors.
 
-Rules for the network and data:
+Rules for the service (network and data):
 
-- Use only the hosts in `providers/base.ts` (`ALLOWED_HOSTS` and the Kiro OIDC
-  pattern).
+- Use only the hosts in `service/src/tokengrill/net/http.py`
+  (`ALLOWED_HOSTS` and the Kiro OIDC pattern). Use only HTTPS, accept no
+  redirects, reject a response over 1 MiB, and stop a request after 30 s.
 
-- Use one User-Agent (`USER_AGENT`). Set it on the session. Do not set a
+- Use one User-Agent (`USER_AGENT`). Set it on the HTTP client. Do not set a
   User-Agent on one request. Do not send the exact identity of a different
   client or browser headers.
 
-- If you add a host, also add it to the host table in the README and to the
-  description in `metadata.json`.
+- Never put a token, a key, or an e-mail address in a D-Bus payload that the
+  user did not ask for, in a file, or in a log. The only secret that enters the
+  service is a pasted API key (`SaveApiKey`, and `apiKey` of `AddAccounts`).
 
-- Read the files and keyrings of other tools asynchronously and read-only. Do
+- If you add a host, also add it to the host table in the README (under "The
+  service") and to the description in `metadata.json`.
+
+- Read the files and keyrings of other tools read-only, off the event loop. Do
   not write to them. Keep refreshed tokens only in memory. Do not unlock a
   keyring. Do not decrypt the secrets of another app.
 
@@ -209,11 +256,12 @@ Other rules:
 - Each service icon is an original image (`*-symbolic.svg`). Do not add
   logos or brand artwork.
 
-- The totals of `providers/history.ts` add up. If you change `PARSER_VERSION`,
+- The totals of `providers/history.py` add up. If you change `PARSER_VERSION`,
   Token Grill reads each history file again and counts it two times.
 
 - The version in `package.json` and the `version-name` key in `metadata.json`
-  must be the same. `CHANGELOG.md` lists the changes for users.
+  must be the same. The service has its own version in
+  `service/src/tokengrill/__init__.py`. `CHANGELOG.md` lists the changes for users.
 
 - Do not commit, make a branch, or open a pull request if the user does not
   ask for it.
@@ -223,33 +271,16 @@ Other rules:
 These exceptions are intentional. Do not change them if the reason stays the
 same.
 
-- **Token Grill reads the Kiro and Cursor databases synchronously through
-  libgda 5.** libgda 5 has no asynchronous API. Token Grill first examines the
-  size and the modification time of the database and its `-wal` file
-  asynchronously. It reads the database only after a change
-  (`providers/sqlite.ts`, `kiro/collector.ts`, `cursor/collector.ts`). A
+- **The service reads the Kiro and Cursor databases with `sqlite3`, which is
+  synchronous.** The service runs the read in a worker thread. It first
+  examines the size and the modification time of the database and its `-wal`
+  file, and reads the database only after a change (`providers/sqlite.py`). A
   write-ahead-log database without its `-wal` and `-shm` files is read from a
   private copy in `$XDG_RUNTIME_DIR/token-grill/`, because SQLite creates
   those files beside a database that it opens.
 
-- **`jsonl.ts` calls `input.seek()` synchronously.** No asynchronous seek
-  exists, and lseek does no disk I/O.
-
-- **The last flush in `Runtime.stop()` can complete after `disable()`.** It
-  writes only the state files of Token Grill. It does not touch Shell objects
-  and uses no cancellable (`SerialWriter`).
-
-- **The scheduler starts every 15 s** and examines the due times in memory.
-
-- **The preferences use synchronous `pathExists` and directory lists** in
-  `core/paths.ts` and `prefs/discovery.ts`. This code operates only in the
-  preferences process, and only after an action of the user.
-
-- **`notification-test-request` is a settings key for IPC.** The preferences
-  write a JSON request with a nonce. The extension uses each nonce one time.
-
-- **The pricing catalog in the release is necessary.** If Token Grill cannot
-  read `pricing-v1.json`, the start fails, as with a missing module.
+- **The scheduler of the service starts every 15 s** and examines the due times
+  in memory. It runs only while a `shell` client is registered.
 
 - **The toggle colors of the popup are fixed rgba values** in
   `resources/stylesheet.css`. St has no `currentColor`. Thus, `indicator.ts`
@@ -277,8 +308,17 @@ same.
 
 
 - **"Sign In Again in a Terminal" launches the CLI login of an account.** It
-  runs only when the user clicks it. `shell/signIn.ts` uses
-  `Gio.AppInfo.create_from_commandline()` with `NEEDS_TERMINAL`, so GLib picks
-  the terminal and no shell parses the command. The account home goes through
-  `env` and the CLI's own variable (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`,
-  `GH_CONFIG_DIR`), so the right account signs in (X-3, X-4).
+  runs only when the user clicks it. The service builds the argv and the env
+  (`SignInCommand`: `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `GH_CONFIG_DIR`), so the
+  right account signs in. `shell/signIn.ts` puts the env through `env` and
+  uses `Gio.AppInfo.create_from_commandline()` with `NEEDS_TERMINAL`, so GLib
+  picks the terminal and no shell parses the command (X-3, X-4).
+
+- **The Copy buttons write a fixed setup command to the clipboard.** The popup
+  (`shell/serviceCard.ts`) calls `St.Clipboard.set_text()`. The preferences
+  (`prefs/serviceBanner.ts`) call
+  `Gdk.Display.get_default().get_clipboard().set()`. The command is one that
+  Token Grill wrote (for example `pipx install tokengrill &&
+  ~/.local/bin/tokengrill setup`). The write happens only after a click. Token
+  Grill never reads the clipboard. The description in `metadata.json` declares
+  this (LE-6).

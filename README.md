@@ -5,6 +5,10 @@ Token Grill shows the usage limits of your AI accounts in the GNOME top bar.
 Token Grill monitors more than one account at the same time. From the top bar,
 you can see the remaining usage of each account and the reset times.
 
+Token Grill has two parts: the GNOME Shell extension, which shows the results,
+and a small free service, `tokengrill`, which reads your sign-ins and gets the
+usage limits. You install both. Refer to [Install](#install).
+
 ![Token Grill open on the GNOME desktop](docs/screenshots/usage-dashboard.png)
 
 ## Functions
@@ -53,23 +57,48 @@ These are the other functions:
 
 ## Install
 
-Token Grill operates with **GNOME Shell 48, 49, 50, and 51**.
+Token Grill operates with **GNOME Shell 48, 49, 50, and 51**. It needs
+Python 3.11 or later for the service.
 
-After GNOME Shell Extensions approves the first release, search for
-**Token Grill** in [Extension Manager](https://mattjakeman.com/apps/extension-manager)
-or on [GNOME Shell Extensions](https://extensions.gnome.org/). This method also
-gives you the updates.
+Do these two steps. The commands below are the same ones that the popup and the
+preferences show when the service is missing.
 
-To install a release archive before the approval, do these steps:
+1. Install the extension.
 
-1. Run this command:
+    After GNOME Shell Extensions approves the first release, search for
+    **Token Grill** in [Extension Manager](https://mattjakeman.com/apps/extension-manager)
+    or on [GNOME Shell Extensions](https://extensions.gnome.org/). This method
+    also gives you the updates.
+
+    To install a release archive before the approval, run this command, log
+    out and log in again, and enable Token Grill in Extension Manager or in the
+    Extensions app:
 
     ```sh
     gnome-extensions install --force tokengrill@sh02sahil.github.io.shell-extension.zip
     ```
 
-2. Log out and log in again.
-3. Enable Token Grill in Extension Manager or in the Extensions app.
+2. Install the service and register it:
+
+    ```sh
+    pipx install tokengrill && ~/.local/bin/tokengrill setup
+    ```
+
+    If you do not have pipx, install it first: `sudo apt install pipx` on
+    Ubuntu or Debian, `sudo dnf install pipx` on Fedora. With uv, use
+    `uv tool install tokengrill && ~/.local/bin/tokengrill setup`.
+
+The popup and the preferences show a **Copy** button next to each of these
+commands. The button writes the fixed command to the clipboard after your
+click. Token Grill never reads the clipboard.
+
+To update the service, run `pipx upgrade tokengrill`. To see the accounts and
+limits in a terminal, run `tokengrill status`. Add `--refresh` to refresh all
+accounts first, or `--json` for the raw state.
+
+To remove the service registration, run `tokengrill uninstall`. Add `--purge`
+to be asked if the accounts and the history are also deleted. Then run
+`pipx uninstall tokengrill`.
 
 ### Try a release without logging out
 
@@ -85,7 +114,8 @@ bash try.sh tokengrill@sh02sahil.github.io.shell-extension.zip
 The nested shell reads the sign-ins of your apps, but not the keys in your
 keyring. To try an API key, paste it again in the nested shell. The first key
 asks for a password for a new test keyring. When you close the window, the
-script deletes the test settings and the test keyring.
+script deletes the test settings and the test keyring. The script also needs
+the service: install it as above and run `tokengrill setup` first.
 
 ## Add an account
 
@@ -126,23 +156,30 @@ sign-in of VS Code, because VS Code encrypts it.
 To select a name, a color, or the local history of an account, select the
 account on the **Accounts** page.
 
-## Optional system libraries
+## The service
 
-Kiro and Cursor accounts need the Gda 5.0 GObject introspection library with
-the SQLite provider. On Debian or Ubuntu, the package is `gir1.2-gda-5.0`.
-Token Grill loads Gda with a dynamic `import()` only when an account uses it.
-If Gda is missing, only the Kiro and Cursor accounts show an error. All other
-accounts continue to operate.
+The service is the Python package `tokengrill`. The extension starts it
+through D-Bus when it needs it, and the service exits 60 seconds after the last
+Token Grill window or preferences window has left. It does these tasks:
 
-The keyring sign-ins of the Antigravity CLI, GitHub Copilot, and DeepSeek use
-libsecret 1, which GNOME includes. On Debian or Ubuntu, its introspection
-package is `gir1.2-secret-1`.
+- It reads the sign-ins of the apps that you use, and the API keys that you
+  save in the keyring.
+- It gets the usage limits from each service, and keeps the readings, the
+  history totals, and the accounts.
+- It decides when a notification is due. It runs its scheduler, its history
+  scans, and its notifications only while the extension is connected.
+- It serves all this to the extension over D-Bus. It never returns a token,
+  a key, or the content of a file on D-Bus.
 
-## Privacy and network access
+The service needs no system library except a working D-Bus session. It has
+three Python dependencies: `dbus-fast`, `httpx`, and `secretstorage`. The
+details are in [service/README.md](service/README.md).
 
-Token Grill reads the credentials that the CLI of each service stored on this
-computer. It sends these credentials only to that service. Token Grill
-connects only to these hosts:
+### Privacy and network access
+
+The service reads the credentials that the CLI of each service stored on this
+computer. It sends these credentials only to that service. It connects only
+to these hosts. The extension itself makes no network request:
 
 | Service     | Host                                                                                                          | Purpose                                 |
 | ----------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
@@ -162,8 +199,9 @@ Each request obeys these limits:
 
 - The request goes only to a host on a fixed list.
 - The request uses only HTTPS.
-- Token Grill does not accept redirects.
-- Token Grill rejects a response larger than 1 MiB.
+- The service does not accept redirects.
+- The service rejects a response larger than 1 MiB.
+- The request stops after 30 seconds.
 
 Each request uses this User-Agent:
 
@@ -176,9 +214,9 @@ the word Antigravity. Thus, the User-Agent names all the services that Token Gri
 monitors.
 
 Token Grill starts no other program by itself. Only when you click
-**Sign In Again in a Terminal**, it opens your terminal with the login command
-of the CLI. It does not collect telemetry. It does not read or send prompts or
-responses.
+**Sign In Again in a Terminal**, the extension opens your terminal with the
+login command of the CLI that the service gives it. It does not collect
+telemetry. It does not read or send prompts or responses.
 
 The Kiro usage request gets the e-mail address of the account. The popup shows
 this address. Thus, you can see which account `kiro-cli` uses. Token Grill does not
@@ -245,7 +283,13 @@ or the keyring of the service.
 
 ### Files of Token Grill
 
+- `$XDG_CONFIG_HOME/token-grill/config.json` contains the accounts and the
+  settings (mode 0600). The first time that the service starts, it imports the
+  accounts of version 0.4 from the GNOME settings and keeps a backup in
+  `imported-0.4.json` in the same folder.
 - `$XDG_DATA_HOME/token-grill/` contains the usage totals.
+- `$XDG_DATA_HOME/dbus-1/services/io.github.sh02sahil.TokenGrill.service` is
+  the D-Bus service file that `tokengrill setup` writes.
 - `$XDG_STATE_HOME/token-grill/` contains the history checkpoints, the
   notification state, the full DeepSeek balance after each top-up, the
   diagnostics, and the last reading of each account (`readings-v1.json`: the
@@ -264,17 +308,6 @@ responses.
 To save a report for a bug report, open the **Data** page in the preferences
 and select **Save Diagnostics Report...**. The report does not contain tokens,
 keys, e-mail addresses, account names, or your home folder.
-
-To see each refresh step in the system journal, set the `diagnostics-journal`
-setting:
-
-```sh
-gsettings --schemadir ~/.local/share/gnome-shell/extensions/tokengrill@sh02sahil.github.io/schemas \
-    set org.gnome.shell.extensions.tokengrill diagnostics-journal true
-journalctl -f -o cat /usr/bin/gnome-shell | grep 'Token Grill'
-```
-
-To stop the journal messages, set the setting to `false`.
 
 ## Test a development build
 
@@ -348,8 +381,8 @@ and explaining the code.
 - **Sign-in required:** Click **Sign In Again in a Terminal** in the popup, or
   open the CLI of the service and sign in again. If no terminal opens, install
   a terminal that GLib can start, such as GNOME Console or GNOME Terminal.
-- **Kiro or Cursor database unreadable:** Install the Gda 5.0 SQLite library. Then close
-  the preferences window and open it again.
+- **The popup asks you to install the service:** Run the two commands in
+  [Install](#install). Run `tokengrill status` to test the service.
 - **System keyring locked or unavailable:** Unlock the keyring. Token Grill
   does not unlock the keyring.
 - **OpenCode sign-in expired:** Open OpenCode and sign in again.

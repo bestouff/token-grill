@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.5.0
+
+- Token Grill has two parts now: the extension and a small service,
+  `tokengrill`, from PyPI. The service reads the sign-ins and gets the usage
+  limits. The extension shows them. The sign-ins, the hosts, and the privacy
+  rules do not change.
+- One-time setup: run `pipx install tokengrill && ~/.local/bin/tokengrill
+  setup`. Until you do, the popup and the preferences show this command with a
+  **Copy** button. Without pipx, use `uv tool install tokengrill` or install
+  pipx first (`sudo apt install pipx`, `sudo dnf install pipx`).
+- `tokengrill status` shows the accounts and the limits in a terminal.
+  `tokengrill uninstall` removes the service registration.
+- The first time that the service starts, it imports your accounts once from
+  the 0.4 settings. It keeps a backup in
+  `~/.config/token-grill/imported-0.4.json`. The accounts now live in
+  `~/.config/token-grill/config.json`.
+- After you update, log out and log in once. A 0.4 Shell that still runs can
+  lose the accounts in the top bar until then. Nothing is lost.
+- If you go back to 0.4.1, it shows no accounts, because the accounts are in
+  the new file. Restore them from the backup, or add them again.
+- The journal diagnostics switch is no longer in the extension. The setting
+  (`journalDiagnostics`) now belongs to the service.
+- Kiro and Cursor no longer need the Gda library. The extension no longer
+  needs libsecret.
+
 ## 0.4.1
 
 - Token Grill also operates with GNOME Shell 48, 49, and 51.

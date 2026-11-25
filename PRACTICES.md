@@ -457,12 +457,12 @@ Functions Instead of Code Duplication"), GNOME Shell `docs/js-coding-style.md`.
 | I-4  | `prefs.js` and every module it imports MUST NOT import `Clutter`, `Meta`, `St` or `Shell`, and MUST NOT access `Main`, `global` or any Shell object (separate process). | `[EGO-reject]` `[Shexli EGO-I-003]` |
 | I-5  | Shared modules used by both processes "must never import St, Clutter, Gtk, Gdk, Adw libraries due to process isolation". Shared code may use `GLib`, `Gio`, `GObject`, `Soup`. | `[Best-practice]` |
 | I-6 | Make process ownership obvious from the directory layout, so a reviewer knows which process a file runs in before reading it. The Best Practices page gives the example: "modules that are only loaded by `prefs.js` should reside inside a `prefs/` directory". | `[Best-practice]` |
-| I-7  | Add `?version=` only to a GI library that the process does not already load, so a reviewer never sees a version that changes nothing. GNOME Shell loads Soup 3.0, Gdk 4.0 and the rest of `js/misc/dependencies.js`, plus Clutter, Meta, St and Shell; the preferences service imports `gi://Adw?version=1` (`js/dbusServices/extensions/main.js`), which brings Gtk 4 and Gdk 4. Import these bare: `gi://Soup`, `gi://Gtk`, `gi://Gdk`, `gi://Adw`. A library that neither process loads by default keeps its version, so the right one is chosen when several are installed: `gi://Secret?version=1`, `gi://Gda?version=5.0`. EGO review of 0.3.0: "Please remove version from import" (2026-11-02) and "Since GNOME Shell doesn't use `Gda` and `Secret` by default, you should use the version" (2026-11-05). Import Secret statically at the top of the file, with its version, and do not check that it is installed: the reviewer treats libsecret as always present. EGO review of 0.3.2: "it's better to import at the top of file" and "`Secret` should be available. No need to check." (2026-11-25). Gda is not part of GNOME and stays a dynamic `import()` (I-12). The gjs.guide samples that pin `gi://Gtk?version=4.0` are examples, not this rule. Built-in GJS modules use bare specifiers (`'system'`, `'cairo'`, `'gettext'`). | `[Reviewer request]` |
+| I-7  | Add `?version=` only to a GI library that the process does not already load, so a reviewer never sees a version that changes nothing. GNOME Shell loads Soup 3.0, Gdk 4.0 and the rest of `js/misc/dependencies.js`, plus Clutter, Meta, St and Shell; the preferences service imports `gi://Adw?version=1` (`js/dbusServices/extensions/main.js`), which brings Gtk 4 and Gdk 4. Import these bare: `gi://Soup`, `gi://Gtk`, `gi://Gdk`, `gi://Adw`. A library that neither process loads by default keeps its version, so the right one is chosen when several are installed. Since 0.5.0 the extension imports no such library: it does not import `Secret` or `Gda`, because the Python service (section 19) reads the keyring and the databases. If a future change imports one, import it statically at the top of the file with its version, as EGO review of 0.3.0 and 0.3.2 asked: "Please remove version from import" (2026-11-02), "Since GNOME Shell doesn't use `Gda` and `Secret` by default, you should use the version" (2026-11-05), "`Secret` should be available. No need to check." (2026-11-25). The gjs.guide samples that pin `gi://Gtk?version=4.0` are examples, not this rule. Built-in GJS modules use bare specifiers (`'system'`, `'cairo'`, `'gettext'`). | `[Reviewer request]` |
 | I-8  | Shell modules import from `resource:///org/gnome/shell/...`; prefs modules import `ExtensionPreferences` and gettext from `resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js` (capital S and E, case-sensitive). | `[Port-guide 45]` |
 | I-9  | Own modules are imported relatively with the `.js` suffix. `Extension` / `ExtensionPreferences` subclasses MUST be the default export. | `[Port-guide 45]` |
 | I-10 | Two import blocks, each alphabetically sorted: `gi://` and GJS built-ins first, then `resource://` and relative imports. No unused imports. | `[Convention]` |
 | I-11 | Code MUST NOT use `Extension.lookupByURL()` / `lookupByUUID()` (or the `ExtensionPreferences` equivalents) to reach the current extension; use `this`, `this.getSettings()`, `this.path`, `this.dir`, `this.metadata`, `this.uuid`. | `[Shexli EGO-X-006]` |
-| I-12 | The README documents every dynamic `import()` of an optional GI library: which library, which feature needs it, and which package provides it. A reviewer who sees the `import()` can then find why it is there. | `[Project]` |
+| I-12 | The README documents every dynamic `import()` of an optional GI library: which library, which feature needs it, and which package provides it. Since 0.5.0 the extension has no such import, and the service has no system library: its dependencies are the pure-Python packages `dbus-fast`, `httpx` and `secretstorage` (SV-12). | `[Project]` |
 
 Reference imports:
 
@@ -663,11 +663,11 @@ https://gjs.guide/guides/gio/dbus.html.
 | X-7  | Installing modules from pip, npm, yarn or similar "MUST require explicit user action, such as a button in preferences". Never at enable time. | `[EGO-reject]` |
 | X-8  | "Spawning privileged subprocesses should be avoided at all costs. If absolutely necessary, the subprocess MUST be run with pkexec and MUST NOT be an executable or script that can be modified by a user process." `sudo`, `su`, `doas`, `run0` MUST NOT appear in argv. | `[EGO-reject]` `[Shexli EGO-X-001]` |
 | X-9  | "Extensions MUST NOT use any telemetry tools to track users and share the user data online." Polling the user's own accounts is not telemetry, but the description SHOULD name the hosts contacted. | `[EGO-reject]` `[Shexli EGO-A-003]` |
-| X-10 | Networking uses Soup 3: one session per `enable()` (R-13), `send_and_read_async()` with a cancellable, never `send_and_read()` (sync). Check `message.get_status()`; decode with `TextDecoder`. Streaming large bodies: `send_async()` + `Gio.InputStream`. A session `timeout` and a `user_agent` are advisable but no review page asks for them (this project's reason for its User-Agent is in AGENTS.md). | `[Best-practice]` |
+| X-10 | Networking uses Soup 3: one session per `enable()` (R-13), `send_and_read_async()` with a cancellable, never `send_and_read()` (sync). Check `message.get_status()`; decode with `TextDecoder`. Streaming large bodies: `send_async()` + `Gio.InputStream`. A session `timeout` and a `user_agent` are advisable but no review page asks for them (this project's reason for its User-Agent is in AGENTS.md). Since 0.5.0 the extension makes no network request; the service does, under SV-2. | `[Best-practice]` |
 | X-11 | Files: `this.dir.get_child(name)` / `this.path` for bundled assets; `GLib.get_user_config_dir()`, `GLib.get_user_cache_dir()`, `GLib.build_filenamev([...])` for user paths. Decode with `TextDecoder`, never `ByteArray`. | `[Best-practice]` |
-| X-12 | Reading other applications' files MUST be async, tolerant of absence, read-only, and MUST never write to them without explicit user action. | `[Project]` |
+| X-12 | Reading other applications' files MUST be async, tolerant of absence, read-only, and MUST never write to them without explicit user action. Since 0.5.0 only the service reads them (SV-3); the extension reads none. | `[Project]` |
 | X-13 | D-Bus: `Gio.DBusProxy.makeProxyWrapper(xml)` and construct the proxy asynchronously (callback form or `new_for_bus`); `connectSignal` / `disconnectSignal`; `Gio.bus_unown_name()` and `unexport()` in `disable()`. Always invoke the wrapper with `new` (required on 51, works on 50). | `[Best-practice]` `[Port-guide 51]` |
-| X-14 | Secrets (tokens, passwords) SHOULD NOT be stored in GSettings (dconf is plaintext); prefer libsecret (`gi://Secret?version=1`, async `Secret.password_store` / `password_lookup`) or document the risk. This is platform convention, not an EGO rule. | `[Convention]` |
+| X-14 | Secrets (tokens, passwords) SHOULD NOT be stored in GSettings (dconf is plaintext); prefer libsecret (`gi://Secret?version=1`, async `Secret.password_store` / `password_lookup`) or document the risk. This is platform convention, not an EGO rule. Since 0.5.0 the service keeps pasted API keys in the keyring (SV-4); the extension keeps none. | `[Convention]` |
 
 Reference (promisified Soup 3 and file read):
 
@@ -1127,8 +1127,8 @@ Resources
 - [ ] All handler ids disconnected; `Gio.Settings` signals released explicitly (R-1, R-2).
 - [ ] All sources removed even if they return `SOURCE_REMOVE`; removal next to creation;
       a timeout that bounds an async call is removed when its cancellable fires (R-6 ... R-9).
-- [ ] One cancellable and one Soup session per enable, cancelled / aborted in disable
-      (R-11, R-13).
+- [ ] One cancellable per enable, cancelled in disable; a Soup session only if the extension
+      makes requests, which it does not since 0.5.0 (R-11, R-13).
 - [ ] No `run_dispose()`, no `imports._gi`; injections via `InjectionManager` with `clear()`
       (R-17 ... R-19).
 
@@ -1173,6 +1173,33 @@ Build, legal, verification
       journal (T-1 ... T-3).
 - [ ] Best Practices and Review Guidelines pages re-read today and this file reconciled (H-5).
 - [ ] The maintainer can explain every line (AI-2).
+
+---
+
+## 19. Service
+
+The Python service (`service/`, package `tokengrill`) does the work that 0.4.1 did in the extension:
+it reads the credentials of other tools, gets the usage limits, and serves them over D-Bus. The
+extension is its client and a place to show results (X-3: heavy tasks go to a separate app over
+D-Bus). EGO does not review the service (X-6), so these rules are this project's own and bind
+the service as hard rules.
+
+| ID    | Rule | Origin |
+|-------|------|--------|
+| SV-1  | The service connects only to the hosts of `net/http.py` (`ALLOWED_HOSTS` and the Kiro OIDC pattern `^oidc\.[a-z0-9-]+\.amazonaws\.com$`). A new host is added to that list, to the host table in the README under "The service", and to the description in `metadata.json`, in one change. | `[Project]` |
+| SV-2  | Every request uses HTTPS only, accepts no redirect, stops after 30 s, rejects a response over 1 MiB, and carries the single `USER_AGENT` of the client. A request never sets its own User-Agent, and never sends the exact identity of another client or browser headers. | `[Project]` |
+| SV-3  | The service reads the files, databases and keyring items of other apps read-only, never writes to them, and reads them off the event loop. It never writes a file beside another app's database (a private copy goes to `$XDG_RUNTIME_DIR/token-grill/`). | `[Project]` |
+| SV-4  | The service never unlocks a keyring and never decrypts the secrets of another app. Only a user action may store a pasted API key, in the Token Grill item of the keyring; a failure to store it is the error `KeyringUnavailable`. | `[Project]` |
+| SV-5  | The service never refreshes a Codex or a Claude token: their refresh tokens are single-use, so a refresh would sign the CLI out. A Kiro or an Antigravity token may be refreshed, and the new token stays in memory. | `[Project]` |
+| SV-6  | No method, signal or property returns a token, a key or the content of a file. The only secret input is a pasted API key (`SaveApiKey`, `AddAccounts` `apiKey`). Payloads are JSON strings with `"schema": 1`. | `[Project]` |
+| SV-7  | A token, a key or an e-mail address is never written to a file or to a log. The live snapshot may carry the e-mail address that the popup shows; the stored readings and the diagnostics do not. Diagnostics hold only hosts, paths, field names and error codes. | `[Project]` |
+| SV-8  | The scheduler, the history scans and the alert decisions run only while at least one `shell` client is registered. The service exits 60 s after the last `shell` or `prefs` client has left. A refresh is limited to one per account per 30 s and to all accounts once per 60 s. | `[Project]` |
+| SV-9  | The files of the service keep the 0.4.1 formats: `config.json` (mode 0600, in a 0700 folder) in `$XDG_CONFIG_HOME/token-grill/`, the history in `$XDG_DATA_HOME/token-grill/`, the state files in `$XDG_STATE_HOME/token-grill/`. Writes are atomic and private. A change of `PARSER_VERSION` counts every history file twice. | `[Project]` |
+| SV-10 | `interface.xml` is the one source of truth of the D-Bus interface, and `src/dbus/interface.ts` is the same text. An additive change raises `ApiVersion`; a breaking change makes a new interface name. | `[Project]` |
+| SV-11 | Usage pace needs `UsageWindow.durationSeconds` from what the service reports (a duration field, the name of the window, or the month before a reset date). It is never derived from a type that Token Grill assigned. | `[Project]` |
+| SV-12 | The runtime dependencies are exactly `dbus-fast`, `httpx` and `secretstorage`, each with a lower and an upper major bound. No PyGObject and no package that needs a compiler. The license is GPL-3.0-or-later. | `[Project]` |
+| SV-13 | Every file of the repository is ASCII only, including the Python source, the tests and the message texts (Q-17). | `[Project]` |
+| SV-14 | The extension must not start, stop, install or update the service. It shows a command, and the Copy button writes that fixed command to the clipboard only after a click and never reads it (LE-6; the description in `metadata.json` declares it). | `[Project]` |
 
 ---
 

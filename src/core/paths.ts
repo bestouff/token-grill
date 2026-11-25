@@ -1,4 +1,3 @@
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import type {ProviderInstance, ProviderKind, ProviderPaths} from './types.js';
@@ -108,9 +107,4 @@ export function authFileCandidates(instance: ProviderInstance): string[] {
         return [providerPaths(instance).authFile];
     const home = expandPath(instance.accountHome);
     return ANTIGRAVITY_AUTH_FILES.map(name => GLib.build_filenamev([home, name]));
-}
-
-// Preferences process only: a small, user-triggered synchronous check.
-export function pathExists(path: string): boolean {
-    return Gio.File.new_for_path(path).query_exists(null);
 }
