@@ -552,9 +552,7 @@ async def test_expired_opencode_credentials_never_launch_claude(
     assert not (tmp_path / "calls").exists()
 
 
-async def test_missing_cli_preserves_the_expired_sign_in(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_missing_cli_preserves_the_expired_sign_in(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     write_auth(tmp_path, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
     before = (tmp_path / ".credentials.json").read_bytes()
 
@@ -575,7 +573,10 @@ async def test_live_claude_usage(tmp_path: Path) -> None:
         pytest.skip("set TOKENGRILL_LIVE_CLAUDE_HOME to test a real Claude Code sign-in")
     async with HttpClient() as http:
         ctx = CollectorContext(
-            http, {}, AggregateStore(tmp_path / "agg.json"), CheckpointStore(tmp_path / "cp.json"),
+            http,
+            {},
+            AggregateStore(tmp_path / "agg.json"),
+            CheckpointStore(tmp_path / "cp.json"),
             BalanceStore(tmp_path / "balances.json"),
         )
         snap = await ClaudeCollector().collect(make_instance(Path(home)), empty_snapshot("acct"), ctx)

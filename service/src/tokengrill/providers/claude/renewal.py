@@ -61,7 +61,9 @@ async def _run_cli(home: Path) -> str:
     env["PATH"] = os.pathsep.join([*os.get_exec_path(), str(Path.home() / ".local" / "bin")])
     try:
         process = await asyncio.create_subprocess_exec(
-            "claude", "auth", "status",
+            "claude",
+            "auth",
+            "status",
             cwd="/",
             env=env,
             stdin=asyncio.subprocess.DEVNULL,
