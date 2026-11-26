@@ -5,7 +5,7 @@ import {formatText, type Translator} from './i18n.js';
 import {displayPath} from './paths.js';
 import {providerMetadata} from './providerMetadata.js';
 import {serviceMessage} from './serviceMessages.js';
-import {signInCommand} from './signIn.js';
+import {hasLoginCommand, loginCommand, signInCommand} from './signIn.js';
 import {durationUntil, formatDuration} from './timeMath.js';
 import type {HistoryMetrics, ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from './types.js';
 
@@ -173,21 +173,23 @@ function withSignInHint(tr: Translator, {kind, app, accountHome}: HintInstance, 
     if (app === 'opencode')
         return formatText(_('%s Open OpenCode and sign in again.'), message);
     if (app === 'copilot-cli')
-        return formatText(_('%s Run copilot and sign in with /login.'), message);
-    if (app === 'cursor-agent')
-        return formatText(_('%s Run agent login.'), message);
-    const templates: Record<ProviderKind, string> = {
-        codex: _('%s Run codex login.'),
-        claude: _('%s Run claude auth login.'),
-        kiro: _('%s Run kiro-cli login.'),
-        antigravity: _('%s Sign in again with Antigravity or agy.'),
-        copilot: _('%s Run gh auth login.'),
-        'opencode-go': _('%s Run opencode auth login.'),
-        deepseek: _('%s Check the DeepSeek API key in Preferences.'),
-        kimi: _('%s Start kimi and run /login.'),
-        cursor: _('%s Open Cursor and sign in again, or run agent login and add the Cursor CLI account.'),
-    };
-    return formatText(templates[kind], message);
+        return formatText(_('%s Run %s and sign in with /login.'), message, loginCommand(app));
+    // The account's own CLI, or the one the service is read from by default.
+    const loginApp = [app, providerMetadata(kind).apps[0]].find(hasLoginCommand);
+    if (loginApp)
+        return formatText(_('%s Run %s.'), message, loginCommand(loginApp));
+    switch (kind) {
+    case 'antigravity':
+        return formatText(_('%s Sign in again with Antigravity or agy.'), message);
+    case 'deepseek':
+        return formatText(_('%s Check the DeepSeek API key in Preferences.'), message);
+    case 'kimi':
+        return formatText(_('%s Start kimi and run /login.'), message);
+    case 'cursor':
+        return formatText(_('%s Open Cursor and sign in again, or run %s and add the Cursor CLI account.'), message, loginCommand('cursor-agent'));
+    default:
+        return message;
+    }
 }
 
 export function errorText(

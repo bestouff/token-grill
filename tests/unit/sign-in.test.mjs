@@ -40,3 +40,20 @@ test('an app name from the bus that is a member of every object gets no button',
     for (const app of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
         assert.equal(signInCommand({app, accountHome: '~/.codex'}, true), null, app);
 });
+
+test('copilot signs in inside its own session, so it gets a hint and no button', () => {
+    assert.equal(signInCommand({app: 'copilot-cli', accountHome: ''}, true), null);
+    const errorInfo = {code: 'auth-expired', messageId: 'copilot.token-expired', params: {}, recovery: 'reauthenticate'};
+    assert.match(errorText(UNTRANSLATED, {errorInfo, homeIsDefault: true}, {kind: 'copilot', app: 'copilot-cli', accountHome: ''}),
+        / Run copilot and sign in with \/login\.$/);
+    assert.match(errorText(UNTRANSLATED, {errorInfo, homeIsDefault: true}, {kind: 'cursor', app: 'cursor-agent', accountHome: '~/.config/cursor'}),
+        / Run agent login\.$/);
+});
+
+test('the hints take each login command from the sign-in table', async () => {
+    const {readFile} = await import('node:fs/promises');
+    const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+    const [model, dialog] = await Promise.all([read('src/core/popupModel.ts'), read('src/prefs/addAccountDialog.ts')]);
+    for (const command of ['codex login', 'claude auth login', 'kiro-cli login', 'gh auth login', 'opencode auth login', 'agent login', 'Run copilot', '\'copilot\', \'/login\''])
+        assert.ok(!model.includes(command) && !dialog.includes(command), command);
+});

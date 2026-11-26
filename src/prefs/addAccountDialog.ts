@@ -10,23 +10,13 @@ import {homeName} from '../core/accountText.js';
 import {formatText} from '../core/i18n.js';
 import {displayPath, expandPath} from '../core/paths.js';
 import {providerMetadata} from '../core/providerMetadata.js';
+import {hasLoginCommand, loginCommand} from '../core/signIn.js';
 import type {AccountApp, AccountDraft, Candidate, ProviderKind} from '../core/types.js';
 import {CandidateList} from './candidateList.js';
 import type {PrefsContext} from './context.js';
 import {isDismissal, markField, presentAddError, presentKeyError, providerIcon, setAccessibleLabel} from './widgets.js';
 
 Gio._promisify(Gtk.FileDialog.prototype, 'select_folder', 'select_folder_finish');
-
-// What to run to sign in, shown when an app has no account to add. Commands are not translated.
-const SIGN_IN_COMMANDS: Partial<Record<AccountApp, string>> = {
-    'codex-cli': 'codex login',
-    'claude-code': 'claude auth login',
-    'kiro-cli': 'kiro-cli login',
-    opencode: 'opencode auth login',
-    'github-cli': 'gh auth login',
-    'copilot-cli': 'copilot',
-    'cursor-agent': 'agent login',
-};
 
 // Apps whose sign-in lives in a home folder, so an account can be added by its folder.
 const HOME_APPS: Partial<Record<AccountApp, ProviderKind>> = {
@@ -43,10 +33,10 @@ const HOME_APPS: Partial<Record<AccountApp, ProviderKind>> = {
 // The service stores the pasted key first and adds the account only when the keyring took it.
 const KEY_DRAFT: AccountDraft = {kind: 'deepseek', app: 'keyring', accountHome: '', displayName: providerMetadata('deepseek').label};
 
+// Shown when an app has no account to add.
 function emptyHint(app: AccountApp): string {
-    const command = SIGN_IN_COMMANDS[app];
-    if (command)
-        return formatText(_('Sign in with %s, then try again'), command);
+    if (hasLoginCommand(app))
+        return formatText(_('Sign in with %s, then try again'), loginCommand(app));
     return _('Sign in with the app, then try again');
 }
 
@@ -98,7 +88,7 @@ export class AddAccountDialog extends Adw.Dialog {
         group.add(this._linkRow('GitHub Copilot', _('Through Copilot CLI or GitHub CLI'), 'copilot', () => this._view.push(this._copilotPage())));
         group.add(this._linkRow('Kimi CLI', '', 'kimi', open('kimi-cli', 'Kimi CLI')));
         group.add(this._linkRow('Cursor', '', 'cursor', open('cursor', 'Cursor')));
-        group.add(this._linkRow('Cursor CLI', 'agent login', 'cursor', open('cursor-agent', 'Cursor CLI')));
+        group.add(this._linkRow('Cursor CLI', loginCommand('cursor-agent'), 'cursor', open('cursor-agent', 'Cursor CLI')));
         group.add(this._linkRow('DeepSeek', _('API key'), 'deepseek', () => this._view.push(this._deepSeekPage())));
         const page = new Adw.PreferencesPage();
         page.add(group);
@@ -111,8 +101,9 @@ export class AddAccountDialog extends Adw.Dialog {
             description: _('VS Code keeps its Copilot sign-in private, so sign in once with one of these apps'),
         });
         // Translators: a command to run, then the command to type inside it.
-        group.add(this._linkRow('Copilot CLI', formatText(_('%s, then %s'), 'copilot', '/login'), 'copilot', () => this._view.push(this._candidatesPage('Copilot CLI', 'copilot-cli'))));
-        group.add(this._linkRow('GitHub CLI', 'gh auth login', 'copilot', () => this._view.push(this._candidatesPage('GitHub CLI', 'github-cli'))));
+        const copilotLogin = formatText(_('%s, then %s'), loginCommand('copilot-cli'), '/login');
+        group.add(this._linkRow('Copilot CLI', copilotLogin, 'copilot', () => this._view.push(this._candidatesPage('Copilot CLI', 'copilot-cli'))));
+        group.add(this._linkRow('GitHub CLI', loginCommand('github-cli'), 'copilot', () => this._view.push(this._candidatesPage('GitHub CLI', 'github-cli'))));
         const page = new Adw.PreferencesPage();
         page.add(group);
         return this._page('GitHub Copilot', page);

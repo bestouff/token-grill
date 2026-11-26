@@ -1,22 +1,40 @@
 import {expandPath} from './paths.js';
 import type {AccountApp, ProviderInstance} from './types.js';
 
+type LoginApp = 'codex-cli' | 'claude-code' | 'github-cli' | 'kiro-cli' | 'cursor-agent' | 'opencode' | 'copilot-cli';
+
 interface LoginCommand {
     argv: string[];
     // The variable that points the CLI at another home. A CLI without one is
     // offered only for its default home.
     homeVariable: string | null;
+    // copilot signs in with /login inside its own session: starting it signs
+    // nothing in, so it gets no terminal button.
+    inSession: boolean;
 }
 
-// The service's core/paths.py knows the default home of each of these CLIs.
-const COMMANDS: Partial<Record<AccountApp, LoginCommand>> = {
-    'codex-cli': {argv: ['codex', 'login'], homeVariable: 'CODEX_HOME'},
-    'claude-code': {argv: ['claude', 'auth', 'login'], homeVariable: 'CLAUDE_CONFIG_DIR'},
-    'github-cli': {argv: ['gh', 'auth', 'login'], homeVariable: 'GH_CONFIG_DIR'},
-    'kiro-cli': {argv: ['kiro-cli', 'login'], homeVariable: null},
-    'cursor-agent': {argv: ['agent', 'login'], homeVariable: null},
-    opencode: {argv: ['opencode', 'auth', 'login'], homeVariable: null},
+// The one place that names the login command of each CLI: the terminal
+// button, the hints of the popup and of Preferences all read it. The
+// service's core/paths.py knows the default home of each of these CLIs.
+const COMMANDS: Record<LoginApp, LoginCommand> = {
+    'codex-cli': {argv: ['codex', 'login'], homeVariable: 'CODEX_HOME', inSession: false},
+    'claude-code': {argv: ['claude', 'auth', 'login'], homeVariable: 'CLAUDE_CONFIG_DIR', inSession: false},
+    'github-cli': {argv: ['gh', 'auth', 'login'], homeVariable: 'GH_CONFIG_DIR', inSession: false},
+    'kiro-cli': {argv: ['kiro-cli', 'login'], homeVariable: null, inSession: false},
+    'cursor-agent': {argv: ['agent', 'login'], homeVariable: null, inSession: false},
+    opencode: {argv: ['opencode', 'auth', 'login'], homeVariable: null, inSession: false},
+    'copilot-cli': {argv: ['copilot'], homeVariable: null, inSession: true},
 };
+
+// The app comes from the bus, so only the table's own keys count.
+export function hasLoginCommand(app: AccountApp): app is LoginApp {
+    return Object.hasOwn(COMMANDS, app);
+}
+
+// The command as a hint names it; it is not translated.
+export function loginCommand(app: LoginApp): string {
+    return COMMANDS[app].argv.join(' ');
+}
 
 interface SignInCommand {
     argv: string[];
@@ -30,11 +48,12 @@ interface SignInCommand {
 // Token Grill cannot start the right one. The service tells whether the
 // account lives in the default home of its CLI.
 export function signInCommand(instance: Pick<ProviderInstance, 'app' | 'accountHome'>, homeIsDefault: boolean): SignInCommand | null {
-    // The app comes from the bus, so only the table's own keys count.
-    const command = Object.hasOwn(COMMANDS, instance.app) ? COMMANDS[instance.app] : undefined;
-    if (!command)
+    if (!hasLoginCommand(instance.app))
         return null;
-    const login = command.argv.join(' ');
+    const command = COMMANDS[instance.app];
+    if (command.inSession)
+        return null;
+    const login = loginCommand(instance.app);
     if (homeIsDefault)
         return {argv: command.argv, login, home: null};
     if (!command.homeVariable)
