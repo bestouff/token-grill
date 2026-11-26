@@ -42,7 +42,7 @@ class ClaudeTokenLoader:
                     raise
                 self._retry_after[str(path)] = now + RETRY_SECONDS
             result = await _run_cli(path.parent)
-            ctx.record("credential-renewal", result)
+            ctx.record("sign-in", result)
             # auth status may exit zero even when its startup refresh failed.
             return await load_claude_access_token(instance)
 
