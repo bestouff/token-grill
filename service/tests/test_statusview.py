@@ -72,7 +72,7 @@ def _state() -> ServiceState:
         "snapshots": {
             "a1": _snapshot(
                 "a1",
-                windows=[_window("Five-hour", 28.0, 125), _window("Weekly", 61.4, 3 * 1440 + 90)],
+                windows=[_window("Five-hour", 0.28, 125), _window("Weekly", 0.614, 3 * 1440 + 90)],
             ),
             "a2": _snapshot("a2", balance={"amount": 12.5, "currency": "USD"}, lastUpdated=NOW - 2 * 60 * MINUTE),
             "a3": _snapshot("a3", state="error", errorInfo=error, lastUpdated=None),

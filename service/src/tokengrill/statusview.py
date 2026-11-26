@@ -58,7 +58,8 @@ def render_status(state: ServiceState, now: int) -> str:
             if window["percent"] is None:
                 lines.append(f"  {window['label']}: unknown")
                 continue
-            left = round(min(100.0, max(0.0, 100.0 - window["percent"])))
+            # percent is the used fraction (0 to 1), as in the snapshots of 0.4.1.
+            left = round(100.0 * min(1.0, max(0.0, 1.0 - window["percent"])))
             text = f"  {window['label']}: {left}% left"
             if window["resetAt"] is not None:
                 text += f", resets in {_duration(window['resetAt'], now)}"
