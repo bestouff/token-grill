@@ -134,7 +134,7 @@ test('notifications use per-account sources with symbolic icons and lifecycle cl
     assert.match(notification, /this\._sourceFor\(instance, text\.source\)/);
     assert.doesNotMatch(notification, / - Token Grill/);
     assert.match(notification, /private readonly _sources = new Map<string, MessageTray\.Source>\(\)/);
-    assert.match(notification, /source\.connect\('destroy', \(\) => this\._sources\.delete\(instance\.id\)\)/);
+    assert.match(notification, /source\.connectObject\('destroy', \(\) => this\._sources\.delete\(instance\.id\), source\)/);
     assert.match(notification, /source\.destroy\(MessageTray\.NotificationDestroyedReason\.SOURCE_CLOSED\)/);
     assert.match(runtime, /new Notifier\(extension\.path\)/);
     assert.match(runtime, /alertText\(TRANSLATOR, alert, instance,/);

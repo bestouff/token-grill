@@ -45,7 +45,7 @@ export class Notifier {
             return existing;
         }
         const source = new MessageTray.Source({title, icon});
-        source.connect('destroy', () => this._sources.delete(instance.id));
+        source.connectObject('destroy', () => this._sources.delete(instance.id), source);
         this._sources.set(instance.id, source);
         Main.messageTray.add(source);
         return source;
