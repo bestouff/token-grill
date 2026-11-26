@@ -164,7 +164,8 @@ def test_rolling_weekly_and_monthly_become_three_limits() -> None:
         ("weekly", "weekly", 0.295, ms("2026-11-16T00:00:00+00:00")),
         ("monthly", "monthly", 0.41, ms("2026-11-21T00:00:00+00:00")),
     ]
-    assert [w["durationSeconds"] for w in windows] == [5 * 3600, 7 * 86400, 31 * 86400]
+    # The response reports no length, and "rolling" does not name one, so that window has no pace.
+    assert [w["durationSeconds"] for w in windows] == [None, 7 * 86400, 31 * 86400]
     assert [w["label"] for w in windows] == ["Five-hour", "Weekly", "Monthly"]
     assert windows[0]["used"] is None
     assert windows[0]["limit"] is None
