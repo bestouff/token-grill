@@ -158,7 +158,8 @@ export class Runtime implements IndicatorController {
                     this._logFailure(error);
             })
             .finally(() => {
-                this._migration = null;
+                if (!cancellable.is_cancelled())
+                    this._migration = null;
             });
     }
 

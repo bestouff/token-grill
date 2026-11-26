@@ -44,8 +44,7 @@ export class DataPage extends Adw.PreferencesPage {
 
         const diagnostics = new Adw.PreferencesGroup({
             title: _('Diagnostics'),
-            description: _('Recent refresh steps for a bug report, without tokens, keys, e-mail addresses, account names or your home folder; ' +
-                'responses keep only their field names and types'),
+            description: _('Recent refresh steps for a bug report, without tokens, keys, e-mail addresses, account names or your home folder; responses keep only their field names and types'),
         });
         const save = new Adw.ButtonRow({title: _('Save Diagnostics Report...'), start_icon_name: 'document-save-symbolic'});
         // The service redacts the report before it sends it.
@@ -61,8 +60,6 @@ export class DataPage extends Adw.PreferencesPage {
         const cancellable = this._context.cancellable;
         const dialog = new Gtk.FileDialog({title: _('Save Diagnostics Report'), initial_name: 'token-grill-diagnostics.txt'});
         dialog.save(this._context.window, cancellable).then(async file => {
-            if (!file)
-                return;
             await file.replace_contents_async(new TextEncoder().encode(report), null, false,
                 Gio.FileCreateFlags.PRIVATE | Gio.FileCreateFlags.REPLACE_DESTINATION, cancellable);
             this._toast(_('Report saved'));

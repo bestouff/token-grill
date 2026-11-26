@@ -279,7 +279,7 @@ test('the runtime drives the popup from the service client', async () => {
     assert.match(source, /migrateOnce\(this\._settings!, this\._client!, cancellable\)/);
     assert.match(source, /Main\.panel\.addToStatusArea\(this\._extension\.uuid, this\._indicator, 1, side\)/);
     assert.match(entry, /this\._runtime = new Runtime\(this\);\s*this\._runtime\.start\(\);/);
-    assert.match(entry, /this\._runtime\?\.stop\(\);\s*this\._runtime = null;/);
+    assert.match(entry, /this\._runtime!\.stop\(\);\s*this\._runtime = null;/);
     assert.doesNotMatch(source + entry, /sessionMode\.connect|setLocked|pause-when-session-locked/);
     assert.doesNotMatch(source, /notification-test-request|refresh-interval-seconds|notifications-enabled/);
 });

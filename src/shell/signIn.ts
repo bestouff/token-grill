@@ -14,6 +14,6 @@ export function openSignIn(argv: string[]): void {
     } catch (error) {
         if (!(error instanceof GLib.Error))
             throw error;
-        Main.notifyError(_('Token Grill could not open a terminal'), error.message);
+        Main.notifyError(_('Token Grill Could Not Open a Terminal'), error.message);
     }
 }

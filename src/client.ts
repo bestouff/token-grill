@@ -29,10 +29,12 @@ type ClientKind = 'shell' | 'prefs';
 
 export interface ClientHandlers {
     onStatus(status: ClientStatus): void;
-    onAccountChanged(accountId: string, snapshot: ProviderSnapshot, runtime: ProviderRuntimeState): void;
+    // Preferences show no readings.
+    onAccountChanged?(accountId: string, snapshot: ProviderSnapshot, runtime: ProviderRuntimeState): void;
     onAccountsChanged(accounts: ProviderInstance[]): void;
     onSettingsChanged(settings: Settings): void;
-    onAlert(alert: Alert): void;
+    // Only the Shell shows alerts.
+    onAlert?(alert: Alert): void;
 }
 
 // A failure that the service reported: `code` is the error name without its prefix, for example
@@ -87,7 +89,7 @@ export class ServiceClient {
     constructor(
         private readonly _kind: ClientKind,
         private readonly _handlers: ClientHandlers,
-        private readonly _logger: Pick<Console, 'error'>,
+        private readonly _logger: Pick<Console, 'warn' | 'error'>,
         private readonly _cancellable: Gio.Cancellable
     ) {}
 
@@ -121,7 +123,7 @@ export class ServiceClient {
                     // A payload that does not parse is a fault of the service; the last state stays.
                     if (!(error instanceof ServiceSchemaError))
                         throw error;
-                    this._logger.error(`The service sent a malformed ${name} signal`, error);
+                    this._logger.warn(`The service sent a malformed ${name} signal`, error);
                 }
             });
             this._ownerId = proxy.connect('notify::g-name-owner', () => {
@@ -247,7 +249,7 @@ export class ServiceClient {
         return this._invoke(method, new GLib.Variant('(s)', [JSON.stringify(payload)]), timeout).then(parseResult);
     }
 
-    // The methods that return one string.
+    // Every method call: the reply is the one string of the method, or '' for a method that returns nothing.
     private async _invoke(method: string, parameters: GLib.Variant | null = null, timeout = CALL_TIMEOUT_MS): Promise<string> {
         const reply = await this._call(method, parameters, timeout);
         return reply.deepUnpack<[string]>()[0] ?? '';
@@ -276,7 +278,7 @@ export class ServiceClient {
                 this.state.snapshots[accountId] = snapshot;
                 this.state.runtime[accountId] = runtime;
             }
-            this._handlers.onAccountChanged(accountId, snapshot, runtime);
+            this._handlers.onAccountChanged?.(accountId, snapshot, runtime);
             break;
         }
         case 'AccountsChanged': {
@@ -294,7 +296,7 @@ export class ServiceClient {
             break;
         }
         case 'Alert':
-            this._handlers.onAlert(parseAlert(payload));
+            this._handlers.onAlert?.(parseAlert(payload));
             break;
         }
     }

@@ -63,8 +63,11 @@ function drawingArea(width: number, height: number, draw: (area: St.DrawingArea,
     const area = new St.DrawingArea({width, height, style_class: 'tokengrill-panel-meter', y_align: Clutter.ActorAlign.CENTER});
     area.connectObject('repaint', () => {
         const cr = area.get_context();
-        draw(area, cr);
-        cr.$dispose();
+        try {
+            draw(area, cr);
+        } finally {
+            cr.$dispose();
+        }
     }, area);
     return area;
 }

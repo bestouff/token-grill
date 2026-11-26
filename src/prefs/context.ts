@@ -93,14 +93,6 @@ export class PrefsContext implements ClientHandlers {
         this._emit('settings');
     }
 
-    onAccountChanged(): void {
-        // Preferences show no readings.
-    }
-
-    onAlert(): void {
-        // The Shell shows the alerts.
-    }
-
     private _stopped(cancellable: Gio.Cancellable): boolean {
         return this.cancellable.is_cancelled() || cancellable.is_cancelled();
     }

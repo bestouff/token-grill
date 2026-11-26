@@ -1,5 +1,5 @@
-// Pure presentation helpers for the top-bar popup.  Kept free of GNOME imports
-// so the wording and grouping can be unit-tested.
+// Pure presentation helpers for the top-bar popup. They take a Translator and
+// import no Shell module, so the wording and grouping can be unit-tested.
 import {activeProvider, formatTokenCount} from './display.js';
 import {formatText, type Translator} from './i18n.js';
 import {displayPath} from './paths.js';

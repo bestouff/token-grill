@@ -10,7 +10,7 @@ export default class TokenGrillExtension extends Extension {
     }
 
     override disable(): void {
-        this._runtime?.stop();
+        this._runtime!.stop();
         this._runtime = null;
     }
 }
