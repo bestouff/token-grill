@@ -80,7 +80,8 @@ class ProviderInstance(TypedDict):
     displayName: str
     accent: AccentValue
     enabled: bool
-    sortOrder: int
+    # A JSON number, as the extension and 0.4.1 wrote it.
+    sortOrder: float
     accountHome: str
     authFileOverride: str | None
     sessionsDirectoryOverride: str | None

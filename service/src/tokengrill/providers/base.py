@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from typing import Protocol, TypedDict
 
-from tokengrill.core.diagnostics import request_detail, shape_of
+from tokengrill.core.diagnostics import DiagnosticStep, request_detail, shape_of
 from tokengrill.core.errors import ServiceError
 from tokengrill.core.types import (
     Balance,
@@ -43,7 +43,7 @@ def _ignore_source(source: RefreshSource, result: SourceResult) -> None:
     return None
 
 
-def _ignore_record(step: str, detail: str) -> None:
+def _ignore_record(step: DiagnosticStep, detail: str) -> None:
     return None
 
 
@@ -53,7 +53,7 @@ class RecordedHttp:
     The steps carry the method, host and path and the shape of the answer, never headers, queries or values.
     """
 
-    def __init__(self, http: HttpClient, record: Callable[[str, str], None]) -> None:
+    def __init__(self, http: HttpClient, record: Callable[[DiagnosticStep, str], None]) -> None:
         self._http = http
         self._record = record
 
@@ -78,7 +78,7 @@ class CollectorContext:
         balances: BalanceStore,
         on_phase: Callable[[RefreshPhase], None] = _ignore_phase,
         on_source: Callable[[RefreshSource, SourceResult], None] = _ignore_source,
-        on_record: Callable[[str, str], None] = _ignore_record,
+        on_record: Callable[[DiagnosticStep, str], None] = _ignore_record,
         manual: bool = False,
         history_enabled: bool = True,
     ) -> None:
@@ -102,7 +102,7 @@ class CollectorContext:
     def report_source(self, source: RefreshSource, result: SourceResult) -> None:
         self._on_source(source, result)
 
-    def record(self, step: str, detail: str) -> None:
+    def record(self, step: DiagnosticStep, detail: str) -> None:
         self._on_record(step, detail)
 
 

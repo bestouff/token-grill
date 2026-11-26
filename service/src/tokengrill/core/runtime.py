@@ -26,7 +26,7 @@ from tokengrill.core.config import (
     needs_refresh,
     parse_legacy,
 )
-from tokengrill.core.diagnostics import DiagnosticEntry, format_report, redact
+from tokengrill.core.diagnostics import DiagnosticEntry, DiagnosticStep, format_report, redact
 from tokengrill.core.errors import InvalidRequest, ServiceError
 from tokengrill.core.order import reorder_providers
 from tokengrill.core.paths import provider_paths, runtime_dir
@@ -696,7 +696,7 @@ class Runtime:
         path = "" if instance["app"] in ("keyring", "copilot-cli") else provider_paths(instance)["authFile"]
         return f"{instance['app']} {path}" if path else f"{instance['app']} keyring"
 
-    def _record(self, instance: ProviderInstance, step: str, detail: str) -> None:
+    def _record(self, instance: ProviderInstance, step: DiagnosticStep, detail: str) -> None:
         same_kind = [account["id"] for account in self._accounts() if account["kind"] == instance["kind"]]
         kind_index = same_kind.index(instance["id"]) if instance["id"] in same_kind else len(same_kind)
         entry: DiagnosticEntry = {
@@ -704,8 +704,7 @@ class Runtime:
             "account": f"{instance['kind']}-{kind_index + 1}",
             "kind": instance["kind"],
             "app": instance["app"],
-            # The callers pass the step names of DiagnosticEntry as plain strings.
-            "step": step,  # type: ignore[typeddict-item]
+            "step": step,
             "detail": detail,
         }
         kept = self._diagnostics.record(entry)

@@ -4,7 +4,8 @@ import asyncio
 import logging
 import signal
 import sys
-from typing import Final
+from collections.abc import Callable, Coroutine
+from typing import Final, cast
 
 from dbus_fast import Message, MessageType, NameFlag, RequestNameReply
 from dbus_fast.aio import MessageBus
@@ -111,8 +112,9 @@ async def run_service(idle_seconds: float = 60, *, collectors: dict[ProviderKind
     interface = TokenGrillInterface(tracker.call_started, tracker.call_finished)
     for number in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(number, finished.set)
-    # dbus-fast leaves wait_for_disconnect() without annotations.
-    disconnected = asyncio.ensure_future(bus.wait_for_disconnect())  # type: ignore[no-untyped-call]
+    # dbus-fast leaves wait_for_disconnect() without annotations; it is a coroutine that ends with the bus.
+    wait_for_disconnect = cast(Callable[[], Coroutine[None, None, None]], bus.wait_for_disconnect)
+    disconnected = asyncio.ensure_future(wait_for_disconnect())
     disconnected.add_done_callback(on_disconnect)
     try:
         await _watch_client_names(bus, tracker)

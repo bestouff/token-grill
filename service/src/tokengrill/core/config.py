@@ -6,7 +6,7 @@ import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict, TypeGuard, TypeVar
 
 from tokengrill.core.errors import InvalidRequest
 from tokengrill.core.json_util import is_record
@@ -97,7 +97,7 @@ def default_settings() -> Settings:
     }
 
 
-def _is_number(value: object) -> bool:
+def _is_number(value: object) -> TypeGuard[float]:
     return isinstance(value, int | float) and not isinstance(value, bool)
 
 
@@ -180,8 +180,7 @@ def normalize_provider(entry: object) -> list[ProviderInstance]:
             "displayName": display_name or metadata.label,
             "accent": _normalize_accent(entry.get("accent"), metadata.default_accent),
             "enabled": entry.get("enabled") is not False,
-            # _is_number checks the type at run time, but it is no TypeGuard for mypy.
-            "sortOrder": sort_order if _is_number(sort_order) else 0,  # type: ignore[typeddict-item]
+            "sortOrder": sort_order if _is_number(sort_order) else 0,
             "accountHome": home,
             "authFileOverride": _optional_path(entry.get("authFileOverride")),
             "sessionsDirectoryOverride": _optional_path(entry.get("sessionsDirectoryOverride")),
@@ -262,7 +261,16 @@ EDITABLE_FIELDS = (
     "showPace",
 )
 
-_READ_FIELDS = (
+_ReadField = Literal[
+    "kind",
+    "app",
+    "accountHome",
+    "authFileOverride",
+    "sessionsDirectoryOverride",
+    "liveUsageEnabled",
+    "localHistoryEnabled",
+]
+_READ_FIELDS: tuple[_ReadField, ...] = (
     "kind",
     "app",
     "accountHome",
@@ -278,8 +286,7 @@ def needs_refresh(before: ProviderInstance | None, after: ProviderInstance) -> b
     one turned back on, or a change to how it is read does."""
     if before is None or (after["enabled"] and not before["enabled"]):
         return True
-    # The field names come from a tuple of ProviderInstance keys, which mypy does not see as literals.
-    return any(before[field] != after[field] for field in _READ_FIELDS)  # type: ignore[literal-required]
+    return any(before[field] != after[field] for field in _READ_FIELDS)
 
 
 def _stored_entries(legacy: LegacySettings) -> list[Any]:
@@ -396,24 +403,29 @@ def apply_settings_patch(current: Settings, patch: object) -> Settings:
     return _settings_from(merged)
 
 
+_T = TypeVar("_T")
+
+
+def _legacy_value(value: dict[str, object], key: str, expected: type[_T]) -> _T:
+    item = value.get(key)
+    # A bool is an int to isinstance, but not a number of the settings.
+    if not isinstance(item, expected) or (expected is int and isinstance(item, bool)):
+        raise InvalidRequest(f"{key} is missing or has the wrong type")
+    return item
+
+
 def parse_legacy(value: object) -> LegacySettings:
     if not is_record(value):
         raise InvalidRequest("the legacy settings must be an object")
-    checks: dict[str, type] = {
-        "providerInstancesJson": str,
-        "configurationVersion": int,
-        "activeProviderId": str,
-        "refreshIntervalSeconds": int,
-        "notificationsEnabled": bool,
-        "notificationStepPercent": int,
-        "diagnosticsJournal": bool,
+    return {
+        "providerInstancesJson": _legacy_value(value, "providerInstancesJson", str),
+        "configurationVersion": _legacy_value(value, "configurationVersion", int),
+        "activeProviderId": _legacy_value(value, "activeProviderId", str),
+        "refreshIntervalSeconds": _legacy_value(value, "refreshIntervalSeconds", int),
+        "notificationsEnabled": _legacy_value(value, "notificationsEnabled", bool),
+        "notificationStepPercent": _legacy_value(value, "notificationStepPercent", int),
+        "diagnosticsJournal": _legacy_value(value, "diagnosticsJournal", bool),
     }
-    for key, expected in checks.items():
-        item = value.get(key)
-        if not isinstance(item, expected) or (expected is int and isinstance(item, bool)):
-            raise InvalidRequest(f"{key} is missing or has the wrong type")
-    # Every key and its type were checked above; mypy cannot follow a check in a loop.
-    return {key: value[key] for key in checks}  # type: ignore[return-value]
 
 
 class ConfigStore:

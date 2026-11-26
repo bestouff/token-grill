@@ -35,12 +35,15 @@ def redact(text: str, home: str) -> str:
     return _TOKEN.sub(_token_or_text, text)
 
 
+DiagnosticStep = Literal["sign-in", "request", "response", "error"]
+
+
 class DiagnosticEntry(TypedDict):
     at: int
     account: str
     kind: ProviderKind
     app: AccountApp
-    step: Literal["sign-in", "request", "response", "error"]
+    step: DiagnosticStep
     detail: str
 
 

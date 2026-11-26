@@ -4,10 +4,21 @@ stored_reading and parse_stored_reading live with the file they describe in stor
 """
 
 import json
-from typing import cast
+from typing import Any, cast
 
-from tokengrill.core.types import ProviderSnapshot, UsageWindow, empty_snapshot
+from tokengrill.core.types import LimitResetCreditSummary, ProviderSnapshot, UsageWindow, empty_snapshot
 from tokengrill.storage.readings import StoredReading
+
+
+def _stale_credits(credits: dict[str, Any]) -> LimitResetCreditSummary:
+    """parse_stored_reading checked the fields; a restored summary is stale and has no error."""
+    return {
+        "availableCount": credits["availableCount"],
+        "credits": credits["credits"],
+        "fetchedAt": credits["fetchedAt"],
+        "stale": True,
+        "error": None,
+    }
 
 
 def restored_snapshot(provider_id: str, reading: StoredReading) -> ProviderSnapshot:
@@ -19,8 +30,7 @@ def restored_snapshot(provider_id: str, reading: StoredReading) -> ProviderSnaps
         "plan": reading["plan"],
         "windows": [cast(UsageWindow, {**window, "pace": None}) for window in reading["windows"]],
         "balance": reading["balance"],
-        # mypy types a TypedDict spread with a new key as a plain dict.
-        "resetCredits": {**credits, "stale": True} if credits else None,  # type: ignore[typeddict-item]
+        "resetCredits": _stale_credits(credits) if credits else None,
         "lastUpdated": reading["fetchedAt"],
         "quotaFetchedAt": reading["fetchedAt"],
     }

@@ -45,8 +45,9 @@ def read_json(path: Path, max_bytes: int) -> object | None:
     except FileNotFoundError:
         return None
     try:
-        # json.loads returns Any; the callers check the shape.
-        return json.loads(text, parse_constant=_refuse_constant)  # type: ignore[no-any-return]
+        # The callers check the shape of what json.loads returns.
+        value: object = json.loads(text, parse_constant=_refuse_constant)
+        return value
     except ValueError:
         _LOG.warning("Ignoring unreadable state file %s", path)
         return None
