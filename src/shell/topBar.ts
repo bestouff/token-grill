@@ -70,11 +70,14 @@ function drawingArea(width: number, height: number, draw: (area: St.DrawingArea,
     return area;
 }
 
-// Outer to inner follows the popup's order; the dot sits in the middle while it fits.
+// Outer to inner follows the popup's order. The dot sits in the middle while it
+// fits, else beside the rings: below them, it made the reading taller than the
+// panel's other items.
 function ringStack(account: TopBarAccount, mode: PanelPercentageMode): St.DrawingArea {
     const geometry = RINGS[account.limits.length] ?? RINGS[1]!;
-    const dotBelow = account.limits.length > 2;
-    return drawingArea(RING_SIZE, dotBelow ? RING_SIZE + DOT_SIZE + GAP : RING_SIZE, (area, cr) => {
+    const dotBeside = account.limits.length > 2;
+    const offset = dotBeside ? DOT_SIZE + GAP : 0;
+    return drawingArea(offset + RING_SIZE, RING_SIZE, (area, cr) => {
         const centre = RING_SIZE / 2;
         account.limits.forEach((window, index) => {
             const [radius, width] = geometry[index] ?? geometry[0]!;
@@ -82,15 +85,15 @@ function ringStack(account: TopBarAccount, mode: PanelPercentageMode): St.Drawin
             const rgb = fillRgb(area, window);
             cr.setLineWidth(width);
             cr.setSourceRGBA(...rgb, TRACK_ALPHA);
-            cr.arc(centre, centre, radius, 0, Math.PI * 2);
+            cr.arc(offset + centre, centre, radius, 0, Math.PI * 2);
             cr.stroke();
             cr.setSourceRGBA(...rgb, 1);
-            cr.arc(centre, centre, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * value);
+            cr.arc(offset + centre, centre, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * value);
             cr.stroke();
         });
         const accent = accentRgb(account.accent);
-        if (dotBelow)
-            fillDot(cr, accent, centre, RING_SIZE + GAP + DOT_SIZE / 2, DOT_SIZE / 2);
+        if (dotBeside)
+            fillDot(cr, accent, DOT_SIZE / 2, centre, DOT_SIZE / 2);
         else
             fillDot(cr, accent, centre, centre, account.limits.length === 1 ? 2.6 : 1.7);
     });
@@ -104,12 +107,14 @@ function roundedBar(cr: Cairo.Context, x: number, y: number, width: number, heig
     cr.closePath();
 }
 
+// The dot sits beside the bars, as beside three rings.
 function barStack(account: TopBarAccount, mode: PanelPercentageMode): St.DrawingArea {
     const count = Math.max(1, account.limits.length);
-    const width = count * BAR_WIDTH + (count - 1) * GAP;
-    return drawingArea(width, BAR_HEIGHT + GAP + DOT_SIZE, (area, cr) => {
+    const offset = DOT_SIZE + GAP;
+    const width = offset + count * BAR_WIDTH + (count - 1) * GAP;
+    return drawingArea(width, BAR_HEIGHT, (area, cr) => {
         account.limits.forEach((window, index) => {
-            const x = index * (BAR_WIDTH + GAP);
+            const x = offset + index * (BAR_WIDTH + GAP);
             const value = displayPercent(window, mode) ?? 0;
             const rgb = fillRgb(area, window);
             roundedBar(cr, x, 0, BAR_WIDTH, BAR_HEIGHT);
@@ -123,7 +128,7 @@ function barStack(account: TopBarAccount, mode: PanelPercentageMode): St.Drawing
             cr.fill();
             cr.restore();
         });
-        fillDot(cr, accentRgb(account.accent), width / 2, BAR_HEIGHT + GAP + DOT_SIZE / 2, DOT_SIZE / 2);
+        fillDot(cr, accentRgb(account.accent), DOT_SIZE / 2, BAR_HEIGHT / 2, DOT_SIZE / 2);
     });
 }
 

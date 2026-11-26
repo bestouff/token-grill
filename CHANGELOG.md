@@ -41,6 +41,9 @@
   lock, no longer counts the lines of that file two times.
 - With a 12-hour clock, the popup no longer shows a wide gap before a
   one-digit hour, as in "Updated 9:29 AM".
+- In the top bar, the color dot of an account sits beside its bars, or beside
+  its rings when three limits are shown. Before, it sat below them and moved
+  the reading out of line with the rest of the top bar.
 
 ## 0.4.1
 
