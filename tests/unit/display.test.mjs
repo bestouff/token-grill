@@ -1,12 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
-import {activeProvider, displayLabel, displayPercent, limitName, mostUsedWindow, pressureClass} from '../../build/tests/display.mjs';
-
-const windows = [
-    {id: 'five', canonicalWindow: 'five-hour', label: 'Five-hour', percent: 0.42},
-    {id: 'week', canonicalWindow: 'weekly', label: 'Weekly', percent: 0.68},
-];
+import {activeProvider, displayLabel, displayPercent, formatTokenCount, limitName, pressureClass} from '../../build/tests/display.mjs';
 
 test('remaining mode is the inverse of consumed pressure', () => {
     const window = {percent: 0.68};
@@ -22,9 +17,12 @@ test('missing quota readings remain unavailable', () => {
     assert.equal(displayLabel(UNTRANSLATED, null, 'used'), '-');
 });
 
-test('window selection honours the preference, label patterns, then the most used window', () => {
-    assert.equal(mostUsedWindow({windows}).id, 'week');
-    assert.equal(mostUsedWindow(null), null);
+test('token counts are short', () => {
+    assert.equal(formatTokenCount(950), '950');
+    assert.equal(formatTokenCount(12400), '12.4K');
+    assert.equal(formatTokenCount(41e6), '41.0M');
+    assert.equal(formatTokenCount(2.5e9), '2.5B');
+    assert.equal(formatTokenCount(Number.NaN), '-');
 });
 
 test('pressure thresholds and active account fallback', () => {

@@ -1,7 +1,7 @@
 export const SERVICE_NAME = 'io.github.sh02sahil.TokenGrill';
 export const OBJECT_PATH = '/io/github/sh02sahil/TokenGrill';
 export const INTERFACE_NAME = 'io.github.sh02sahil.TokenGrill1';
-export const MIN_API_VERSION = 1;
+export const MIN_API_VERSION = 2;
 
 // The same text as service/src/tokengrill/dbus/interface.xml; a test compares them.
 export const INTERFACE_XML = `<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
@@ -13,6 +13,9 @@ export const INTERFACE_XML = `<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS O
   Structured data crosses as JSON strings that carry "schema": 1.
   AccountChanged carries (account_id, snapshot_json); the JSON is
   {"schema": 1, "snapshot": <ProviderSnapshot>, "runtime": <ProviderRuntimeState>}.
+  A snapshot lists its windows in popup order, each with its top-bar "key" and
+  its "pace", and carries the account "pace", "shownLimits", "history" and
+  "homeIsDefault".
   No method or signal returns a token, a key or a file's contents.
 
   Hello(kind) registers the caller as a "shell", "prefs" or "cli" client.

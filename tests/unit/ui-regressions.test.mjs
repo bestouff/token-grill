@@ -174,11 +174,10 @@ test('provider preferences use direct editing, confirmed deletion, and normalize
 });
 
 test('local history shows real figures or its scan state, and nothing when unsupported', async () => {
-    const [model, metrics] = await Promise.all([read('src/core/popupModel.ts'), read('src/core/historyMetrics.ts')]);
+    const [model, types] = await Promise.all([read('src/core/popupModel.ts'), read('src/core/types.ts')]);
     assert.match(model, /at API prices/);
     assert.match(model, /case 'unsupported':\s*case 'off':\s*return null;/);
-    assert.match(metrics, /export type HistoryState = 'unsupported' \| 'off' \| 'waiting' \| 'updating' \| 'failed' \| 'ready'/);
-    assert.doesNotMatch(metrics, /TOKENS|USD|Waiting.../);
+    assert.match(types, /type HistoryState = 'unsupported' \| 'off' \| 'waiting' \| 'updating' \| 'failed' \| 'ready'/);
 });
 
 test('the test notification is asked of the service', async () => {
@@ -325,7 +324,7 @@ test('sign-in builds its command in the extension and opens it without a shell',
     assert.match(signIn, /GLib\.shell_quote\(arg\)/);
     assert.match(signIn, /Gio\.AppInfoCreateFlags\.NEEDS_TERMINAL/);
     assert.match(runtime, /import \{signInCommand\} from '\.\/core\/signIn\.js';/);
-    assert.match(runtime, /const command = provider \? signInCommand\(provider\) : null;\s*if \(command\)\s*openSignIn\(command\.argv\);/);
+    assert.match(runtime, /const command = provider && snapshot \? signInCommand\(provider, snapshot\.homeIsDefault\) : null;\s*if \(command\)\s*openSignIn\(command\.argv\);/);
     assert.doesNotMatch(runtime + client + iface, /SignInCommand|client\.signInCommand/);
 });
 

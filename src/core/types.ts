@@ -104,8 +104,23 @@ export interface UsageWindow {
     // The length of the window when the service reports it; usage pace needs it.
     durationSeconds: number | null;
     unit: 'credits' | null;
-    // Set by the service; the popup works out its own pace text from the window.
-    pace?: PaceState | null;
+}
+
+// A window of a snapshot, as the service sends it in the popup order.
+export interface SnapshotWindow extends UsageWindow {
+    // The name of the limit in the top-bar selection.
+    key: string;
+    pace: PaceState | null;
+}
+
+type HistoryState = 'unsupported' | 'off' | 'waiting' | 'updating' | 'failed' | 'ready';
+
+export interface HistoryMetrics {
+    state: HistoryState;
+    todayTokens: number;
+    monthTokens: number;
+    // null when no model in the period has a known price.
+    monthCost: number | null;
 }
 
 export interface LimitResetCredit {
@@ -137,7 +152,7 @@ export interface ProviderSnapshot {
     errorInfo: ErrorInfo | null;
     plan: string | null;
     account: string | null;
-    windows: UsageWindow[];
+    windows: SnapshotWindow[];
     balance: Balance | null;
     totals: TokenTotals;
     todayTotals: TokenTotals;
@@ -149,6 +164,11 @@ export interface ProviderSnapshot {
     resetCredits: LimitResetCreditSummary | null;
     // The account pace of the shown limits.
     pace: PaceState | null;
+    // The keys of the limits the top bar shows, with Pick Automatically resolved.
+    shownLimits: string[];
+    history: HistoryMetrics;
+    // Whether the CLI signs this account in without a variable that points it at the account home.
+    homeIsDefault: boolean;
 }
 
 export interface ProviderRuntimeState {

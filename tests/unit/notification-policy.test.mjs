@@ -13,13 +13,16 @@ const provider = (topBar, kind = 'codex') => ({id: 'codex-personal', kind, displ
 const auto = {automatic: true, limits: []};
 const NOW = Date.UTC(2026, 10, 10, 12, 0);
 const DAY = 24 * 60 * 60 * 1000;
-const snapshot = {
+// The service sends the windows in popup order with the keys of the limits the top bar shows.
+const reading = shownLimits => ({
     windows: [
-        {id: 'five', canonicalWindow: 'five-hour', label: 'Five-hour', percent: 0.42},
-        {id: 'week', canonicalWindow: 'weekly', label: 'Weekly', percent: 0.68},
-        {id: 'month', canonicalWindow: 'monthly', label: 'Monthly', percent: 0.51},
+        {id: 'five', key: 'five-hour', canonicalWindow: 'five-hour', label: 'Five-hour', percent: 0.42},
+        {id: 'week', key: 'weekly', canonicalWindow: 'weekly', label: 'Weekly', percent: 0.68},
+        {id: 'month', key: 'monthly', canonicalWindow: 'monthly', label: 'Monthly', percent: 0.51},
     ],
-};
+    shownLimits,
+});
+const snapshot = reading(['weekly']);
 
 test('a limit alert reads service, account, limit and amount', () => {
     const weekly = {id: 'seven_day', canonicalWindow: 'weekly', label: 'Weekly', percent: 0.88, resetAt: NOW + 2 * DAY};
@@ -47,9 +50,10 @@ test('a balance alert reads service, account and amount left', () => {
 });
 
 test('test notifications use the first shown limit and its current reading', () => {
-    const pinned = testNotificationText(tr, 'Codex', provider({automatic: false, limits: ['five-hour']}), snapshot, 'remaining', NOW);
+    const pinned = testNotificationText(tr, 'Codex', provider({automatic: false, limits: ['five-hour']}), reading(['five-hour']), 'remaining', NOW);
     assert.deepEqual(pinned, {source: 'Codex - Personal', title: 'Five-hour: 58% left', body: 'Test notification - Reset time unknown'});
     assert.equal(testNotificationText(tr, 'Codex', provider(auto), snapshot, 'remaining', NOW).title, 'Weekly: 32% left');
+    assert.equal(testNotificationText(tr, 'Codex', provider({automatic: false, limits: []}), reading([]), 'remaining', NOW).title, 'Five-hour: 58% left');
 });
 
 test('test notifications without data preview the first limit of the service', () => {

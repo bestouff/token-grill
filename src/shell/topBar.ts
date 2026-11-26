@@ -8,10 +8,9 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 import {accentRgb} from '../core/accent.js';
 import {displayLabel, displayPercent, formatMoney, limitName, pressureClass} from '../core/display.js';
 import {formatText} from '../core/i18n.js';
-import type {PaceState} from '../core/pace.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import type {TopBarAccount, TopBarGroup} from '../core/topBar.js';
-import type {PanelDisplayStyle, PanelPercentageMode, UsageWindow} from '../core/types.js';
+import type {PaceLevel, PanelDisplayStyle, PanelPercentageMode, UsageWindow} from '../core/types.js';
 import {accentDot, paceIcon, providerIcon} from './accountChip.js';
 import {TRANSLATOR} from './translator.js';
 
@@ -30,7 +29,7 @@ const DOT_SIZE = 5;
 const TRACK_ALPHA = 0.25;
 
 // The pace icon is only visible, so its meaning is spoken too.
-const PACE_NAMES: Record<PaceState, () => string> = {
+const PACE_NAMES: Record<PaceLevel, () => string> = {
     high: () => _('using it fast'),
     'on-track': () => _('on pace'),
     low: () => _('using it slowly'),

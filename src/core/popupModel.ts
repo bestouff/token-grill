@@ -1,14 +1,13 @@
 // Pure presentation helpers for the top-bar popup.  Kept free of GNOME imports
 // so the wording and grouping can be unit-tested.
-import {activeProvider} from './display.js';
-import {formatTokenCount, type HistoryMetrics} from './historyMetrics.js';
+import {activeProvider, formatTokenCount} from './display.js';
 import {formatText, type Translator} from './i18n.js';
 import {displayPath} from './paths.js';
 import {providerMetadata} from './providerMetadata.js';
 import {serviceMessage} from './serviceMessages.js';
 import {signInCommand} from './signIn.js';
 import {durationUntil, formatDuration} from './timeMath.js';
-import type {ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from './types.js';
+import type {HistoryMetrics, ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from './types.js';
 
 export interface ChooserAccount {
     id: string;
@@ -166,9 +165,9 @@ type HintInstance = Pick<ProviderInstance, 'kind' | 'app' | 'accountHome'>;
 
 // Provider messages state the problem; the fix is added here once, per service.
 // A CLI signed in to another home needs the variable that points it there.
-function withSignInHint(tr: Translator, {kind, app, accountHome}: HintInstance, message: string): string {
+function withSignInHint(tr: Translator, {kind, app, accountHome}: HintInstance, homeIsDefault: boolean, message: string): string {
     const {_} = tr;
-    const command = signInCommand({app, accountHome});
+    const command = signInCommand({app, accountHome}, homeIsDefault);
     if (command?.home)
         return formatText(_('%s Run %s with %s set to %s.'), message, command.login, command.home.variable, displayPath(command.home.path));
     if (app === 'opencode')
@@ -191,15 +190,19 @@ function withSignInHint(tr: Translator, {kind, app, accountHome}: HintInstance, 
     return formatText(templates[kind], message);
 }
 
-export function errorText(tr: Translator, snapshot: Pick<ProviderSnapshot, 'errorInfo'> | null, instance: HintInstance): string | null {
+export function errorText(
+    tr: Translator,
+    snapshot: Pick<ProviderSnapshot, 'errorInfo' | 'homeIsDefault'> | null,
+    instance: HintInstance
+): string | null {
     const {_} = tr;
-    const info = snapshot?.errorInfo ?? null;
-    if (!info)
+    if (!snapshot?.errorInfo)
         return null;
+    const info = snapshot.errorInfo;
     const message = serviceMessage(tr, info);
     switch (info.recovery) {
     case 'reauthenticate':
-        return withSignInHint(tr, instance, message);
+        return withSignInHint(tr, instance, snapshot.homeIsDefault, message);
     case 'retry':
         return formatText(_('%s Try again later.'), message);
     default:

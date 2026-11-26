@@ -96,7 +96,7 @@ test('history summary appears only with real history data', () => {
     assert.equal(historySummary(tr, metrics('ready', {todayTokens: 1.2e6, monthTokens: 41e6})), 'Today 1.2M tokens - 30 days 41.0M tokens');
 });
 
-const failure = (messageId, recovery, params = {}, code = 'auth-expired') => ({errorInfo: {code, messageId, params, recovery}});
+const failure = (messageId, recovery, params = {}, code = 'auth-expired') => ({errorInfo: {code, messageId, params, recovery}, homeIsDefault: true});
 
 test('error text adds the service-specific fix once', () => {
     assert.equal(errorText(tr, failure('kiro.auth-missing', 'reauthenticate'), {kind: 'kiro'}), 'kiro-cli is not signed in. Run kiro-cli login.');
@@ -105,7 +105,7 @@ test('error text adds the service-specific fix once', () => {
     assert.equal(errorText(tr, failure('net.timed-out', 'retry', {}, 'timeout'), {kind: 'codex'}), 'The service did not answer in time. Try again later.');
     assert.equal(errorText(tr, failure('kiro.region-unsupported', 'none', {name: 'eu-west-9'}, 'dependency'), {kind: 'kiro'}),
         'Kiro usage is not available in the eu-west-9 region.');
-    assert.equal(errorText(tr, {errorInfo: null}, {kind: 'kiro'}), null);
+    assert.equal(errorText(tr, {errorInfo: null, homeIsDefault: true}, {kind: 'kiro'}), null);
     assert.equal(errorText(tr, null, {kind: 'kiro'}), null);
 });
 

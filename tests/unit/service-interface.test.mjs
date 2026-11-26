@@ -20,5 +20,5 @@ test('the names match the service', async () => {
     assert.match(source, /SERVICE_NAME = 'io\.github\.sh02sahil\.TokenGrill'/);
     assert.match(source, /OBJECT_PATH = '\/io\/github\/sh02sahil\/TokenGrill'/);
     assert.match(source, /INTERFACE_NAME = 'io\.github\.sh02sahil\.TokenGrill1'/);
-    assert.match(source, /MIN_API_VERSION = 1/);
+    assert.match(source, /MIN_API_VERSION = 2/);
 });

@@ -1,62 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
-import {isShown, limitKey, orderedLimits, setAutomatic, shownLimits, toggleLimit, topBarGroups, topBarSummary} from '../../build/tests/top-bar.mjs';
+import {isShown, topBarGroups, topBarSummary} from '../../build/tests/top-bar.mjs';
 
-const window = (id, canonicalWindow, percent) => ({id, canonicalWindow, label: id, used: null, limit: null, percent, resetAt: null, unit: null});
-const fiveHour = window('five_hour', 'five-hour', 0.6);
-const weekly = window('seven_day', 'weekly', 0.88);
-const opus = window('seven_day_opus', 'other', 0.42);
-const snapshot = (windows, extra = {}) => ({windows, balance: null, ...extra});
+const window = (id, key, canonicalWindow, percent) => ({id, key, canonicalWindow, label: id, used: null, limit: null, percent, resetAt: null, unit: null, pace: null});
+const weekly = window('seven_day', 'weekly', 'weekly', 0.88);
+// The service sends the shown limits of each account.
+const snapshot = (windows, shownLimits, extra = {}) => ({windows, shownLimits, balance: null, pace: null, ...extra});
 const account = (id, kind, topBar, extra = {}) => ({id, kind, accent: 'blue', enabled: true, topBar, ...extra});
 const auto = {automatic: true, limits: []};
 
-test('limit keys are canonical windows, or the window id for other limits', () => {
-    assert.equal(limitKey(fiveHour), 'five-hour');
-    assert.equal(limitKey(opus), 'seven_day_opus');
-});
-
-test('first click while automatic keeps the shown limit and adds the clicked one', () => {
-    const selection = toggleLimit(account('a', 'claude', auto), 'five-hour', snapshot([fiveHour, weekly]));
-    assert.deepEqual(selection, {automatic: false, limits: ['five-hour', 'weekly']});
-});
-
-test('first click on the automatic limit pins it', () => {
-    assert.deepEqual(toggleLimit(account('a', 'claude', auto), 'weekly', snapshot([fiveHour, weekly])), {automatic: false, limits: ['weekly']});
-});
-
-test('later clicks toggle, and unticking the last limit hides the account', () => {
-    const data = snapshot([fiveHour, weekly]);
-    const added = toggleLimit(account('a', 'claude', {automatic: false, limits: ['weekly']}), 'five-hour', data);
-    assert.deepEqual(added, {automatic: false, limits: ['five-hour', 'weekly']});
-    const removed = toggleLimit(account('a', 'claude', {automatic: false, limits: ['weekly']}), 'weekly', data);
-    assert.deepEqual(removed, {automatic: false, limits: []});
-    assert.equal(isShown({topBar: removed}), false);
-});
-
-test('limits follow the popup order', () => {
-    const data = snapshot([opus, weekly, fiveHour]);
-    assert.deepEqual(orderedLimits(data).map(limitKey), ['five-hour', 'weekly', 'seven_day_opus']);
-    const shown = shownLimits(account('a', 'claude', {automatic: false, limits: ['weekly', 'seven_day_opus', 'five-hour']}), data);
-    assert.deepEqual(shown.map(limitKey), ['five-hour', 'weekly', 'seven_day_opus']);
-});
-
-test('automatic shows the limit closest to running out', () => {
-    assert.deepEqual(shownLimits(account('a', 'claude', auto), snapshot([fiveHour, weekly])), [weekly]);
-});
-
-test('turning automatic on clears the ticks, turning it off keeps them', () => {
-    assert.deepEqual(setAutomatic({automatic: false, limits: ['weekly']}, true), {automatic: true, limits: []});
-    assert.deepEqual(setAutomatic({automatic: true, limits: []}, false), {automatic: false, limits: []});
-});
-
-test('a ticked limit the service stopped reporting is skipped', () => {
-    const snapshots = new Map([['a', snapshot([weekly])], ['b', snapshot([weekly])]]);
+test('an account shows the limits the service says it shows', () => {
+    const snapshots = new Map([['a', snapshot([weekly], ['weekly'])], ['b', snapshot([weekly], [])]]);
     const groups = topBarGroups([
         account('a', 'claude', {automatic: false, limits: ['five-hour', 'weekly']}),
         account('b', 'claude', {automatic: false, limits: ['five-hour']}),
     ], snapshots);
-    assert.deepEqual(groups[0].accounts.map(item => [item.id, item.limits.map(limitKey), item.missing]), [
+    assert.deepEqual(groups[0].accounts.map(item => [item.id, item.limits.map(limit => limit.key), item.missing]), [
         ['a', ['weekly'], false],
         ['b', [], true],
     ]);
@@ -64,7 +24,7 @@ test('a ticked limit the service stopped reporting is skipped', () => {
 
 test('balance accounts are shown by the balance key', () => {
     const balance = {amount: 42.1, currency: 'CNY'};
-    const groups = topBarGroups([account('d', 'deepseek', {automatic: false, limits: ['balance']}, {displayName: 'API', lowBalance: 50})], new Map([['d', snapshot([], {balance})]]));
+    const groups = topBarGroups([account('d', 'deepseek', {automatic: false, limits: ['balance']}, {displayName: 'API', lowBalance: 50})], new Map([['d', snapshot([], [], {balance})]]));
     assert.deepEqual(groups[0].accounts[0], {id: 'd', name: 'API', accent: 'blue', limits: [], balance, low: true, missing: false, pace: null});
 });
 
@@ -89,8 +49,22 @@ test('the top-bar summary names the chosen limits', () => {
 
 test('a DeepSeek account on Pick Automatically still warns of a low balance', () => {
     const balance = {amount: 3, currency: 'CNY'};
-    const meter = window('balance', 'other', 0.9);
-    const groups = topBarGroups([account('d', 'deepseek', auto, {lowBalance: 10})], new Map([['d', snapshot([meter], {balance})]]));
+    const meter = window('balance', 'balance', 'other', 0.9);
+    const groups = topBarGroups([account('d', 'deepseek', auto, {lowBalance: 10})], new Map([['d', snapshot([meter], ['balance'], {balance})]]));
     assert.equal(groups[0].accounts[0].low, true);
     assert.deepEqual(groups[0].accounts[0].balance, balance);
+});
+
+test('the top bar shows the account pace only when the account asks for it', () => {
+    const paced = snapshot([weekly], ['weekly'], {pace: {state: 'high', runsOutAt: null}});
+    const shown = topBarGroups([account('a', 'claude', auto, {showPace: true})], new Map([['a', paced]]));
+    assert.equal(shown[0].accounts[0].pace, 'high');
+    const hidden = topBarGroups([account('a', 'claude', auto, {showPace: false})], new Map([['a', paced]]));
+    assert.equal(hidden[0].accounts[0].pace, null);
+});
+
+test('an account with no ticked limit is not in the top bar', () => {
+    assert.equal(isShown({topBar: {automatic: false, limits: []}}), false);
+    assert.equal(isShown({topBar: {automatic: false, limits: ['weekly']}}), true);
+    assert.equal(isShown({topBar: auto}), true);
 });

@@ -2,7 +2,6 @@ import {formatMoney, limitName} from './display.js';
 import {formatText, type Translator} from './i18n.js';
 import {providerMetadata} from './providerMetadata.js';
 import {durationUntil, formatDuration} from './timeMath.js';
-import {orderedLimits, shownLimits} from './topBar.js';
 import type {Alert, Balance, PanelPercentageMode, ProviderInstance, ProviderSnapshot, UsageWindow} from './types.js';
 
 // Read at a glance: the source names service and account, the title the limit and what is left.
@@ -73,13 +72,14 @@ export function balanceNotificationText(
 export function testNotificationText(
     tr: Translator,
     serviceLabel: string,
-    instance: Pick<ProviderInstance, 'kind' | 'displayName' | 'topBar'>,
-    snapshot: Pick<ProviderSnapshot, 'windows'> | null,
+    instance: Pick<ProviderInstance, 'kind' | 'displayName'>,
+    snapshot: Pick<ProviderSnapshot, 'windows' | 'shownLimits'> | null,
     mode: PanelPercentageMode,
     now: number
 ): NotificationText {
     const {_} = tr;
-    const window = shownLimits(instance, snapshot)[0] ?? orderedLimits(snapshot)[0] ?? null;
+    const windows = snapshot?.windows ?? [];
+    const window = windows.find(item => snapshot?.shownLimits.includes(item.key)) ?? windows[0] ?? null;
     const preview = {id: '', canonicalWindow: providerMetadata(instance.kind).quotaWindows[0] ?? 'other', label: '', resetAt: null};
     const consumed = window?.percent ?? PREVIEW_CONSUMED;
     return {
@@ -94,8 +94,8 @@ export function testNotificationText(
 export function alertText(
     tr: Translator,
     alert: Pick<Alert, 'kind' | 'window' | 'fraction' | 'balance' | 'lowBalance'>,
-    instance: Pick<ProviderInstance, 'kind' | 'displayName' | 'topBar'>,
-    snapshot: Pick<ProviderSnapshot, 'windows'> | null,
+    instance: Pick<ProviderInstance, 'kind' | 'displayName'>,
+    snapshot: Pick<ProviderSnapshot, 'windows' | 'shownLimits'> | null,
     mode: PanelPercentageMode,
     now: number
 ): NotificationText | null {

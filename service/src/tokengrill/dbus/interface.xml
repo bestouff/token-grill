@@ -7,6 +7,9 @@
   Structured data crosses as JSON strings that carry "schema": 1.
   AccountChanged carries (account_id, snapshot_json); the JSON is
   {"schema": 1, "snapshot": <ProviderSnapshot>, "runtime": <ProviderRuntimeState>}.
+  A snapshot lists its windows in popup order, each with its top-bar "key" and
+  its "pace", and carries the account "pace", "shownLimits", "history" and
+  "homeIsDefault".
   No method or signal returns a token, a key or a file's contents.
 
   Hello(kind) registers the caller as a "shell", "prefs" or "cli" client.

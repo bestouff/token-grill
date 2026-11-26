@@ -4,7 +4,6 @@ import type {
     Balance,
     PanelPercentageMode,
     ProviderInstance,
-    ProviderSnapshot,
     UsageWindow,
 } from './types.js';
 
@@ -27,16 +26,6 @@ export function limitName(tr: Translator, window: Pick<UsageWindow, 'id' | 'cano
 export function activeProvider(providers: ProviderInstance[], activeId: string): ProviderInstance | null {
     const enabled = providers.filter(provider => provider.enabled);
     return enabled.find(provider => provider.id === activeId) ?? enabled[0] ?? null;
-}
-
-// Pick Automatically shows the limit with the most usage.
-export function mostUsedWindow(snapshot: Pick<ProviderSnapshot, 'windows'> | null): UsageWindow | null {
-    let highest: UsageWindow | null = null;
-    for (const window of snapshot?.windows ?? []) {
-        if ((window.percent ?? -1) > (highest?.percent ?? -1))
-            highest = window;
-    }
-    return highest;
 }
 
 export function displayPercent(window: UsageWindow | null, mode: PanelPercentageMode): number | null {
@@ -62,6 +51,18 @@ export function displayLabel(tr: Translator, window: UsageWindow | null, mode: P
         return '-';
     const rounded = Math.round(percent * 100);
     return mode === 'remaining' ? formatText(_('%d%% left'), rounded) : formatText(_('%d%% used'), rounded);
+}
+
+export function formatTokenCount(value: number): string {
+    if (!Number.isFinite(value))
+        return '-';
+    if (value >= 1e9)
+        return `${(value / 1e9).toFixed(1)}B`;
+    if (value >= 1e6)
+        return `${(value / 1e6).toFixed(1)}M`;
+    if (value >= 1e3)
+        return `${(value / 1e3).toFixed(1)}K`;
+    return value.toLocaleString();
 }
 
 // A prepaid amount in its own currency, such as "$12.40".

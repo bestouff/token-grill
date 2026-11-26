@@ -3,9 +3,8 @@ import Gio from 'gi://Gio';
 import St from 'gi://St';
 
 import {accentRgb} from '../core/accent.js';
-import type {PaceState} from '../core/pace.js';
 import {providerIconFile} from '../core/providerMetadata.js';
-import type {ProviderInstance, ProviderKind} from '../core/types.js';
+import type {PaceLevel, ProviderInstance, ProviderKind} from '../core/types.js';
 
 const MARK_DOT_SIZE = 6;
 
@@ -23,11 +22,11 @@ export function providerIcon(extensionPath: string, kind: ProviderKind, size: nu
     });
 }
 
-export function paceGicon(extensionPath: string, state: PaceState): Gio.Icon {
+export function paceGicon(extensionPath: string, state: PaceLevel): Gio.Icon {
     return Gio.icon_new_for_string(`${extensionPath}/icons/pace/pace-${state}-symbolic.svg`);
 }
 
-export function paceIcon(extensionPath: string, state: PaceState, size: number): St.Icon {
+export function paceIcon(extensionPath: string, state: PaceLevel, size: number): St.Icon {
     return new St.Icon({gicon: paceGicon(extensionPath, state), icon_size: size, y_align: Clutter.ActorAlign.CENTER});
 }
 

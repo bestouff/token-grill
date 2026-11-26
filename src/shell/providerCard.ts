@@ -11,21 +11,20 @@ import * as Animation from 'resource:///org/gnome/shell/ui/animation.js';
 import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {displayLabel, displayPercent, formatMoney, limitName, pressureClass} from '../core/display.js';
-import {historyMetrics} from '../core/historyMetrics.js';
 import {formatText} from '../core/i18n.js';
-import {windowPace, type Pace} from '../core/pace.js';
+import {paceLine, type PaceLine} from '../core/pace.js';
 import {errorText, historySummary, refreshStatusText, windowCaption} from '../core/popupModel.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import {signInCommand} from '../core/signIn.js';
 import {durationUntil, formatDuration, tidyClock} from '../core/timeMath.js';
-import {isShown, limitKey, orderedLimits, shownLimits} from '../core/topBar.js';
+import {isShown} from '../core/topBar.js';
 import type {
     LimitResetCreditSummary,
     PanelPercentageMode,
     ProviderInstance,
     ProviderRuntimeState,
     ProviderSnapshot,
-    UsageWindow,
+    SnapshotWindow,
 } from '../core/types.js';
 import {paceGicon, providerMark} from './accountChip.js';
 import {TRANSLATOR} from './translator.js';
@@ -40,7 +39,7 @@ export interface ProviderDetailActions {
 interface LimitRow {
     key: string;
     title: string;
-    window: UsageWindow | null;
+    window: SnapshotWindow | null;
 }
 
 function label(text: string, styleClass: string, params: Partial<St.Label.ConstructorProps> = {}): St.Label {
@@ -211,7 +210,7 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
         this.label_actor = nameLabel;
     }
 
-    private _updatePace(pace: Pace | null): void {
+    private _updatePace(pace: PaceLine | null): void {
         this._pace.visible = pace !== null;
         if (!pace)
             return;
@@ -223,7 +222,7 @@ class WindowItem extends PopupMenu.PopupBaseMenuItem {
         this._onSelect();
     }
 
-    update(window: UsageWindow | null, mode: PanelPercentageMode, shown: boolean, automatic: boolean, pace: Pace | null): void {
+    update(window: SnapshotWindow | null, mode: PanelPercentageMode, shown: boolean, automatic: boolean, pace: PaceLine | null): void {
         const percent = displayPercent(window, mode);
         const pressure = pressureClass(window);
         const value = window ? displayLabel(TRANSLATOR, window, mode) : _('Unavailable');
@@ -342,9 +341,9 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
 
     // The limits the service reported, or before the first reading the ones it is known to have.
     private _rows(instance: ProviderInstance, snapshot: ProviderSnapshot | null): LimitRow[] {
-        const windows = orderedLimits(snapshot);
+        const windows = snapshot?.windows ?? [];
         if (windows.length)
-            return windows.map(window => ({key: limitKey(window), title: limitName(TRANSLATOR, window), window}));
+            return windows.map(window => ({key: window.key, title: limitName(TRANSLATOR, window), window}));
         return providerMetadata(instance.kind).quotaWindows.map(canonicalWindow => ({
             key: canonicalWindow,
             title: limitName(TRANSLATOR, {id: canonicalWindow, canonicalWindow, label: ''}),
@@ -366,9 +365,9 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
                 return item;
             });
         }
-        const shown = new Set(shownLimits(instance, snapshot).map(limitKey));
+        const shown = new Set(snapshot?.shownLimits ?? []);
         rows.forEach((row, index) => {
-            const pace = instance.showPace && row.window ? windowPace(TRANSLATOR, row.window, dateTimeLabel) : null;
+            const pace = instance.showPace && row.window?.pace ? paceLine(TRANSLATOR, row.window.pace, dateTimeLabel) : null;
             this._limits[index]!.update(row.window, mode, shown.has(row.key), instance.topBar.automatic, pace);
         });
         this._legend.setText(isShown(instance)
@@ -407,13 +406,13 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
         this._identity.setBusy(runtime !== null && runtime.phase !== 'idle');
 
         this._error.setText(errorText(TRANSLATOR, snapshot, instance));
-        this._signIn.visible = snapshot?.errorInfo?.recovery === 'reauthenticate' && signInCommand(instance) !== null;
+        this._signIn.visible = snapshot?.errorInfo?.recovery === 'reauthenticate' && signInCommand(instance, snapshot.homeIsDefault) !== null;
         this._updateLimits(instance, snapshot, mode);
         const balance = snapshot?.balance ?? null;
         this._balance.setText(balance ? formatText(_('%s left - prepaid balance'), formatMoney(balance, 2)) : null);
 
         this._updateCredits(snapshot?.resetCredits ?? null);
-        this._history.setText(historySummary(TRANSLATOR, historyMetrics(instance, snapshot, runtime)));
+        this._history.setText(snapshot ? historySummary(TRANSLATOR, snapshot.history) : null);
     }
 
     private _updateCredits(summary: LimitResetCreditSummary | null): void {

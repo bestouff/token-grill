@@ -104,7 +104,8 @@ export class Runtime implements IndicatorController {
     // The command comes from the extension's own table, never from the bus.
     signIn(providerId: string): void {
         const provider = this._accounts().find(account => account.id === providerId);
-        const command = provider ? signInCommand(provider) : null;
+        const snapshot = this._client!.state?.snapshots[providerId];
+        const command = provider && snapshot ? signInCommand(provider, snapshot.homeIsDefault) : null;
         if (command)
             openSignIn(command.argv);
     }
