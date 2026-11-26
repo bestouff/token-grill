@@ -17,7 +17,7 @@ import {windowPace, type Pace} from '../core/pace.js';
 import {errorText, historySummary, refreshStatusText, windowCaption} from '../core/popupModel.js';
 import {providerMetadata} from '../core/providerMetadata.js';
 import {signInCommand} from '../core/signIn.js';
-import {durationUntil, formatDuration} from '../core/timeMath.js';
+import {durationUntil, formatDuration, tidyClock} from '../core/timeMath.js';
 import {isShown, limitKey, orderedLimits, shownLimits} from '../core/topBar.js';
 import type {
     LimitResetCreditSummary,
@@ -58,7 +58,11 @@ function wrappingLabel(styleClass: string, params: Partial<St.Label.ConstructorP
 const DIMMED_OPACITY = 140;
 
 function clockLabel(timestamp: number): string {
-    return formatTime(new Date(timestamp), {timeOnly: true});
+    return tidyClock(formatTime(new Date(timestamp), {timeOnly: true}));
+}
+
+function dateTimeLabel(timestamp: number): string {
+    return tidyClock(formatTime(new Date(timestamp)));
 }
 
 function countdown(timestamp: number): string {
@@ -364,7 +368,7 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
         }
         const shown = new Set(shownLimits(instance, snapshot).map(limitKey));
         rows.forEach((row, index) => {
-            const pace = instance.showPace && row.window ? windowPace(TRANSLATOR, row.window, timestamp => formatTime(new Date(timestamp))) : null;
+            const pace = instance.showPace && row.window ? windowPace(TRANSLATOR, row.window, dateTimeLabel) : null;
             this._limits[index]!.update(row.window, mode, shown.has(row.key), instance.topBar.automatic, pace);
         });
         this._legend.setText(isShown(instance)
@@ -440,7 +444,7 @@ export class ProviderDetail extends PopupMenu.PopupMenuSection {
             const title = credit.title || _('Usage-limit reset');
             const row = new InfoItem();
             if (credit.expiresAt)
-                row.setText(_('%s - expires %s (in %s)').format(title, formatTime(new Date(credit.expiresAt)), countdown(credit.expiresAt)));
+                row.setText(_('%s - expires %s (in %s)').format(title, dateTimeLabel(credit.expiresAt), countdown(credit.expiresAt)));
             else
                 row.setText(_('%s - expiry unavailable').format(title));
             this._credits.menu.addMenuItem(row);

@@ -39,6 +39,8 @@
   needs libsecret.
 - A history scan that stops in the middle of a file, for example at a screen
   lock, no longer counts the lines of that file two times.
+- With a 12-hour clock, the popup no longer shows a wide gap before a
+  one-digit hour, as in "Updated 9:29 AM".
 
 ## 0.4.1
 

@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {durationUntil, formatDuration} from '../../build/tests/time-math.mjs';
+import {durationUntil, formatDuration, tidyClock} from '../../build/tests/time-math.mjs';
 import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
+
+test('a padded 12-hour clock loses its extra spaces', () => {
+    // What GLib's %l writes before a one-digit hour.
+    const figureSpace = String.fromCodePoint(0x2007);
+    assert.equal(tidyClock(`${figureSpace}9:29 AM`), '9:29 AM');
+    assert.equal(tidyClock(`November 26, ${figureSpace}9:29 AM`), 'November 26, 9:29 AM');
+    assert.equal(tidyClock('14:05'), '14:05');
+});
 
 test('reset countdown uses days only when needed', () => {
     const format = (ms, compact = false) => formatDuration(UNTRANSLATED, durationUntil(ms, 0), compact);

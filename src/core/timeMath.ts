@@ -22,6 +22,12 @@ export function durationUntil(targetAt: number | null, now = Date.now()): Durati
     };
 }
 
+// GNOME Shell's formatTime() uses %l, and GLib pads a one-digit hour with a
+// figure space, which leaves a wide gap inside a sentence.
+export function tidyClock(text: string): string {
+    return text.trim().replace(/\s{2,}/g, ' ');
+}
+
 // `compact` drops the minutes once a duration reaches whole days.
 export function formatDuration(tr: Translator, parts: DurationParts, compact = false): string {
     const {_} = tr;
