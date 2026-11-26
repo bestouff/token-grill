@@ -128,6 +128,7 @@ export function serviceStatusContent({_}: Translator, failure: ServiceFailure): 
         'too-old': [
             {kind: 'title', text: _('Update the Service')},
             {kind: 'command', text: UPGRADE_WITH_PIPX},
+            {kind: 'check-again', text: _('Check Again')},
         ],
         'not-responding': [
             {kind: 'title', text: _('The Service Is Not Responding')},

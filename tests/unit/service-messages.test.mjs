@@ -83,6 +83,7 @@ test('the service cards have the setup copy', () => {
     assert.deepEqual(serviceStatusContent(UNTRANSLATED, 'too-old'), [
         {kind: 'title', text: 'Update the Service'},
         {kind: 'command', text: 'pipx upgrade tokengrill'},
+        {kind: 'check-again', text: 'Check Again'},
     ]);
     assert.deepEqual(serviceStatusContent(UNTRANSLATED, 'not-responding'), [
         {kind: 'title', text: 'The Service Is Not Responding'},
