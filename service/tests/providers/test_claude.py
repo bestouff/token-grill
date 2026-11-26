@@ -1,4 +1,7 @@
+import asyncio
 import json
+import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -10,6 +13,7 @@ from tokengrill.core.errors import ServiceError
 from tokengrill.core.types import ProviderInstance, RefreshPhase, RefreshSource, SourceResult, empty_snapshot
 from tokengrill.net.http import HttpClient
 from tokengrill.providers.base import CollectorContext
+from tokengrill.providers.claude import renewal
 from tokengrill.providers.claude.auth import load_claude_access_token
 from tokengrill.providers.claude.collector import ClaudeCollector
 from tokengrill.providers.claude.history import claude_usage_event
@@ -378,3 +382,203 @@ async def test_live_usage_disabled_makes_no_request(tmp_path: Path) -> None:
     ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: httpx.Response(500)))
     snap = await ClaudeCollector().collect(make_instance(tmp_path, live=False), empty_snapshot("acct"), ctx)
     assert snap["state"] == "unknown"
+
+
+@pytest.fixture
+def claude_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    executable = tmp_path / "bin" / "claude"
+    executable.parent.mkdir()
+    executable.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, sys, time\n"
+        "from pathlib import Path\n"
+        "home = Path(os.environ['CLAUDE_CONFIG_DIR'])\n"
+        "with (home / 'calls').open('a') as calls:\n"
+        "    calls.write(json.dumps({'argv': sys.argv[1:], 'cwd': os.getcwd(), 'pid': os.getpid(),\n"
+        "        'override': os.environ.get('ANTHROPIC_API_KEY'),\n"
+        "        'token': os.environ.get('CLAUDE_CODE_OAUTH_TOKEN')}) + '\\n')\n"
+        "print('private CLI output')\n"
+        "print('private CLI error', file=sys.stderr)\n"
+        "mode = (home / 'mode').read_text() if (home / 'mode').exists() else 'renew'\n"
+        "if mode == 'hang': time.sleep(60)\n"
+        "if mode == 'fail': sys.exit(1)\n"
+        "if mode == 'unchanged': sys.exit(0)\n"
+        "path = home / '.credentials.json'\n"
+        "payload = json.loads(path.read_text())\n"
+        "payload['claudeAiOauth'].update(accessToken='renewed', refreshToken='rotated', expiresAt=4102444800000)\n"
+        "path.write_text(json.dumps(payload))\n"
+    )
+    executable.chmod(0o700)
+    monkeypatch.setenv("PATH", str(executable.parent))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "wrong-account")
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "wrong-account")
+    return executable
+
+
+async def test_expired_sign_in_is_renewed_by_cli_and_used_for_usage(
+    tmp_path: Path, claude_cli: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / "account with spaces"
+    write_auth(home, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
+    seen: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["Authorization"])
+        return httpx.Response(200, json=USAGE)
+
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(handle))
+    collector = ClaudeCollector()
+    snap = await collector.collect(make_instance(home), empty_snapshot("acct"), ctx)
+    assert snap["state"] == "ready"
+    assert seen == ["Bearer renewed"]
+    call = json.loads((home / "calls").read_text())
+    assert call["argv"] == ["auth", "status"]
+    assert call["cwd"] == "/"
+    assert call["override"] is None and call["token"] is None
+    assert capfd.readouterr() == ("", "")
+    await collector.collect(make_instance(home), snap, ctx)
+    assert len((home / "calls").read_text().splitlines()) == 1
+
+
+@pytest.mark.parametrize("mode", ["unchanged", "fail", "hang"])
+async def test_failed_renewal_keeps_auth_error_and_is_throttled(
+    tmp_path: Path, claude_cli: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    home = tmp_path / "home"
+    write_auth(home, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
+    (home / "mode").write_text(mode)
+    monkeypatch.setattr(renewal, "RENEWAL_TIMEOUT_SECONDS", 0.2)
+    now = 0.0
+    monkeypatch.setattr(renewal, "monotonic", lambda: now)
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: pytest.fail("expired token was sent")))
+    collector = ClaudeCollector()
+    for _ in range(2):
+        snap = await collector.collect(make_instance(home), empty_snapshot("acct"), ctx)
+        assert snap["errorInfo"] is not None
+        assert snap["errorInfo"]["code"] == "auth-expired"
+    assert len((home / "calls").read_text().splitlines()) == 1
+    if mode == "hang":
+        with pytest.raises(ProcessLookupError):
+            os.kill(json.loads((home / "calls").read_text())["pid"], 0)
+    now += renewal.RETRY_SECONDS
+    await collector.collect(make_instance(home), empty_snapshot("acct"), ctx)
+    assert len((home / "calls").read_text().splitlines()) == 2
+
+
+async def test_concurrent_accounts_sharing_a_file_renew_once(tmp_path: Path, claude_cli: Path) -> None:
+    write_auth(tmp_path, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: httpx.Response(200, json=USAGE)))
+    loader = renewal.ClaudeTokenLoader()
+    results = await asyncio.gather(*(loader.load(make_instance(tmp_path), ctx) for _ in range(2)))
+    assert results == ["renewed", "renewed"]
+    assert len((tmp_path / "calls").read_text().splitlines()) == 1
+
+
+async def test_override_renews_only_the_selected_credentials_folder(tmp_path: Path, claude_cli: Path) -> None:
+    home, other = tmp_path / "home", tmp_path / "other"
+    for folder in (home, other):
+        write_auth(folder, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
+    instance = make_instance(home)
+    instance["authFileOverride"] = str(other / ".credentials.json")
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: httpx.Response(200, json=USAGE)))
+    assert await renewal.ClaudeTokenLoader().load(instance, ctx) == "renewed"
+    assert not (home / "calls").exists()
+    assert (other / "calls").exists()
+
+
+async def test_native_install_is_found_when_dbus_path_omits_it(
+    tmp_path: Path, claude_cli: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user_home = tmp_path / "user"
+    native = user_home / ".local" / "bin" / "claude"
+    native.parent.mkdir(parents=True)
+    claude_cli.rename(native)
+    monkeypatch.setenv("HOME", str(user_home))
+    write_auth(tmp_path, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: httpx.Response(200, json=USAGE)))
+    assert await renewal.ClaudeTokenLoader().load(make_instance(tmp_path), ctx) == "renewed"
+
+
+async def test_arbitrary_auth_filename_is_not_renewed(tmp_path: Path, claude_cli: Path) -> None:
+    write_auth(tmp_path, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
+    override = tmp_path / "copied.json"
+    (tmp_path / ".credentials.json").rename(override)
+    instance = make_instance(tmp_path)
+    instance["authFileOverride"] = str(override)
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: httpx.Response(200, json=USAGE)))
+    with pytest.raises(ServiceError, match="expired"):
+        await renewal.ClaudeTokenLoader().load(instance, ctx)
+    assert not (tmp_path / "calls").exists()
+
+
+async def test_cancelling_renewal_reaps_the_cli(tmp_path: Path, claude_cli: Path) -> None:
+    write_auth(tmp_path, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
+    (tmp_path / "mode").write_text("hang")
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: httpx.Response(200, json=USAGE)))
+    task = asyncio.create_task(renewal.ClaudeTokenLoader().load(make_instance(tmp_path), ctx))
+    try:
+        async with asyncio.timeout(5):
+            while not (tmp_path / "calls").exists() or not (tmp_path / "calls").read_text().endswith("\n"):
+                await asyncio.sleep(0.01)
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    with pytest.raises(ProcessLookupError):
+        os.kill(json.loads((tmp_path / "calls").read_text())["pid"], 0)
+
+
+@pytest.mark.parametrize("oauth", [None, {"accessToken": "expired", "expiresAt": 1}])
+async def test_missing_credentials_or_refresh_token_never_launch_cli(
+    tmp_path: Path, claude_cli: Path, oauth: dict[str, Any] | None
+) -> None:
+    write_auth(tmp_path, oauth)
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: pytest.fail("unexpected request")))
+    with pytest.raises(ServiceError):
+        await renewal.ClaudeTokenLoader().load(make_instance(tmp_path), ctx)
+    assert not (tmp_path / "calls").exists()
+
+
+async def test_expired_opencode_credentials_never_launch_claude(
+    tmp_path: Path, claude_cli: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    path = tmp_path / "opencode" / "auth.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps({"anthropic": {"type": "oauth", "access": "old", "refresh": "r", "expires": 1}}))
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: pytest.fail("unexpected request")))
+    with pytest.raises(ServiceError):
+        await renewal.ClaudeTokenLoader().load(make_instance(tmp_path, app="opencode"), ctx)
+    assert not (tmp_path / "calls").exists()
+
+
+async def test_missing_cli_preserves_the_expired_sign_in(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_auth(tmp_path, {"accessToken": "expired", "refreshToken": "refresh", "expiresAt": 1})
+    before = (tmp_path / ".credentials.json").read_bytes()
+
+    async def missing(*args: object, **kwargs: object) -> None:
+        raise FileNotFoundError("claude")
+
+    monkeypatch.setattr(renewal.asyncio, "create_subprocess_exec", missing)
+    ctx = make_ctx(tmp_path, Recorder(), httpx.MockTransport(lambda r: pytest.fail("unexpected request")))
+    with pytest.raises(ServiceError, match="expired"):
+        await renewal.ClaudeTokenLoader().load(make_instance(tmp_path), ctx)
+    assert (tmp_path / ".credentials.json").read_bytes() == before
+
+
+@pytest.mark.integration
+async def test_live_claude_usage(tmp_path: Path) -> None:
+    home = os.environ.get("TOKENGRILL_LIVE_CLAUDE_HOME")
+    if not home:
+        pytest.skip("set TOKENGRILL_LIVE_CLAUDE_HOME to test a real Claude Code sign-in")
+    async with HttpClient() as http:
+        ctx = CollectorContext(
+            http, {}, AggregateStore(tmp_path / "agg.json"), CheckpointStore(tmp_path / "cp.json"),
+            BalanceStore(tmp_path / "balances.json"),
+        )
+        snap = await ClaudeCollector().collect(make_instance(Path(home)), empty_snapshot("acct"), ctx)
+    assert snap["errorInfo"] is None
+    assert snap["state"] == "ready"
+    assert len(snap["windows"]) > 0

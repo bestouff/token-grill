@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- When a Claude Code access token expires, the service runs `claude auth status`
+  for that account and rereads its credentials. Claude Code handles renewal and
+  saves the replacement tokens. This keeps local usage readings current when
+  you mostly use Claude on another machine. Failed attempts are limited to one
+  per credentials file every five minutes. A revoked login still needs sign-in.
+
 ## 0.5.0
 
 - Token Grill has two parts now: the extension and a small service,

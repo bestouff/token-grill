@@ -30,8 +30,9 @@ These are the functions of the top bar and the popup:
 - If a sign-in is missing or expired, **Sign In Again in a Terminal** opens
   your terminal with the login command of that account, for example
   `codex login` with `CODEX_HOME` set to the home of the account. Token Grill
-  does not sign in again by itself: Codex and Claude use each refresh token
-  only once, so a renewal by Token Grill would sign out the CLI.
+  does not exchange Codex or Claude refresh tokens itself. For an expired
+  Claude Code access token, the service asks the installed Claude CLI to renew
+  its own credentials with `claude auth status` and then rereads them.
 - **Usage Pace** in the account preferences shows whether a limit is used
   faster or slower than its period passes. The popup shows one line for each
   limit, and the top bar shows an icon: a flame for a fast pace, a check mark
@@ -181,8 +182,8 @@ details are in [service/README.md](service/README.md).
 ### Privacy and network access
 
 The service reads the credentials that the CLI of each service stored on this
-computer. It sends these credentials only to that service. It connects only
-to these hosts. The extension itself makes no network request:
+computer. Its HTTP client sends these credentials only to that service and
+connects only to these hosts. The extension itself makes no network request:
 
 | Service     | Host                                                                                                                                               | Purpose                                 |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
@@ -218,10 +219,27 @@ The Antigravity quota service gives data only when the User-Agent contains
 the word Antigravity. Thus, the User-Agent names all the services that Token Grill
 monitors.
 
-Token Grill starts no other program by itself. Only when you click
-**Sign In Again in a Terminal**, the extension opens your terminal with the
-login command of that account's CLI, from a fixed list in the extension. It does not collect
-telemetry. It does not read or send prompts or responses.
+For expired Claude Code credentials with a refresh token, the service runs
+`claude auth status`, without a shell or terminal, with `CLAUDE_CONFIG_DIR`
+set to the folder of the credentials file. Claude Code owns its refresh
+requests, locking, and credential writes; these requests use the CLI's network
+configuration, not Token Grill's HTTP client. Token Grill disables CLI
+auto-updates and nonessential traffic for this command and discards its output.
+The command has a 30-second limit and is stopped if collection is cancelled.
+Failed attempts are limited to one per file every five minutes. The CLI must
+be on PATH or installed at `~/.local/bin/claude`. This was checked with Claude
+Code 2.1.285. A successful exit alone does not count as a renewed sign-in:
+Token Grill rereads the file and checks its expiry.
+
+This applies only to Claude Code files named `.credentials.json`, including
+an override with that name. OpenCode credentials and other filenames still
+need renewal by their owning app. Credential checks in Preferences stay
+read-only. A revoked refresh token still needs an interactive sign-in.
+
+When you click **Sign In Again in a Terminal**, the extension opens your
+terminal with the login command of that account's CLI, from a fixed list in
+the extension. Token Grill does not collect telemetry or read or send prompts
+or responses.
 
 The Kiro usage request gets the e-mail address of the account. The popup shows
 this address. Thus, you can see which account `kiro-cli` uses. Token Grill does not

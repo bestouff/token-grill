@@ -62,8 +62,15 @@ is in the GNOME keyring.
 ## Privacy
 
 The service reads the credentials that the tools of each service stored on this
-computer, read-only. It never unlocks a keyring, and it never refreshes a Codex
-or a Claude token. It sends a credential only to its own service, over HTTPS,
+computer, read-only. It never unlocks a keyring or exchanges a Codex or Claude
+refresh token itself. For an expired Claude Code sign-in, it runs the installed
+`claude auth status` with the account's `CLAUDE_CONFIG_DIR`; Claude Code handles
+renewal and writes its own replacement credentials. The service discards the
+command's output, limits it to 30 seconds, and rereads the credentials. Failed
+attempts are limited to one per file every five minutes. The CLI's requests
+use its own network configuration, with nonessential traffic disabled.
+
+The service's HTTP client sends a credential only to its own service, over HTTPS,
 with no redirects, and only to the hosts in the table in the
 [main README](https://github.com/sh02sahil/token-grill/blob/main/README.md#privacy-and-network-access). It has no telemetry.
 
@@ -86,5 +93,11 @@ python3 -m venv .venv
 .venv/bin/pytest -q
 .venv/bin/ruff check . && .venv/bin/mypy src
 ```
+
+To test Claude usage with a real sign-in, set `TOKENGRILL_LIVE_CLAUDE_HOME`
+to the Claude Code config directory and run
+`.venv/bin/pytest -q -m integration tests/providers/test_claude.py`.
+This may ask the installed Claude CLI to renew expired credentials. The test
+does not print tokens, account details, or usage figures.
 
 Refer to [CONTRIBUTING.md](https://github.com/sh02sahil/token-grill/blob/main/CONTRIBUTING.md). The license is GPL-3.0-or-later.

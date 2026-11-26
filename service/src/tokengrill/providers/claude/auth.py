@@ -12,7 +12,7 @@ from tokengrill.providers.opencode.entries import open_code_access_token
 
 
 async def load_claude_access_token(instance: ProviderInstance) -> str:
-    """Never refreshed: the refresh token is single-use, so using it would sign the CLI out."""
+    """Read-only, including when preferences inspect an expired sign-in."""
     if instance["app"] == "opencode":
         return open_code_access_token((await read_open_code_entries()).get("anthropic"), time.time() * 1000)
     payload = await read_credential_json(provider_paths(instance)["authFile"])

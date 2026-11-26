@@ -240,9 +240,11 @@ Rules for the service (network and data):
   not write to them. Keep refreshed tokens only in memory. Do not unlock a
   keyring. Do not decrypt the secrets of another app.
 
-- Do not refresh a token whose refresh token is single-use (Codex, Claude):
+- Do not exchange a token whose refresh token is single-use (Codex, Claude):
   the CLI keeps the old one, so a refresh by Token Grill signs the CLI out.
-  Kiro and Antigravity tokens can be refreshed in memory.
+  For expired Claude Code credentials, the service delegates renewal to
+  `claude auth status` and rereads the file (SV-5). The CLI owns the writes
+  and refresh locking. Kiro and Antigravity tokens can be refreshed in memory.
 
 - Usage pace needs `UsageWindow.durationSeconds`. Take it from what the
   service reports: a duration field (Codex), the window's own name, such as
