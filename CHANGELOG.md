@@ -44,6 +44,11 @@
 - In the top bar, the color dot of an account sits beside its bars, or beside
   its rings when three limits are shown. Before, it sat below them and moved
   the reading out of line with the rest of the top bar.
+- OpenCode Go: the rolling limit shows no usage pace. The service does not
+  report the length of that window, and Token Grill no longer assumes five
+  hours.
+- `tokengrill uninstall --purge` names each folder that it could not delete
+  and exits with an error, instead of reporting that everything is deleted.
 
 ## 0.4.1
 
