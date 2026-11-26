@@ -3,9 +3,10 @@
 import os
 import posixpath
 import re
+from collections.abc import Callable
 from pathlib import Path
 
-from tokengrill.core.types import ProviderInstance, ProviderKind, ProviderPaths
+from tokengrill.core.types import AccountApp, ProviderInstance, ProviderKind, ProviderPaths
 
 _DEFAULT_HOMES: dict[ProviderKind, list[str]] = {
     "codex": [".codex"],
@@ -126,6 +127,26 @@ def default_home(kind: ProviderKind) -> str:
 def cursor_agent_home() -> str:
     """The Cursor CLI keeps its sign-in apart from the Cursor app, in a lower-case folder."""
     return _build(_user_config_dir(), "cursor")
+
+
+# The home each CLI that the extension can sign in again in a terminal uses when no variable points
+# it elsewhere. The table of login commands in the extension (src/core/signIn.ts) names the same apps.
+_SIGN_IN_HOMES: dict[AccountApp, Callable[[], str]] = {
+    "codex-cli": lambda: default_home("codex"),
+    "claude-code": lambda: default_home("claude"),
+    "github-cli": lambda: default_home("copilot"),
+    "kiro-cli": lambda: default_home("kiro"),
+    "cursor-agent": cursor_agent_home,
+}
+
+
+def home_is_default(instance: ProviderInstance) -> bool:
+    """Whether the login of the account's CLI reaches this account without a variable that names its home.
+
+    An app that keeps one store for every account, or that the extension cannot sign in, always does.
+    """
+    default = _SIGN_IN_HOMES.get(instance["app"])
+    return default is None or expand_path(instance["accountHome"]) == default()
 
 
 def open_code_auth_path() -> str:

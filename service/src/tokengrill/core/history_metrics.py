@@ -1,20 +1,15 @@
 """What the popup shows for local history: the sums of one account."""
 
-from typing import Literal, TypedDict
-
-from tokengrill.core.types import ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot
-
-HistoryState = Literal["unsupported", "off", "waiting", "updating", "failed", "ready"]
+from tokengrill.core.types import (
+    HistoryMetrics,
+    HistoryState,
+    ProviderInstance,
+    ProviderKind,
+    ProviderRuntimeState,
+    ProviderSnapshot,
+)
 
 LOCAL_HISTORY_KINDS: frozenset[ProviderKind] = frozenset({"codex", "claude"})
-
-
-class HistoryMetrics(TypedDict):
-    state: HistoryState
-    todayTokens: int
-    monthTokens: int
-    # None when no model in the period has a known price.
-    monthCost: float | None
 
 
 def _status(state: HistoryState) -> HistoryMetrics:

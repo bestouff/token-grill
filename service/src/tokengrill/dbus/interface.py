@@ -13,7 +13,7 @@ from dbus_fast.service import ServiceInterface, dbus_property, method, signal
 import tokengrill
 from tokengrill.core.errors import InvalidRequest, ServiceError
 from tokengrill.core.runtime import Runtime
-from tokengrill.core.types import Alert, ProviderInstance, ProviderRuntimeState, ProviderSnapshot, Settings
+from tokengrill.core.types import Alert, ProviderInstance, ProviderRuntimeState, Settings, SnapshotView
 from tokengrill.dbus.clients import CLIENT_KINDS
 from tokengrill.dbus.payloads import (
     INTERNAL,
@@ -111,7 +111,7 @@ class TokenGrillInterface(ServiceInterface):
 
     # Emitter
 
-    def account_changed(self, account_id: str, snapshot: ProviderSnapshot, runtime: ProviderRuntimeState) -> None:
+    def account_changed(self, account_id: str, snapshot: SnapshotView, runtime: ProviderRuntimeState) -> None:
         if self._muted:
             return
         self.AccountChanged(account_id, account_json(snapshot, runtime))

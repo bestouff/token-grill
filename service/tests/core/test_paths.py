@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from tokengrill.core.config import new_provider
 from tokengrill.core.paths import (
     auth_file_candidates,
     config_dir,
@@ -10,6 +11,7 @@ from tokengrill.core.paths import (
     default_home,
     display_path,
     expand_path,
+    home_is_default,
     open_code_auth_path,
     path_exists,
     provider_paths,
@@ -94,6 +96,27 @@ def test_default_homes(tmp_path: Path) -> None:
     assert default_home("cursor") == str(home / ".config" / "Cursor")
     assert cursor_agent_home() == str(home / ".config" / "cursor")
     assert open_code_auth_path() == str(home / ".local" / "share" / "opencode" / "auth.json")
+
+
+def test_home_is_default_follows_the_sign_in_home_of_each_cli(tmp_path: Path) -> None:
+    assert home_is_default(new_provider("codex", "codex-cli", "~/.codex"))
+    assert home_is_default(new_provider("codex", "codex-cli", str(tmp_path / "home" / ".codex")))
+    assert not home_is_default(new_provider("codex", "codex-cli", "~/.codex-work"))
+    assert home_is_default(new_provider("claude", "claude-code", "~/.claude/"))
+    assert not home_is_default(new_provider("claude", "claude-code", "~/claude two"))
+    assert home_is_default(new_provider("copilot", "github-cli", "~/.config/gh"))
+    assert not home_is_default(new_provider("copilot", "github-cli", "~/gh-work"))
+    assert home_is_default(new_provider("kiro", "kiro-cli", "~/.local/share/kiro-cli"))
+    assert not home_is_default(new_provider("kiro", "kiro-cli", "~/other"))
+    # The Cursor CLI signs in to its own folder, not to the one of the Cursor app.
+    assert home_is_default(new_provider("cursor", "cursor-agent", "~/.config/cursor"))
+    assert not home_is_default(new_provider("cursor", "cursor-agent", "~/.config/Cursor"))
+
+
+def test_home_is_default_for_apps_without_a_home_of_their_own() -> None:
+    assert home_is_default(new_provider("opencode-go", "opencode", "~/anywhere"))
+    assert home_is_default(new_provider("deepseek", "keyring", ""))
+    assert home_is_default(new_provider("antigravity", "antigravity", "~/other"))
 
 
 def test_expand_and_display_path(tmp_path: Path) -> None:

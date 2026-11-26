@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -17,7 +18,9 @@ from tokengrill.core.types import (
     ProviderSnapshot,
     RefreshPhase,
     Settings,
+    SnapshotView,
     UsageWindow,
+    WindowView,
     empty_snapshot,
 )
 from tokengrill.net.http import HttpClient
@@ -41,12 +44,12 @@ class Events:
     """The recording fake of the Emitter protocol."""
 
     def __init__(self) -> None:
-        self.accounts: list[tuple[str, ProviderSnapshot, ProviderRuntimeState]] = []
+        self.accounts: list[tuple[str, SnapshotView, ProviderRuntimeState]] = []
         self.account_lists: list[list[ProviderInstance]] = []
         self.settings: list[Settings] = []
         self.alerts: list[Alert] = []
 
-    def account_changed(self, account_id: str, snapshot: ProviderSnapshot, runtime: ProviderRuntimeState) -> None:
+    def account_changed(self, account_id: str, snapshot: SnapshotView, runtime: ProviderRuntimeState) -> None:
         self.accounts.append((account_id, snapshot, runtime))
 
     def accounts_changed(self, accounts: list[ProviderInstance]) -> None:
@@ -61,7 +64,7 @@ class Events:
     def phases(self, account_id: str) -> list[RefreshPhase]:
         return [runtime["phase"] for id_, _, runtime in self.accounts if id_ == account_id]
 
-    def last(self, account_id: str) -> tuple[ProviderSnapshot, ProviderRuntimeState]:
+    def last(self, account_id: str) -> tuple[SnapshotView, ProviderRuntimeState]:
         found = [(snapshot, runtime) for id_, snapshot, runtime in self.accounts if id_ == account_id]
         return found[-1]
 
@@ -209,6 +212,29 @@ async def test_collect_emits_snapshot_with_pace(rig: Rig) -> None:
     state = rig.runtime.state()
     assert state["snapshots"][ACCOUNT_ID]["windows"][0]["pace"] == snapshot["windows"][0]["pace"]
     assert state["runtime"][ACCOUNT_ID] == runtime
+
+
+async def test_the_snapshot_carries_what_the_extension_shows(rig: Rig) -> None:
+    await rig.runtime.start()
+    await rig.runtime.refresh(ACCOUNT_ID)
+    snapshot, _ = rig.events.last(ACCOUNT_ID)
+    assert cast(WindowView, snapshot["windows"][0])["key"] == "five-hour"
+    assert snapshot["shownLimits"] == ["five-hour"]
+    assert snapshot["history"]["state"] == "off"
+    assert snapshot["homeIsDefault"] is True
+    assert rig.runtime.state()["snapshots"][ACCOUNT_ID]["shownLimits"] == ["five-hour"]
+
+
+async def test_a_top_bar_choice_sends_the_snapshot_again(rig: Rig) -> None:
+    await rig.runtime.start()
+    await rig.runtime.refresh(ACCOUNT_ID)
+    sent = len(rig.events.accounts)
+    await rig.runtime.toggle_limit(ACCOUNT_ID, "five-hour")
+    await rig.runtime.toggle_limit(ACCOUNT_ID, "five-hour")
+    assert rig.fake.calls == 1
+    assert len(rig.events.accounts) == sent + 2
+    snapshot, _ = rig.events.last(ACCOUNT_ID)
+    assert snapshot["shownLimits"] == []
 
 
 async def test_manual_flag_reaches_the_collector(rig: Rig) -> None:

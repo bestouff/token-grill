@@ -5,7 +5,7 @@ from typing import Final
 
 from dbus_fast import DBusError
 
-from tokengrill.core.types import Alert, ProviderRuntimeState, ProviderSnapshot, ServiceState
+from tokengrill.core.types import Alert, ProviderRuntimeState, ServiceState, SnapshotView
 
 ERROR_PREFIX: Final = "io.github.sh02sahil.TokenGrill.Error"
 INVALID_ARGS: Final = f"{ERROR_PREFIX}.InvalidArgs"
@@ -22,7 +22,7 @@ def alert_json(alert: Alert) -> str:
     return json.dumps(alert, separators=(",", ":"))
 
 
-def account_json(snapshot: ProviderSnapshot, runtime: ProviderRuntimeState) -> str:
+def account_json(snapshot: SnapshotView, runtime: ProviderRuntimeState) -> str:
     return json.dumps({"schema": 1, "snapshot": snapshot, "runtime": runtime}, separators=(",", ":"))
 
 

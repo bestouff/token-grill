@@ -29,10 +29,10 @@ from tokengrill.core.config import (
 from tokengrill.core.diagnostics import DiagnosticEntry, format_report, redact
 from tokengrill.core.errors import InvalidRequest, ServiceError
 from tokengrill.core.order import reorder_providers
-from tokengrill.core.pace import with_pace
 from tokengrill.core.paths import provider_paths, runtime_dir
 from tokengrill.core.readings import restored_snapshot, snapshot_fingerprint
 from tokengrill.core.scheduler import Scheduler, SchedulerJob
+from tokengrill.core.snapshot_view import snapshot_view
 from tokengrill.core.timemath import now_ms
 from tokengrill.core.topbar import is_shown, limit_key, set_automatic, shown_limits, toggle_limit
 from tokengrill.core.types import (
@@ -49,6 +49,7 @@ from tokengrill.core.types import (
     RefreshSource,
     ServiceState,
     Settings,
+    SnapshotView,
     SourceResult,
     UsageWindow,
     empty_snapshot,
@@ -84,7 +85,7 @@ class _Store(Protocol):
 class Emitter(Protocol):
     """Where the runtime reports changes; the D-Bus layer implements it."""
 
-    def account_changed(self, account_id: str, snapshot: ProviderSnapshot, runtime: ProviderRuntimeState) -> None: ...
+    def account_changed(self, account_id: str, snapshot: SnapshotView, runtime: ProviderRuntimeState) -> None: ...
 
     def accounts_changed(self, accounts: list[ProviderInstance]) -> None: ...
 
@@ -401,13 +402,18 @@ class Runtime:
         if removed:
             await self._forget_stored(removed)
         # A rename or a colour needs no new reading.
-        self._refresh_after_edit(
-            [
-                account["id"]
-                for account in after
-                if account["enabled"] and needs_refresh(previous.get(account["id"]), account)
-            ]
-        )
+        refresh = [
+            account["id"]
+            for account in after
+            if account["enabled"] and needs_refresh(previous.get(account["id"]), account)
+        ]
+        self._refresh_after_edit(refresh)
+        # The top-bar choice, the history switch and the home change what the snapshot of an account
+        # shows; an account queued for a reading has just been sent.
+        queued = set() if self._paused else set(refresh)
+        for account in after:
+            if account["id"] not in queued and previous.get(account["id"]) != account:
+                self._emit(account["id"])
 
     async def _forget_stored(self, ids: list[str]) -> None:
         """As 0.4.1: totals, read offsets, balances and the last readings of a removed account go with it."""
@@ -441,6 +447,7 @@ class Runtime:
         now = self._clock()
         accounts = self._accounts()
         by_id = {account["id"]: account for account in accounts}
+        runtimes = self._runtime_states
         return {
             "schema": 1,
             "apiVersion": tokengrill.API_VERSION,
@@ -449,7 +456,9 @@ class Runtime:
             "settings": self._settings(),
             "accounts": accounts,
             "snapshots": {
-                id_: with_pace(snapshot, by_id[id_], now) for id_, snapshot in self._snapshots.items() if id_ in by_id
+                id_: snapshot_view(snapshot, by_id[id_], runtimes.get(id_), now)
+                for id_, snapshot in self._snapshots.items()
+                if id_ in by_id
             },
             "runtime": {id_: _copy_state(state) for id_, state in self._runtime_states.items() if id_ in by_id},
         }
@@ -677,8 +686,9 @@ class Runtime:
         instance = next((account for account in self._accounts() if account["id"] == account_id), None)
         if instance is None:
             return
-        snapshot = with_pace(self._snapshots.get(account_id) or empty_snapshot(account_id), instance, self._clock())
         state = self._runtime_states.get(account_id) or _idle_state()
+        stored = self._snapshots.get(account_id) or empty_snapshot(account_id)
+        snapshot = snapshot_view(stored, instance, state, self._clock())
         self._emitter.account_changed(account_id, snapshot, _copy_state(state))
 
     def _sign_in_source(self, instance: ProviderInstance) -> str:

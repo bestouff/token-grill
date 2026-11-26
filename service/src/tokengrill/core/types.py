@@ -47,6 +47,7 @@ RefreshSource = Literal["limits", "reset-credits", "history"]
 SourceResult = Literal["success", "failed"]
 PaceLevel = Literal["high", "on-track", "low"]
 AlertKind = Literal["milestone", "low-balance", "test"]
+HistoryState = Literal["unsupported", "off", "waiting", "updating", "failed", "ready"]
 
 
 class ErrorInfo(TypedDict):
@@ -148,6 +149,31 @@ class ProviderSnapshot(TypedDict):
     pace: PaceState | None
 
 
+class HistoryMetrics(TypedDict):
+    state: HistoryState
+    todayTokens: int
+    monthTokens: int
+    # None when no model in the period has a known price.
+    monthCost: float | None
+
+
+class WindowView(UsageWindow):
+    """A window as the bus sends it."""
+
+    # The name of the limit in the top-bar selection.
+    key: str
+
+
+class SnapshotView(ProviderSnapshot):
+    """A snapshot as GetState and AccountChanged send it: its windows are WindowViews in popup order."""
+
+    # The keys of the limits the top bar shows for the account, with Pick Automatically resolved.
+    shownLimits: list[str]
+    history: HistoryMetrics
+    # Whether the CLI signs this account in without a variable that points it at the account home.
+    homeIsDefault: bool
+
+
 class ProviderRuntimeState(TypedDict):
     phase: RefreshPhase
     outcome: RefreshOutcome | None
@@ -196,7 +222,7 @@ class ServiceState(TypedDict):
     paused: bool
     settings: Settings
     accounts: list[ProviderInstance]
-    snapshots: dict[str, ProviderSnapshot]
+    snapshots: dict[str, SnapshotView]
     runtime: dict[str, ProviderRuntimeState]
 
 
