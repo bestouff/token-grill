@@ -1,3 +1,4 @@
+import shutil
 import sys
 from pathlib import Path
 
@@ -152,6 +153,34 @@ def test_purge_deletes_nothing_while_the_service_keeps_running(
     assert all(folder.exists() for folder in folders)
     assert removed_keys == []
     assert "nothing is deleted" in capsys.readouterr().err
+
+
+def test_purge_reports_a_folder_it_could_not_delete(
+    home: Path, monkeypatch: pytest.MonkeyPatch, removed_keys: list[bool], capsys: pytest.CaptureFixture[str]
+) -> None:
+    folders = _make_folders(home)
+    delete = shutil.rmtree
+
+    def refuse_state(path: Path) -> None:
+        if path == folders[2]:
+            raise PermissionError(13, "Permission denied", str(path))
+        delete(path)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+    monkeypatch.setattr("tokengrill.cli.shutil.rmtree", refuse_state)
+    assert main(["uninstall", "--purge"]) == 1
+    assert [folder.exists() for folder in folders] == [False, False, True, False]
+    captured = capsys.readouterr()
+    assert f"{folders[2]} could not be deleted: Permission denied" in captured.err
+    assert "The accounts and history are deleted." not in captured.out
+
+
+def test_purge_skips_folders_that_do_not_exist(
+    home: Path, monkeypatch: pytest.MonkeyPatch, removed_keys: list[bool], capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+    assert main(["uninstall", "--purge"]) == 0
+    assert "The accounts and history are deleted." in capsys.readouterr().out
 
 
 def test_purge_names_the_key_items_when_the_keyring_cannot_be_reached(

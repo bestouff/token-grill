@@ -29,7 +29,9 @@ path = "src/tokengrill/__init__.py"
 packages = ["src/tokengrill"]
 
 [tool.hatch.build.targets.sdist]
-# Only the package and its tests: a stray file in service/ must not reach PyPI.
+# Only the package and its tests: a stray file in service/ must not reach PyPI. Hatch always adds
+# the nearest .gitignore, and no setting removes it; service/.gitignore is that file, so the one of
+# the repository root stays out.
 include = ["src", "tests", "README.md", "LICENSE"]
 
 [tool.ruff]

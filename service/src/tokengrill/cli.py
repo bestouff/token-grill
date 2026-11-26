@@ -209,8 +209,18 @@ def _uninstall(purge: bool) -> int:
         )
         return 1
     _remove_api_keys()
+    kept = False
     for folder in (config_dir(), data_dir(), state_dir(), runtime_dir()):
-        shutil.rmtree(folder, ignore_errors=True)
+        try:
+            shutil.rmtree(folder)
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            kept = True
+            print(f"{folder} could not be deleted: {error.strerror or error}", file=sys.stderr)
+    if kept:
+        print("Some of the accounts and history are not deleted. Delete the folders above yourself.", file=sys.stderr)
+        return 1
     print("The accounts and history are deleted.")
     return 0
 

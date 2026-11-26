@@ -212,8 +212,6 @@ class TokenGrillInterface(ServiceInterface):
         async with self._call() as runtime:
             return _result({"errors": _checked_sync(lambda: runtime.validate_account(parse_json_arg(draft)))})
 
-    # Declared now, implemented by later tasks
-
     @method()
     async def Discover(self, app: "s") -> "s":
         async with self._call() as runtime:

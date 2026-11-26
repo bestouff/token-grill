@@ -184,19 +184,21 @@ The service reads the credentials that the CLI of each service stored on this
 computer. It sends these credentials only to that service. It connects only
 to these hosts. The extension itself makes no network request:
 
-| Service     | Host                                                                                                          | Purpose                                 |
-| ----------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Codex       | `chatgpt.com`                                                                                                 | Usage limits and reset credits          |
-| Claude      | `api.anthropic.com`                                                                                           | Usage limits                            |
-| Kiro        | `codewhisperer.us-east-1.amazonaws.com`, `q.<region>.amazonaws.com`, or the AWS ISO `q.*` host of your region | Usage limits                            |
-| Kiro        | `oidc.<region>.amazonaws.com`                                                                                 | A new token when the sign-in is expired |
-| Antigravity | `cloudcode-pa.googleapis.com`                                                                                 | Plan and usage limits                   |
-| Antigravity | `oauth2.googleapis.com`                                                                                       | A new token when the sign-in is expired |
-| Copilot     | `api.github.com`                                                                                              | Monthly allowances                      |
-| OpenCode Go | `opencode.ai`                                                                                                 | Usage limits                            |
-| DeepSeek    | `api.deepseek.com`                                                                                            | Prepaid balance                         |
-| Kimi Code   | `api.kimi.com`, or `api.kimi.ai` when Kimi Code is set to that region                                         | Usage limits                            |
-| Cursor      | `api2.cursor.sh`                                                                                              | Plan and usage limits                   |
+| Service     | Host                                                                                                                                               | Purpose                                 |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Codex       | `chatgpt.com`                                                                                                                                      | Usage limits and reset credits          |
+| Claude      | `api.anthropic.com`                                                                                                                                | Usage limits                            |
+| Kiro        | `codewhisperer.us-east-1.amazonaws.com` or `q.eu-central-1.amazonaws.com`                                                                          | Usage limits                            |
+| Kiro        | `q.us-gov-east-1.amazonaws.com` or `q.us-gov-west-1.amazonaws.com` (AWS GovCloud)                                                                  | Usage limits                            |
+| Kiro        | `q.us-iso-east-1.c2s.ic.gov`, `q.us-isob-east-1.sc2s.sgov.gov`, `q.us-isof-south-1.csp.hci.ic.gov`, or `q.us-isof-east-1.csp.hci.ic.gov` (AWS ISO) | Usage limits                            |
+| Kiro        | `oidc.<region>.amazonaws.com`                                                                                                                      | A new token when the sign-in is expired |
+| Antigravity | `cloudcode-pa.googleapis.com`                                                                                                                      | Plan and usage limits                   |
+| Antigravity | `oauth2.googleapis.com`                                                                                                                            | A new token when the sign-in is expired |
+| Copilot     | `api.github.com`                                                                                                                                   | Monthly allowances                      |
+| OpenCode Go | `opencode.ai`                                                                                                                                      | Usage limits                            |
+| DeepSeek    | `api.deepseek.com`                                                                                                                                 | Prepaid balance                         |
+| Kimi Code   | `api.kimi.com`, or `api.kimi.ai` when Kimi Code is set to that region                                                                              | Usage limits                            |
+| Cursor      | `api2.cursor.sh`                                                                                                                                   | Plan and usage limits                   |
 
 Each request obeys these limits:
 

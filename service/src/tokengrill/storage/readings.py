@@ -121,7 +121,7 @@ def parse_stored_reading(value: object) -> StoredReading | None:
 
 
 class ReadingStore(Persisted):
-    """Port of SnapshotStore."""
+    """The last reading of each account, so the popup has values before the first refresh after a start."""
 
     def __init__(self, path: Path | None = None) -> None:
         super().__init__(path or state_path("readings-v1.json"))

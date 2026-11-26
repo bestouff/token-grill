@@ -1,0 +1,7 @@
+# The service's own tool and build folders; Hatch also keeps them out of the sdist.
+.venv/
+dist/
+__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
