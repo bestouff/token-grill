@@ -337,8 +337,9 @@ export class ServiceClient {
 
     private _dropProxy(): void {
         if (this._greeted !== null) {
-            // Without a callback, so nothing can run after destroy(). A client that shares the Shell's
-            // bus connection never has its name vanish, so the service learns of the departure here.
+            // Without a callback, so nothing can run after destroy(), and without the cancellable: at
+            // destroy() the owner has cancelled it, and the call would not be sent. A client that shares
+            // the Shell's bus connection never has its name vanish, so the service learns of the departure here.
             this._greeted.call('Goodbye', null, Gio.DBusCallFlags.NO_AUTO_START, -1, null, null);
             this._greeted = null;
         }

@@ -421,8 +421,8 @@ data, read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Independence and license
 
-Token Grill is an independent project. OpenAI, Anthropic, Amazon, and Google do
-not endorse or sponsor Token Grill. Token Grill uses the service names only to
+Token Grill is an independent project. The owners of these services do not
+endorse or sponsor Token Grill. Token Grill uses the service names only to
 identify each service. The service icons are original symbolic drawings. Refer
 to [NOTICE.md](NOTICE.md).
 

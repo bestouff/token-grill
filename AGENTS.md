@@ -50,7 +50,7 @@ request. A module of one process must not import the UI modules of another.
   asynchronously, calls `Hello`, follows the signals, and keeps the state. A
   missing or old service is a state of the client, not an error. It uses the
   one cancellable of its owner (the runtime, or the Preferences window) for
-  every call.
+  every call except `Goodbye()` (see "Accepted exceptions").
 
 - `src/shell/`: the panel button and the popup (`indicator.ts`, `topBar.ts`,
   `providerCard.ts`, `serviceCard.ts`, `accountChip.ts`, `toggleGroup.ts`),
@@ -294,9 +294,16 @@ same.
   stylesheet with `lookup_color()`. The accent colors of the accounts are data
   from the user, not theme colors (UI-10).
 
-- **`StayOpenMenuItem` overrides `activate()`.** Thus, the menu stays open
-  after "Refresh All Accounts" and shows the progress. This is a subclass of a
-  menu item, not a patch of Shell code (R-17).
+- **`StayOpenMenuItem` and `WindowItem` override `activate()`.** They do not
+  call `super.activate()`, so the menu stays open: after "Refresh All
+  Accounts" it shows the progress, and after a click on a limit
+  (`shell/providerCard.ts`) it shows the new check mark. These are subclasses
+  of a menu item, not patches of Shell code (R-17).
+
+- **`Goodbye()` is sent without the cancellable.** The client sends it when it
+  drops its proxy, which `disable()` does after it has cancelled the
+  cancellable of its owner. A call with that cancellable would not be sent.
+  The call has no callback, so nothing runs after `disable()`.
 
 - **`isCancellation()` finds cancellations, and errors go to `getLogger()`.**
   `logErrorUnlessCancelled()` has no typings and does not use the logger of
@@ -311,11 +318,13 @@ same.
 
 
 - **"Sign In Again in a Terminal" launches the CLI login of an account.** It
-  runs only when the user clicks it. The extension builds the argv from its
-  own fixed table in `core/signIn.ts`, never from a D-Bus reply. For an
-  account outside the default home, `env` sets the CLI's own variable
-  (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `GH_CONFIG_DIR`), so the right account
-  signs in. `shell/signIn.ts` uses `Gio.AppInfo.create_from_commandline()`
+  runs only when the user clicks it. The command and its arguments come from
+  the fixed table in `core/signIn.ts`, never from a D-Bus reply. For an
+  account outside the default home (the service sends `homeIsDefault`), `env`
+  sets the CLI's own variable (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`,
+  `GH_CONFIG_DIR`), so the right account signs in. The value of that variable
+  is the account home from the account data; it is one argument, quoted with
+  `GLib.shell_quote()`. `shell/signIn.ts` uses `Gio.AppInfo.create_from_commandline()`
   with `NEEDS_TERMINAL`, so GLib picks the terminal and no shell parses the
   command (X-3, X-4).
 

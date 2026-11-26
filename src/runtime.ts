@@ -101,7 +101,8 @@ export class Runtime implements IndicatorController {
         this._request(client => client.setAutomatic(providerId, on));
     }
 
-    // The command comes from the extension's own table, never from the bus.
+    // The command comes from the extension's own table; only the account home, one quoted
+    // argument, comes from the account data.
     signIn(providerId: string): void {
         const provider = this._accounts().find(account => account.id === providerId);
         const snapshot = this._client!.state?.snapshots[providerId];
