@@ -6,11 +6,6 @@ export interface Translator {
     ngettext: (singular: string, plural: string, count: number) => string;
 }
 
-export const UNTRANSLATED: Translator = {
-    _: text => text,
-    ngettext: (singular, plural, count) => count === 1 ? singular : plural,
-};
-
 // Replaces `%s` / `%d` placeholders in order, matching GJS String.prototype.format.
 export function formatText(template: string, ...values: Array<string | number>): string {
     let index = 0;

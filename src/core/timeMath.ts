@@ -1,6 +1,6 @@
 import {formatText, type Translator} from './i18n.js';
 
-export interface DurationParts {
+interface DurationParts {
     expired: boolean;
     totalMinutes: number;
     days: number;

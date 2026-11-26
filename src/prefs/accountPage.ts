@@ -5,7 +5,7 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import {accentHex, normalizeAccent} from '../core/accent.js';
+import {accentHex} from '../core/accent.js';
 import {credentialLabel} from '../core/accountText.js';
 import {formatText} from '../core/i18n.js';
 import {displayPath, expandPath} from '../core/paths.js';
@@ -37,7 +37,7 @@ const APP_NAMES: Record<AccountApp, string> = {
 // Apps whose sign-in is a file in the account home, so the home and file can be changed.
 const FILE_APPS: AccountApp[] = ['codex-cli', 'claude-code', 'kiro-cli', 'antigravity', 'github-cli', 'claude-settings', 'kimi-cli', 'cursor', 'cursor-agent'];
 
-function hexFromRgba(rgba: Gdk.RGBA): string {
+function hexFromRgba(rgba: Gdk.RGBA): `#${string}` {
     const channel = (value: number) => Math.round(value * 255).toString(16).padStart(2, '0');
     return `#${channel(rgba.red)}${channel(rgba.green)}${channel(rgba.blue)}`;
 }
@@ -195,7 +195,7 @@ export class AccountPage extends Adw.NavigationPage {
         this._custom.connect('notify::rgba', () => {
             const hex = hexFromRgba(this._custom.rgba);
             if (hex !== accentHex(this._provider.accent))
-                this._chooseAccent(normalizeAccent(hex, providerMetadata(this._provider.kind).defaultAccent));
+                this._chooseAccent(hex);
         });
         box.append(this._custom);
         return box;

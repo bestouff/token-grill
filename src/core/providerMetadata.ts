@@ -1,24 +1,22 @@
-import type {AccentColor, AccountApp, CanonicalQuotaWindow, ProviderKind, QuotaWindowPreference} from './types.js';
+import type {AccentColor, AccountApp, CanonicalQuotaWindow, ProviderKind} from './types.js';
 
-export interface ProviderMetadata {
+interface ProviderMetadata {
     label: string;
     defaultAccent: AccentColor;
     iconFile: string;
     quotaWindows: CanonicalQuotaWindow[];
-    defaultQuotaWindow: QuotaWindowPreference;
     localHistorySupported: boolean;
     // The apps an account can be read from; the first is the default.
     apps: readonly [AccountApp, ...AccountApp[]];
     measure: 'limits' | 'balance';
 }
 
-export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
+const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
     codex: {
         label: 'Codex',
         defaultAccent: 'green',
         iconFile: 'codex-symbolic.svg',
         quotaWindows: ['five-hour', 'weekly'],
-        defaultQuotaWindow: 'automatic',
         localHistorySupported: true,
         apps: ['codex-cli', 'opencode'],
         measure: 'limits',
@@ -28,7 +26,6 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultAccent: 'orange',
         iconFile: 'claude-symbolic.svg',
         quotaWindows: ['five-hour', 'weekly'],
-        defaultQuotaWindow: 'automatic',
         localHistorySupported: true,
         apps: ['claude-code', 'opencode'],
         measure: 'limits',
@@ -38,7 +35,6 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultAccent: 'purple',
         iconFile: 'kiro-symbolic.svg',
         quotaWindows: ['monthly'],
-        defaultQuotaWindow: 'monthly',
         localHistorySupported: false,
         apps: ['kiro-cli'],
         measure: 'limits',
@@ -48,7 +44,6 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultAccent: 'teal',
         iconFile: 'antigravity-symbolic.svg',
         quotaWindows: ['five-hour', 'weekly'],
-        defaultQuotaWindow: 'automatic',
         localHistorySupported: false,
         apps: ['antigravity'],
         measure: 'limits',
@@ -58,7 +53,6 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultAccent: 'slate',
         iconFile: 'copilot-symbolic.svg',
         quotaWindows: ['monthly'],
-        defaultQuotaWindow: 'monthly',
         localHistorySupported: false,
         apps: ['github-cli', 'copilot-cli', 'opencode'],
         measure: 'limits',
@@ -68,7 +62,6 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultAccent: 'yellow',
         iconFile: 'opencode-go-symbolic.svg',
         quotaWindows: ['five-hour', 'weekly', 'monthly'],
-        defaultQuotaWindow: 'automatic',
         localHistorySupported: false,
         apps: ['opencode'],
         measure: 'limits',
@@ -78,7 +71,6 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultAccent: 'blue',
         iconFile: 'deepseek-symbolic.svg',
         quotaWindows: [],
-        defaultQuotaWindow: 'automatic',
         localHistorySupported: false,
         apps: ['keyring', 'opencode', 'claude-settings'],
         measure: 'balance',
@@ -88,7 +80,6 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultAccent: 'pink',
         iconFile: 'kimi-symbolic.svg',
         quotaWindows: ['five-hour', 'weekly', 'monthly'],
-        defaultQuotaWindow: 'automatic',
         localHistorySupported: false,
         apps: ['kimi-cli', 'opencode'],
         measure: 'limits',
@@ -98,7 +89,6 @@ export const PROVIDER_METADATA: Record<ProviderKind, ProviderMetadata> = {
         defaultAccent: 'slate',
         iconFile: 'cursor-symbolic.svg',
         quotaWindows: ['monthly'],
-        defaultQuotaWindow: 'automatic',
         localHistorySupported: false,
         apps: ['cursor', 'cursor-agent'],
         measure: 'limits',

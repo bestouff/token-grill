@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {durationUntil, formatDuration, tidyClock} from '../../build/tests/time-math.mjs';
-import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
+import {UNTRANSLATED} from './untranslated.mjs';
 
 test('a padded 12-hour clock loses its extra spaces', () => {
     // What GLib's %l writes before a one-digit hour.

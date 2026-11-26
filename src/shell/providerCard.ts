@@ -29,7 +29,7 @@ import type {
 import {paceGicon, providerMark} from './accountChip.js';
 import {TRANSLATOR} from './translator.js';
 
-export interface ProviderDetailActions {
+interface ProviderDetailActions {
     refresh: (provider: ProviderInstance) => void;
     toggleLimit: (provider: ProviderInstance, key: string) => void;
     setAutomatic: (provider: ProviderInstance, on: boolean) => void;

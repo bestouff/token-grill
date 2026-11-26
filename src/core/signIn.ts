@@ -18,7 +18,7 @@ const COMMANDS: Partial<Record<AccountApp, LoginCommand>> = {
     opencode: {argv: ['opencode', 'auth', 'login'], homeVariable: null},
 };
 
-export interface SignInCommand {
+interface SignInCommand {
     argv: string[];
     // The login command alone, as the hint text names it.
     login: string;

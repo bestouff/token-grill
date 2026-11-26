@@ -4,10 +4,9 @@ export type AccentColor = 'blue' | 'teal' | 'green' | 'yellow' | 'orange' | 'red
 export type AccentValue = AccentColor | `#${string}`;
 // The app whose sign-in an account reads.
 export type AccountApp = 'codex-cli' | 'claude-code' | 'kiro-cli' | 'antigravity' | 'opencode' | 'github-cli' | 'copilot-cli' | 'keyring' | 'claude-settings' | 'kimi-cli' | 'cursor' | 'cursor-agent';
-export type QuotaWindowPreference = 'automatic' | 'five-hour' | 'weekly' | 'monthly';
 export type PanelPercentageMode = 'remaining' | 'used';
 export type PanelDisplayStyle = 'text' | 'ring' | 'bar';
-export type ConnectionState = 'unknown' | 'ready' | 'local' | 'stale' | 'error' | 'disabled';
+type ConnectionState = 'unknown' | 'ready' | 'local' | 'stale' | 'error' | 'disabled';
 export type CanonicalQuotaWindow = 'five-hour' | 'weekly' | 'monthly' | 'other';
 export type ProviderErrorCode =
     | 'auth-missing'
@@ -23,13 +22,13 @@ export type ProviderErrorCode =
     | 'response-shape'
     | 'local-history'
     | 'internal';
-export type RefreshPhase = 'idle' | 'queued' | 'fetching-limits' | 'fetching-reset-credits' | 'scanning-history';
-export type RefreshOutcome = 'changed' | 'unchanged' | 'partial' | 'failed';
-export type RefreshSource = 'limits' | 'reset-credits' | 'history';
-export type SourceResult = 'success' | 'failed';
-export type Recovery = 'retry' | 'reauthenticate' | 'edit-provider' | 'none';
+type RefreshPhase = 'idle' | 'queued' | 'fetching-limits' | 'fetching-reset-credits' | 'scanning-history';
+type RefreshOutcome = 'changed' | 'unchanged' | 'partial' | 'failed';
+type RefreshSource = 'limits' | 'reset-credits' | 'history';
+type SourceResult = 'success' | 'failed';
+type Recovery = 'retry' | 'reauthenticate' | 'edit-provider' | 'none';
 export type PaceLevel = 'high' | 'on-track' | 'low';
-export type AlertKind = 'milestone' | 'low-balance' | 'test';
+type AlertKind = 'milestone' | 'low-balance' | 'test';
 
 // What the service reports for a failure; messageId names the text in the service's catalog.
 export interface ErrorInfo {
@@ -79,7 +78,7 @@ export interface ProviderInstance {
 // A DeepSeek account that keeps its key in the keyring carries the pasted key, which the service stores first.
 export type AccountDraft = Pick<ProviderInstance, 'kind' | 'app' | 'accountHome' | 'displayName'> & {apiKey?: string};
 
-export type CandidateStatus = 'ready' | 'already-added' | 'nothing-to-track' | 'uses-other-app';
+type CandidateStatus = 'ready' | 'already-added' | 'nothing-to-track' | 'uses-other-app';
 
 // An account that could be added from an app, as the service's Discover finds it.
 export interface Candidate {
@@ -123,7 +122,7 @@ export interface HistoryMetrics {
     monthCost: number | null;
 }
 
-export interface LimitResetCredit {
+interface LimitResetCredit {
     title: string | null;
     expiresAt: number | null;
 }
@@ -136,7 +135,7 @@ export interface LimitResetCreditSummary {
     error: ErrorInfo | null;
 }
 
-export interface TokenTotals {
+interface TokenTotals {
     input: number;
     output: number;
     cachedInput: number;

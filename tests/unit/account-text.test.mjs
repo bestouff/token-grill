@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 import {credentialLabel, homeName} from '../../build/tests/account-text.mjs';
-import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
+import {UNTRANSLATED} from './untranslated.mjs';
 
 // The service reports the 0.4.1 state names, so Preferences keep the 0.4.1 texts.
 const LABELS = {

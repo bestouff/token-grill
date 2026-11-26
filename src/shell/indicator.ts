@@ -38,7 +38,7 @@ export interface IndicatorController {
     checkService(): void;
 }
 
-export interface IndicatorState {
+interface IndicatorState {
     service: ClientStatus;
     providers: ProviderInstance[];
     snapshots: Map<string, ProviderSnapshot>;

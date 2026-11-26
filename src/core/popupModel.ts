@@ -9,7 +9,7 @@ import {signInCommand} from './signIn.js';
 import {durationUntil, formatDuration} from './timeMath.js';
 import type {HistoryMetrics, ProviderInstance, ProviderKind, ProviderRuntimeState, ProviderSnapshot, UsageWindow} from './types.js';
 
-export interface ChooserAccount {
+interface ChooserAccount {
     id: string;
     displayName: string;
     shortName: string;
@@ -30,7 +30,7 @@ type SnapshotLookup = Pick<Map<string, Pick<ProviderSnapshot, 'errorInfo'> | nul
 
 // Drops a leading provider name ("Codex - Work" becomes "Work") so account
 // buttons stay short; names that merely contain the provider are kept.
-export function shortAccountName(displayName: string, providerLabel: string): string {
+function shortAccountName(displayName: string, providerLabel: string): string {
     const escaped = providerLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const match = displayName.match(new RegExp(`^${escaped}\\s*[-:/|]\\s*(.+)$`, 'i'));
     return match ? match[1]!.trim() : displayName;

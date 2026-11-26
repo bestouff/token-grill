@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
+import {UNTRANSLATED} from './untranslated.mjs';
 import {activeProvider, displayLabel, displayPercent, formatTokenCount, limitName, pressureClass} from '../../build/tests/display.mjs';
 
 test('remaining mode is the inverse of consumed pressure', () => {

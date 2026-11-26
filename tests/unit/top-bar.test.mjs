@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
+import {UNTRANSLATED} from './untranslated.mjs';
 import {isShown, topBarGroups, topBarSummary} from '../../build/tests/top-bar.mjs';
 
 const window = (id, key, canonicalWindow, percent) => ({id, key, canonicalWindow, label: id, used: null, limit: null, percent, resetAt: null, unit: null, pace: null});

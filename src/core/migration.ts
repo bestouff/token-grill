@@ -3,7 +3,7 @@ import type Gio from 'gi://Gio';
 import type {ImportResult, ServiceState} from './types.js';
 
 // The 0.4 GSettings values that the service takes over once, under the names its ImportAccounts reads.
-export interface LegacySettings {
+interface LegacySettings {
     providerInstancesJson: string;
     configurationVersion: number;
     activeProviderId: string;
@@ -13,9 +13,9 @@ export interface LegacySettings {
     diagnosticsJournal: boolean;
 }
 
-export type LegacySettingsSource = Pick<Gio.Settings, 'get_string' | 'get_uint' | 'get_boolean' | 'set_string'>;
+type LegacySettingsSource = Pick<Gio.Settings, 'get_string' | 'get_uint' | 'get_boolean' | 'set_string'>;
 
-export interface ImportingClient {
+interface ImportingClient {
     readonly state: Pick<ServiceState, 'accounts'> | null;
     importAccounts(legacy: LegacySettings): Promise<ImportResult>;
 }

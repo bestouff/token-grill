@@ -25,7 +25,7 @@ const CALL_TIMEOUT_MS = 30000;
 const NO_TIMEOUT = GLib.MAXINT32;
 const ERROR_PREFIX = `${SERVICE_NAME}.Error.`;
 
-export type ClientKind = 'shell' | 'prefs';
+type ClientKind = 'shell' | 'prefs';
 
 export interface ClientHandlers {
     onStatus(status: ClientStatus): void;
@@ -161,10 +161,6 @@ export class ServiceClient {
         }
         this._dropProxy();
         this.state = null;
-    }
-
-    async getState(): Promise<ServiceState> {
-        return parseState(await this._invoke('GetState'));
     }
 
     async refresh(accountId: string): Promise<void> {

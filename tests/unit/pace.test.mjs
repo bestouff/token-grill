@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
+import {UNTRANSLATED} from './untranslated.mjs';
 import {paceLine} from '../../build/tests/pace.mjs';
 
 const HOUR = 3600 * 1000;

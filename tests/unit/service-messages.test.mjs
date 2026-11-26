@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
-import {codeMessage, SERVICE_MESSAGE_IDS, serviceMessage, serviceStatusContent} from '../../build/tests/service-messages.mjs';
+import {UNTRANSLATED} from './untranslated.mjs';
+import {serviceMessage, serviceStatusContent} from '../../build/tests/service-messages.mjs';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -21,10 +21,16 @@ const CODES = ['auth-missing', 'auth-expired', 'auth-invalid', 'unsupported-acco
 
 const info = (messageId, params = {}, code = 'internal') => ({code, messageId, params, recovery: 'none'});
 
+// The ids of the extension's table, read from its source.
+async function tableIds() {
+    const source = await read('src/core/serviceMessages.ts');
+    return [...source.matchAll(/^ {4}'([a-z0-9-]+\.[a-z0-9-]+)': \{text:/gm)].map(match => match[1]);
+}
+
 test('the table has exactly the message ids of the service', async () => {
     const entries = await catalog();
     assert.ok(entries.size > 50, 'the catalog regex found the entries');
-    assert.deepEqual([...SERVICE_MESSAGE_IDS].sort(), [...entries.keys()].sort());
+    assert.deepEqual((await tableIds()).sort(), [...entries.keys()].sort());
 });
 
 test('each message reads as the service text, with the parameters in place', async () => {
@@ -54,7 +60,7 @@ test('an unknown id or a missing parameter gives the generic text of the code', 
 
 test('every error code has a generic text, internal included', () => {
     for (const code of CODES) {
-        const text = codeMessage(UNTRANSLATED, code);
+        const text = serviceMessage(UNTRANSLATED, info('unknown.id', {}, code));
         assert.equal(typeof text, 'string', code);
         assert.ok(text.length > 0, code);
     }

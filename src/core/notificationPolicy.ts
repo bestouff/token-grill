@@ -38,7 +38,7 @@ function resetText(tr: Translator, resetAt: number | null, now: number): string 
     return formatText(_('Resets in %s'), formatDuration(tr, parts, true));
 }
 
-export function limitNotificationText(
+function limitNotificationText(
     tr: Translator,
     serviceLabel: string,
     instance: Pick<ProviderInstance, 'displayName'>,
@@ -54,7 +54,7 @@ export function limitNotificationText(
     };
 }
 
-export function balanceNotificationText(
+function balanceNotificationText(
     tr: Translator,
     serviceLabel: string,
     instance: Pick<ProviderInstance, 'displayName' | 'lowBalance'>,
@@ -69,7 +69,7 @@ export function balanceNotificationText(
 }
 
 // The account's first top-bar limit as it reads now, so the preview looks like a real alert.
-export function testNotificationText(
+function testNotificationText(
     tr: Translator,
     serviceLabel: string,
     instance: Pick<ProviderInstance, 'kind' | 'displayName'>,

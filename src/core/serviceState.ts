@@ -54,7 +54,7 @@ export function parseAlert(text: string): Alert {
     return parseObject(text, 'alert') as unknown as Alert;
 }
 
-export interface AccountUpdate {
+interface AccountUpdate {
     snapshot: ProviderSnapshot;
     runtime: ProviderRuntimeState;
 }

@@ -1,32 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ACCENT_COLORS, accentHex, accentRgb, normalizeAccent} from '../../build/tests/accent.mjs';
-import {UNTRANSLATED} from '../../build/tests/i18n.mjs';
+import {accentHex, accentRgb} from '../../build/tests/accent.mjs';
+import {UNTRANSLATED} from './untranslated.mjs';
 import * as popupModel from '../../build/tests/popup-model.mjs';
-import {accountGroups, errorText, historySummary, refreshStatusText, shortAccountName, windowCaption} from '../../build/tests/popup-model.mjs';
+import {accountGroups, errorText, historySummary, refreshStatusText, windowCaption} from '../../build/tests/popup-model.mjs';
 
 const provider = (id, kind, displayName, extra = {}) => ({id, kind, displayName, enabled: true, accent: 'blue', localHistoryEnabled: false, panelWindowPreference: 'automatic', ...extra});
 
-test('account accents use the GNOME accent palette and migrate the previous custom names', () => {
-    assert.deepEqual(Object.keys(ACCENT_COLORS), ['blue', 'teal', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'slate']);
-    assert.equal(ACCENT_COLORS.blue, '#3584e4');
-    assert.equal(accentHex('slate'), '#6f8396');
-    assert.equal(accentHex(normalizeAccent('cyan', 'green')), '#2190a4');
+test('account accents use the GNOME accent palette, and a picked colour stays as it is', () => {
+    const palette = ['blue', 'teal', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'slate'];
+    assert.deepEqual(palette.map(accentHex), ['#3584e4', '#2190a4', '#3a944a', '#c88800', '#ed5b00', '#e62d42', '#d56199', '#9141ac', '#6f8396']);
     assert.equal(accentHex('#986a44'), '#986a44');
-    assert.equal(normalizeAccent('cyan', 'green'), 'teal');
-    assert.equal(normalizeAccent('amber', 'green'), 'yellow');
-    assert.equal(normalizeAccent('purple', 'green'), 'purple');
-    assert.equal(normalizeAccent('mauve', 'green'), 'green');
-    assert.equal(normalizeAccent(undefined, 'orange'), 'orange');
 });
 
 test('account names drop the provider prefix only when it is a separate leading word', () => {
-    assert.equal(shortAccountName('Codex - Personal', 'Codex'), 'Personal');
-    assert.equal(shortAccountName('Claude - Sahil', 'Claude'), 'Sahil');
-    assert.equal(shortAccountName('codex: work', 'Codex'), 'work');
-    assert.equal(shortAccountName('Kiro', 'Kiro'), 'Kiro');
-    assert.equal(shortAccountName('Codexical', 'Codex'), 'Codexical');
-    assert.equal(shortAccountName('My Codex', 'Codex'), 'My Codex');
+    const shortName = displayName => accountGroups([provider('a', 'codex', displayName)], 'a', new Map())[0].accounts[0].shortName;
+    assert.equal(shortName('Codex - Personal'), 'Personal');
+    assert.equal(shortName('codex: work'), 'work');
+    assert.equal(shortName('Codex'), 'Codex');
+    assert.equal(shortName('Codexical'), 'Codexical');
+    assert.equal(shortName('My Codex'), 'My Codex');
 });
 
 test('the chooser groups enabled accounts by provider in first-appearance order', () => {

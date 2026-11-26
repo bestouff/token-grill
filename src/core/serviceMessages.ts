@@ -67,10 +67,8 @@ const MESSAGES: Readonly<Record<string, ServiceMessage>> = {
     'opencode.copilot-missing': {text: ({_}) => _('OpenCode is not signed in to GitHub Copilot.')},
 };
 
-export const SERVICE_MESSAGE_IDS: readonly string[] = Object.keys(MESSAGES);
-
 // The text for a message id this extension does not know: a newer service may add ids.
-export function codeMessage({_}: Translator, code: ProviderErrorCode): string {
+function codeMessage({_}: Translator, code: ProviderErrorCode): string {
     const texts: Record<ProviderErrorCode, string> = {
         'auth-missing': _('The account is not signed in.'),
         'auth-expired': _('The sign-in has expired.'),

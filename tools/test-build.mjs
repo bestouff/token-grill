@@ -40,7 +40,6 @@ const MODULES = [
     ['src/core/accent.ts', 'accent.mjs'],
     ['src/core/accountText.ts', 'account-text.mjs'],
     ['src/core/display.ts', 'display.mjs'],
-    ['src/core/i18n.ts', 'i18n.mjs'],
     ['src/core/migration.ts', 'migration.mjs'],
     ['src/core/notificationPolicy.ts', 'notification-policy.mjs'],
     ['src/core/pace.ts', 'pace.mjs'],
